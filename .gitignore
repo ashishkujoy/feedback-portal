@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build & test output
+dist/
+coverage/
+.vite/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Logs & OS
+*.log
+.DS_Store
