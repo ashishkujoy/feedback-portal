@@ -1,0 +1,21 @@
+{
+  "name": "@feedback-portal/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/main.ts",
+    "start": "node src/main.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@feedback-portal/contracts": "workspace:*",
+    "@hono/node-server": "2.1.3",
+    "hono": "4.13.11"
+  },
+  "devDependencies": {
+    "@feedback-portal/tsconfig": "workspace:*",
+    "vitest": "5.0.2"
+  }
+}
