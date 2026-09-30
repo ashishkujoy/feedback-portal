@@ -29,7 +29,7 @@ Update the status in both `PLAN.md` and the board below whenever it changes.
 | Task | Folder | Status |
 |---|---|---|
 | 0.1 Git + monorepo skeleton | [`phase/00-foundation/01-git-monorepo-skeleton`](phase/00-foundation/01-git-monorepo-skeleton/PLAN.md) | Done |
-| 0.2 Shared TS config | [`phase/00-foundation/02-shared-ts-config`](phase/00-foundation/02-shared-ts-config/PLAN.md) | Not started |
+| 0.2 Shared TS config | [`phase/00-foundation/02-shared-ts-config`](phase/00-foundation/02-shared-ts-config/PLAN.md) | Done |
 | 0.3 Lint + format | [`phase/00-foundation/03-lint-format`](phase/00-foundation/03-lint-format/PLAN.md) | Not started |
 | 0.4 Contracts package | [`phase/00-foundation/04-contracts-package`](phase/00-foundation/04-contracts-package/PLAN.md) | Not started |
 

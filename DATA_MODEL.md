@@ -1,4 +1,4 @@
-# STEP Feedback Portal — Data Model
+# Intern Feedback Portal — Data Model
 
 Database: PostgreSQL 17 via Drizzle.
 
@@ -35,7 +35,6 @@ erDiagram
 | cohort | `batches`, `batch_members` |
 | intern | `interns`, `intern_status_events`, `airtable_imports` |
 | feedback | `feedback`, `conversations`, `comments` |
-| shared | `app_settings` |
 
 ## 2. Enums
 
@@ -210,16 +209,6 @@ Indexes: (`intern_id`, `period`); (`intern_id`, `submitted_at`) where `color_cod
 | deleted_at | timestamptz null | Soft delete. The UI shows "comment removed". |
 
 Constraint: `CHECK (num_nonnulls(feedback_id, conversation_id) = 1)`, so each comment belongs to exactly one parent. Indexes: (`feedback_id`, `created_at`) and (`conversation_id`, `created_at`).
-
-### shared
-
-**`app_settings`**: a single row.
-| Column | Type | Notes |
-|---|---|---|
-| id | smallint PK | Always `1` |
-| org_name | text | Default `Thoughtworks` |
-| program_name | text | Default `STEP` |
-| updated_by / updated_at | | |
 
 ## 4. Domain rules (enforced in the domain layer)
 

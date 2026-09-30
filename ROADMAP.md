@@ -1,4 +1,4 @@
-# STEP Feedback Portal — Roadmap
+# Intern Feedback Portal — Roadmap
 
 Each step is small, can be reviewed on its own, and ends in a working state. We finish, verify, and commit one step before starting the next.
 
@@ -53,7 +53,7 @@ This file is the overview. Detailed plans, reviews, findings and status for each
 | 4.2 | **Router + Query**: TanStack Router and TanStack Query providers, plus a layout shell | Navigation works |
 | 4.3 | **API client**: typed fetch that validates responses with the contracts and sends cookies; Vite proxies `/api` to the api | `/me` loads |
 | 4.4 | **Login flow**: login page with the Google button, route guard, user menu, and logout | A user can log in and out end to end |
-| 4.5 | **Branding**: `app_settings` table plus `GET /settings`, and the UI shows the program and org name | Names come from settings |
+| 4.5 | **Branding**: `GET /settings` returns `PROGRAM_NAME` and `ORG_NAME` from config, and the UI shows them | No program or org name is hard-coded in the web app |
 | 4.6 | **Web in Compose + OTel web**: the web container, plus browser traces sent through to the api | A trace runs browser → api → db in Grafana |
 
 ## Phase 5 — Admin: users

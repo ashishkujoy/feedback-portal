@@ -1,4 +1,4 @@
-# STEP Feedback Portal
+# Intern Feedback Portal
 
 A web portal where mentors and program managers of an internship program record intern feedback, color codes, one-on-one conversations and decisions, so everyone works from the same record.
 

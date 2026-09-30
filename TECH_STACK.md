@@ -1,4 +1,4 @@
-# STEP Feedback Portal — Tech Stack
+# Intern Feedback Portal — Tech Stack
 
 Items marked _(chosen)_ were picked to fill gaps in the original list. They can be swapped.
 
@@ -77,7 +77,7 @@ apps/api/src/
 ## 4. Repository layout
 
 ```
-step-feedback-portal/
+feedback-portal/
   apps/
     api/            # Hono backend
     web/            # React + Vite frontend
@@ -102,5 +102,6 @@ step-feedback-portal/
 ## 6. Configuration
 
 - All env vars are validated with Zod at startup. The app refuses to start if config is invalid.
-- Branding is configurable through env or DB settings: `PROGRAM_NAME` (default `STEP`) and `ORG_NAME` (default `Thoughtworks`).
+- Branding comes **only from config**: `PROGRAM_NAME` and `ORG_NAME` are **required** env vars with no defaults. The API serves them to the web app through `GET /settings`.
+- **No program or organisation name is hard-coded** in code, tests, fixtures, `.env.example`, package names, or file and folder names. Code uses neutral names (for example `feedback-portal`, `@feedback-portal/*`). `.env.example` uses placeholders.
 - Secrets: Google client ID and secret, Cloudinary credentials, Airtable token, and session secret. These live in `.env` locally, and `.env.example` is committed.
