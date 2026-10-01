@@ -1,12 +1,27 @@
 import { serve } from '@hono/node-server';
 import { createApp } from './app.ts';
+import { ConfigError, loadConfig } from './shared/config/config.ts';
 
-const PORT = 3000; // Moves to validated config in 1.2.
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
-const server = serve({ fetch: createApp().fetch, port: PORT }, ({ port }) => {
-  process.stdout.write(`api listening on http://localhost:${port}\n`);
-});
+const loadConfigOrExit = (): ReturnType<typeof loadConfig> => {
+  try {
+    return loadConfig(process.env);
+  } catch (error) {
+    if (!(error instanceof ConfigError)) throw error;
+    process.stderr.write(`${error.message}\n`);
+    process.exit(1);
+  }
+};
+
+const config = loadConfigOrExit();
+
+const server = serve(
+  { fetch: createApp().fetch, hostname: config.server.host, port: config.server.port },
+  ({ port }) => {
+    process.stdout.write(`api listening on http://localhost:${port} (${config.env})\n`);
+  },
+);
 
 const shutdown = (signal: NodeJS.Signals): void => {
   process.stdout.write(`${signal} received, shutting down\n`);

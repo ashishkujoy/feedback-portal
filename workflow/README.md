@@ -38,7 +38,7 @@ Update the status in both `PLAN.md` and the board below whenever it changes.
 | Task | Folder | Status |
 |---|---|---|
 | 1.1 Hono app | [`phase/01-backend-skeleton/01-hono-app`](phase/01-backend-skeleton/01-hono-app/PLAN.md) | Done |
-| 1.2 Config | [`phase/01-backend-skeleton/02-config`](phase/01-backend-skeleton/02-config/PLAN.md) | Not started |
+| 1.2 Config | [`phase/01-backend-skeleton/02-config`](phase/01-backend-skeleton/02-config/PLAN.md) | Done |
 | 1.3 Logging | [`phase/01-backend-skeleton/03-logging`](phase/01-backend-skeleton/03-logging/PLAN.md) | Not started |
 | 1.4 Error handling | [`phase/01-backend-skeleton/04-error-handling`](phase/01-backend-skeleton/04-error-handling/PLAN.md) | Not started |
 | 1.5 Postgres + Drizzle | [`phase/01-backend-skeleton/05-postgres-drizzle`](phase/01-backend-skeleton/05-postgres-drizzle/PLAN.md) | Not started |
