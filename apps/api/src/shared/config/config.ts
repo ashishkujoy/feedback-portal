@@ -3,6 +3,9 @@ import { z } from 'zod';
 const required = z.string({ error: 'required' });
 const portError = 'expected an integer between 1 and 65535';
 
+export const logLevels = ['trace', 'debug', 'info', 'warning', 'error', 'fatal'] as const;
+export const logFormats = ['json', 'pretty'] as const;
+
 const EnvSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'test', 'production'], {
@@ -16,6 +19,12 @@ const EnvSchema = z.object({
     .min(1, { error: portError })
     .max(65_535, { error: portError })
     .default(3000),
+  LOG_LEVEL: z
+    .enum(logLevels, { error: `expected one of ${logLevels.join(', ')}` })
+    .default('info'),
+  LOG_FORMAT: z
+    .enum(logFormats, { error: `expected one of ${logFormats.join(', ')}` })
+    .default('json'),
   PROGRAM_NAME: required,
   ORG_NAME: required,
 });
@@ -26,7 +35,13 @@ type EnvKey = (typeof envKeys)[number];
 export type Config = Readonly<{
   env: 'development' | 'test' | 'production';
   server: Readonly<{ host: string; port: number }>;
+  log: LogConfig;
   branding: Readonly<{ programName: string; orgName: string }>;
+}>;
+
+export type LogConfig = Readonly<{
+  level: (typeof logLevels)[number];
+  format: (typeof logFormats)[number];
 }>;
 
 export type ConfigIssue = Readonly<{ key: string; message: string }>;
@@ -67,10 +82,11 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => {
     );
   }
 
-  const { NODE_ENV, HOST, PORT, PROGRAM_NAME, ORG_NAME } = result.data;
+  const { NODE_ENV, HOST, PORT, LOG_LEVEL, LOG_FORMAT, PROGRAM_NAME, ORG_NAME } = result.data;
   return Object.freeze({
     env: NODE_ENV,
     server: Object.freeze({ host: HOST, port: PORT }),
+    log: Object.freeze({ level: LOG_LEVEL, format: LOG_FORMAT }),
     branding: Object.freeze({ programName: PROGRAM_NAME, orgName: ORG_NAME }),
   });
 };

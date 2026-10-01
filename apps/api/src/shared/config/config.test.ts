@@ -18,6 +18,7 @@ describe('loadConfig', () => {
     expect(loadConfig(validEnv)).toEqual({
       env: 'development',
       server: { host: '0.0.0.0', port: 3000 },
+      log: { level: 'info', format: 'json' },
       branding: { programName: 'Test Program', orgName: 'Test Org' },
     });
   });
@@ -28,10 +29,13 @@ describe('loadConfig', () => {
       NODE_ENV: 'production',
       HOST: '127.0.0.1',
       PORT: '8080',
+      LOG_LEVEL: 'debug',
+      LOG_FORMAT: 'pretty',
     });
 
     expect(config.env).toBe('production');
     expect(config.server).toEqual({ host: '127.0.0.1', port: 8080 });
+    expect(config.log).toEqual({ level: 'debug', format: 'pretty' });
   });
 
   it('trims values', () => {
@@ -65,6 +69,13 @@ describe('loadConfig', () => {
     ]);
   });
 
+  it('rejects invalid LOG_LEVEL and LOG_FORMAT', () => {
+    expect(issuesFor({ ...validEnv, LOG_LEVEL: 'verbose', LOG_FORMAT: 'xml' })).toEqual([
+      { key: 'LOG_LEVEL', message: 'expected one of trace, debug, info, warning, error, fatal' },
+      { key: 'LOG_FORMAT', message: 'expected one of json, pretty' },
+    ]);
+  });
+
   it('never includes supplied values in the error message', () => {
     const secret = 'sentinel-secret-value';
     let message = '';
@@ -83,6 +94,7 @@ describe('loadConfig', () => {
 
     expect(Object.isFrozen(config)).toBe(true);
     expect(Object.isFrozen(config.server)).toBe(true);
+    expect(Object.isFrozen(config.log)).toBe(true);
     expect(Object.isFrozen(config.branding)).toBe(true);
   });
 
