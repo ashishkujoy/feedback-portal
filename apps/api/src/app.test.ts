@@ -1,4 +1,4 @@
-import { HealthResponse } from '@feedback-portal/contracts';
+import { HealthResponse, ProblemDetails } from '@feedback-portal/contracts';
 import { describe, expect, it } from 'vitest';
 import { createApp } from './app.ts';
 
@@ -13,9 +13,11 @@ describe('api app', () => {
     expect(HealthResponse.parse(await res.json())).toEqual({ status: 'ok' });
   });
 
-  it('returns 404 for unknown routes', async () => {
+  it('returns a 404 problem for unknown routes', async () => {
     const res = await app.request('/does-not-exist');
 
     expect(res.status).toBe(404);
+    expect(res.headers.get('content-type')).toBe('application/problem+json');
+    expect(ProblemDetails.parse(await res.json()).code).toBe('not_found');
   });
 });

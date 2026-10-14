@@ -1,0 +1,27 @@
+import { z } from 'zod';
+
+/** Stable, machine-readable error codes. Clients switch on these, never on `title`/`detail`. */
+export const ErrorCode = z.enum([
+  'validation_failed',
+  'unauthenticated',
+  'forbidden',
+  'not_found',
+  'conflict',
+  'internal',
+]);
+export type ErrorCode = z.infer<typeof ErrorCode>;
+
+export const FieldIssue = z.object({ path: z.string(), message: z.string() });
+export type FieldIssue = z.infer<typeof FieldIssue>;
+
+/** RFC 9457 problem details, served as `application/problem+json`. */
+export const ProblemDetails = z.object({
+  type: z.string(),
+  title: z.string(),
+  status: z.number().int().min(400).max(599),
+  code: ErrorCode,
+  detail: z.string().optional(),
+  requestId: z.string(),
+  errors: z.array(FieldIssue).optional(),
+});
+export type ProblemDetails = z.infer<typeof ProblemDetails>;

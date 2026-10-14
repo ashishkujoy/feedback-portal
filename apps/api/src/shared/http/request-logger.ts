@@ -1,6 +1,7 @@
 import { getLogger, withContext } from '@logtape/logtape';
 import { createMiddleware } from 'hono/factory';
 import { rootCategory } from '../logging/logging.ts';
+import type { AppEnv } from './app-env.ts';
 
 const requestIdHeader = 'x-request-id';
 /** Incoming IDs outside this charset/length are replaced, to prevent log injection. */
@@ -17,8 +18,9 @@ const resolveRequestId = (incoming: string | undefined): string =>
  * and logs one record per request. `path` excludes the query string, which can carry tokens.
  */
 export const requestLogger = () =>
-  createMiddleware(async (c, next) => {
+  createMiddleware<AppEnv>(async (c, next) => {
     const requestId = resolveRequestId(c.req.header(requestIdHeader));
+    c.set('requestId', requestId);
     const start = performance.now();
 
     await withContext({ requestId }, next);
