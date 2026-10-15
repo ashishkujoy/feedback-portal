@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "db:generate": "pnpm --filter @feedback-portal/api db:generate",
+    "db:migrate": "pnpm --filter @feedback-portal/api db:migrate",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "lint": "oxlint --type-aware --deny-warnings",

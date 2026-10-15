@@ -1,6 +1,6 @@
 # Intern Feedback Portal — Data Model
 
-Database: PostgreSQL 17 via Drizzle.
+Database: PostgreSQL 18 (18.6) via Drizzle.
 
 Conventions:
 - **Primary keys:** `uuid` (v7, time-sortable, generated in the app).

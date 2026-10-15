@@ -22,7 +22,7 @@ The `grafana/otel-lgtm` image runs an OTel Collector, Tempo (traces), Loki (logs
 | Concern | Choice |
 |---|---|
 | HTTP framework | Hono (`@hono/node-server`), with `@hono/zod-validator` using the shared contracts |
-| Database | PostgreSQL 17 |
+| Database | PostgreSQL 18 (18.6; image `postgres:18.6-alpine`) |
 | ORM / migrations | Drizzle ORM + drizzle-kit |
 | Architecture | Domain-Driven Design. Details below |
 | Auth | Google OAuth 2.0 / OIDC using **Arctic** _(chosen)_. Only emails an admin has added can sign in. Sessions are stored server-side in Postgres, and the browser holds an HttpOnly, Secure, SameSite=Lax cookie |
@@ -94,7 +94,7 @@ feedback-portal/
 
 | Service | Purpose | Port |
 |---|---|---|
-| `postgres` | Postgres 17 | 5432 |
+| `postgres` | Postgres 18.6 | 5433 on the host (avoids a local Postgres on 5432) → 5432 in the container |
 | `api` | Hono API | 3000 |
 | `web` | Vite dev server locally; static build served by nginx in production | 5173 |
 | `otel-lgtm` | OTel Collector + Grafana UI | 4317/4318 (OTLP), 3001 (Grafana) |

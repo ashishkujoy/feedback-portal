@@ -6,7 +6,8 @@ import type { AppEnv } from './app-env.ts';
 const requestIdHeader = 'x-request-id';
 /** Incoming IDs outside this charset/length are replaced, to prevent log injection. */
 const safeRequestId = /^[\w.-]{1,128}$/;
-const skippedPaths = new Set(['/health']);
+/** Probe endpoints, hit every few seconds by Docker/load balancers. */
+const skippedPaths = new Set(['/health', '/health/ready']);
 
 const logger = getLogger([rootCategory, 'http']);
 

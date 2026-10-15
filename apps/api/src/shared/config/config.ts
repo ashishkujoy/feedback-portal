@@ -3,6 +3,12 @@ import { z } from 'zod';
 const required = z.string({ error: 'required' });
 const portError = 'expected an integer between 1 and 65535';
 
+const poolMaxError = 'expected an integer between 1 and 100';
+const databaseUrlError = 'expected a postgres:// or postgresql:// URL';
+
+const isPostgresUrl = (value: string): boolean =>
+  URL.canParse(value) && ['postgres:', 'postgresql:'].includes(new URL(value).protocol);
+
 export const logLevels = ['trace', 'debug', 'info', 'warning', 'error', 'fatal'] as const;
 export const logFormats = ['json', 'pretty'] as const;
 
@@ -25,6 +31,13 @@ const EnvSchema = z.object({
   LOG_FORMAT: z
     .enum(logFormats, { error: `expected one of ${logFormats.join(', ')}` })
     .default('json'),
+  DATABASE_URL: required.refine(isPostgresUrl, { error: databaseUrlError }),
+  DATABASE_POOL_MAX: z.coerce
+    .number({ error: poolMaxError })
+    .int({ error: poolMaxError })
+    .min(1, { error: poolMaxError })
+    .max(100, { error: poolMaxError })
+    .default(10),
   PROGRAM_NAME: required,
   ORG_NAME: required,
 });
@@ -36,6 +49,7 @@ export type Config = Readonly<{
   env: 'development' | 'test' | 'production';
   server: Readonly<{ host: string; port: number }>;
   log: LogConfig;
+  db: DbConfig;
   branding: Readonly<{ programName: string; orgName: string }>;
 }>;
 
@@ -43,6 +57,9 @@ export type LogConfig = Readonly<{
   level: (typeof logLevels)[number];
   format: (typeof logFormats)[number];
 }>;
+
+/** `url` contains credentials: never log or print it. */
+export type DbConfig = Readonly<{ url: string; poolMax: number }>;
 
 export type ConfigIssue = Readonly<{ key: string; message: string }>;
 
@@ -82,11 +99,22 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => {
     );
   }
 
-  const { NODE_ENV, HOST, PORT, LOG_LEVEL, LOG_FORMAT, PROGRAM_NAME, ORG_NAME } = result.data;
+  const {
+    NODE_ENV,
+    HOST,
+    PORT,
+    LOG_LEVEL,
+    LOG_FORMAT,
+    DATABASE_URL,
+    DATABASE_POOL_MAX,
+    PROGRAM_NAME,
+    ORG_NAME,
+  } = result.data;
   return Object.freeze({
     env: NODE_ENV,
     server: Object.freeze({ host: HOST, port: PORT }),
     log: Object.freeze({ level: LOG_LEVEL, format: LOG_FORMAT }),
+    db: Object.freeze({ url: DATABASE_URL, poolMax: DATABASE_POOL_MAX }),
     branding: Object.freeze({ programName: PROGRAM_NAME, orgName: ORG_NAME }),
   });
 };

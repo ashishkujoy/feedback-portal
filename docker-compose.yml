@@ -1,0 +1,24 @@
+# Local development stack. 2.1 adds the api; later tasks add web and otel-lgtm.
+name: feedback-portal
+
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    environment:
+      # Local-only credentials; must match DATABASE_URL in apps/api/.env.
+      POSTGRES_USER: feedback
+      POSTGRES_PASSWORD: feedback
+      POSTGRES_DB: feedback_portal
+    ports:
+      - '5433:5432' # 5433 on the host avoids clashing with a local Postgres on 5432
+    volumes:
+      # Postgres 18 images keep PGDATA under /var/lib/postgresql/18/docker.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U feedback -d feedback_portal']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:

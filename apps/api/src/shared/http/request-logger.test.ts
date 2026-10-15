@@ -5,6 +5,8 @@ import { createApp } from '../../app.ts';
 import { configureLogging } from '../logging/logging.ts';
 import { requestLogger } from './request-logger.ts';
 
+const createTestApp = () => createApp({ ping: () => Promise.resolve() });
+
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 describe('requestLogger', () => {
@@ -21,7 +23,7 @@ describe('requestLogger', () => {
   });
 
   it('logs method, path, status, duration and requestId once per request', async () => {
-    const res = await createApp().request('/nope?code=secret-token');
+    const res = await createTestApp().request('/nope?code=secret-token');
 
     expect(res.status).toBe(404);
     expect(httpRecords()).toHaveLength(1);
@@ -37,8 +39,8 @@ describe('requestLogger', () => {
     expect(JSON.stringify(record)).not.toContain('secret-token');
   });
 
-  it('does not log /health', async () => {
-    const res = await createApp().request('/health?probe=1');
+  it.each(['/health?probe=1', '/health/ready'])('does not log the %s probe', async (path) => {
+    const res = await createTestApp().request(path);
 
     expect(res.status).toBe(200);
     expect(res.headers.get('x-request-id')).toMatch(uuid);
@@ -46,7 +48,9 @@ describe('requestLogger', () => {
   });
 
   it('reuses and echoes a safe incoming x-request-id', async () => {
-    const res = await createApp().request('/nope', { headers: { 'x-request-id': 'abc-123.X_y' } });
+    const res = await createTestApp().request('/nope', {
+      headers: { 'x-request-id': 'abc-123.X_y' },
+    });
 
     expect(res.headers.get('x-request-id')).toBe('abc-123.X_y');
     expect(httpRecords()[0]?.properties['requestId']).toBe('abc-123.X_y');
@@ -57,7 +61,7 @@ describe('requestLogger', () => {
     ['contains a quote', 'a"b'],
     ['is too long', 'a'.repeat(129)],
   ])('replaces an incoming x-request-id that %s', async (_, incoming) => {
-    const res = await createApp().request('/nope', { headers: { 'x-request-id': incoming } });
+    const res = await createTestApp().request('/nope', { headers: { 'x-request-id': incoming } });
 
     expect(res.headers.get('x-request-id')).toMatch(uuid);
     expect(httpRecords()[0]?.properties['requestId']).toMatch(uuid);

@@ -10,6 +10,7 @@ const titles: Readonly<Record<number, string>> = {
   404: 'Not Found',
   409: 'Conflict',
   500: 'Internal Server Error',
+  503: 'Service Unavailable',
 };
 
 type ProblemInput = Omit<ProblemDetails, 'type' | 'title' | 'requestId' | 'status'> & {

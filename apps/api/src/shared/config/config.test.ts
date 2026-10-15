@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ConfigError, loadConfig } from './config.ts';
 
-const validEnv = { PROGRAM_NAME: 'Test Program', ORG_NAME: 'Test Org' };
+const dbUrl = 'postgres://user:pw@localhost:5432/app';
+const validEnv = { PROGRAM_NAME: 'Test Program', ORG_NAME: 'Test Org', DATABASE_URL: dbUrl };
 
 const issuesFor = (env: NodeJS.ProcessEnv): readonly { key: string; message: string }[] => {
   try {
@@ -19,6 +20,7 @@ describe('loadConfig', () => {
       env: 'development',
       server: { host: '0.0.0.0', port: 3000 },
       log: { level: 'info', format: 'json' },
+      db: { url: dbUrl, poolMax: 10 },
       branding: { programName: 'Test Program', orgName: 'Test Org' },
     });
   });
@@ -46,6 +48,7 @@ describe('loadConfig', () => {
 
   it('reports every missing required variable at once', () => {
     expect(issuesFor({})).toEqual([
+      { key: 'DATABASE_URL', message: 'required' },
       { key: 'PROGRAM_NAME', message: 'required' },
       { key: 'ORG_NAME', message: 'required' },
     ]);
@@ -76,11 +79,33 @@ describe('loadConfig', () => {
     ]);
   });
 
+  it.each(['postgresql://h/db', 'postgres://u:p@h:5433/db?sslmode=require'])(
+    'accepts DATABASE_URL %s',
+    (url) => {
+      expect(loadConfig({ ...validEnv, DATABASE_URL: url }).db.url).toBe(url);
+    },
+  );
+
+  it.each(['mysql://h/db', 'localhost:5432/db', 'not a url'])('rejects DATABASE_URL %s', (url) => {
+    expect(issuesFor({ ...validEnv, DATABASE_URL: url })).toEqual([
+      { key: 'DATABASE_URL', message: 'expected a postgres:// or postgresql:// URL' },
+    ]);
+  });
+
+  it('reads DATABASE_POOL_MAX and rejects out-of-range values', () => {
+    expect(loadConfig({ ...validEnv, DATABASE_POOL_MAX: '25' }).db.poolMax).toBe(25);
+    for (const value of ['0', '101', 'x']) {
+      expect(issuesFor({ ...validEnv, DATABASE_POOL_MAX: value })).toEqual([
+        { key: 'DATABASE_POOL_MAX', message: 'expected an integer between 1 and 100' },
+      ]);
+    }
+  });
+
   it('never includes supplied values in the error message', () => {
     const secret = 'sentinel-secret-value';
     let message = '';
     try {
-      loadConfig({ PORT: secret, NODE_ENV: secret });
+      loadConfig({ PORT: secret, NODE_ENV: secret, DATABASE_URL: `mysql://u:${secret}@h/db` });
     } catch (error) {
       message = error instanceof Error ? error.message : '';
     }
@@ -95,6 +120,7 @@ describe('loadConfig', () => {
     expect(Object.isFrozen(config)).toBe(true);
     expect(Object.isFrozen(config.server)).toBe(true);
     expect(Object.isFrozen(config.log)).toBe(true);
+    expect(Object.isFrozen(config.db)).toBe(true);
     expect(Object.isFrozen(config.branding)).toBe(true);
   });
 

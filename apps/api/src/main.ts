@@ -1,25 +1,16 @@
 import { serve } from '@hono/node-server';
 import { dispose, getLogger } from '@logtape/logtape';
 import { createApp } from './app.ts';
-import { ConfigError, loadConfig } from './shared/config/config.ts';
+import { loadConfigOrExit } from './shared/config/load-config-or-exit.ts';
+import { createDb } from './shared/db/client.ts';
 import { configureLogging, rootCategory } from './shared/logging/logging.ts';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
-// Logging isn't configured until config loads, so config errors go to stderr as plain text.
-const loadConfigOrExit = (): ReturnType<typeof loadConfig> => {
-  try {
-    return loadConfig(process.env);
-  } catch (error) {
-    if (!(error instanceof ConfigError)) throw error;
-    process.stderr.write(`${error.message}\n`);
-    process.exit(1);
-  }
-};
-
 const config = loadConfigOrExit();
 await configureLogging(config.log);
 const logger = getLogger([rootCategory]);
+const database = createDb(config.db);
 
 const exit = async (code: number): Promise<never> => {
   await dispose(); // flush buffered records
@@ -27,7 +18,11 @@ const exit = async (code: number): Promise<never> => {
 };
 
 const server = serve(
-  { fetch: createApp().fetch, hostname: config.server.host, port: config.server.port },
+  {
+    fetch: createApp({ ping: database.ping }).fetch,
+    hostname: config.server.host,
+    port: config.server.port,
+  },
   ({ port }) => {
     logger.info('api listening on http://localhost:{port}', {
       host: config.server.host,
@@ -37,16 +32,31 @@ const server = serve(
   },
 );
 
-const shutdown = (signal: NodeJS.Signals): void => {
+const closeServer = (): Promise<void> =>
+  new Promise((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+    if ('closeIdleConnections' in server) server.closeIdleConnections();
+  });
+
+const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
   logger.info('{signal} received, shutting down', { signal });
   // Force-exit if in-flight requests don't finish in time.
   setTimeout(() => {
     logger.error('shutdown timed out after {timeoutMs}ms', { timeoutMs: SHUTDOWN_TIMEOUT_MS });
     void exit(1);
   }, SHUTDOWN_TIMEOUT_MS).unref();
-  server.close((error) => void exit(error ? 1 : 0));
-  if ('closeIdleConnections' in server) server.closeIdleConnections();
+
+  try {
+    await closeServer(); // stop accepting requests; wait for in-flight ones
+    await database.close(); // then drain and close the pool
+    await exit(0);
+  } catch (error) {
+    logger.error('shutdown failed: {error}', { error });
+    await exit(1);
+  }
 };
 
-process.once('SIGINT', shutdown);
-process.once('SIGTERM', shutdown);
+const onSignal = (signal: NodeJS.Signals): void => void shutdown(signal);
+
+process.once('SIGINT', onSignal);
+process.once('SIGTERM', onSignal);

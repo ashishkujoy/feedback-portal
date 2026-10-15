@@ -38,6 +38,7 @@ describe('ProblemDetails', () => {
       'not_found',
       'conflict',
       'internal',
+      'unavailable',
     ]);
   });
 });

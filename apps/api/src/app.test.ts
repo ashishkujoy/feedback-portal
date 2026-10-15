@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { createApp } from './app.ts';
 
 describe('api app', () => {
-  const app = createApp();
+  const app = createApp({ ping: () => Promise.reject(new Error('db down')) });
 
-  it('GET /health returns 200 with the health contract', async () => {
+  it('GET /health returns 200 without touching the DB', async () => {
     const res = await app.request('/health');
 
     expect(res.status).toBe(200);
