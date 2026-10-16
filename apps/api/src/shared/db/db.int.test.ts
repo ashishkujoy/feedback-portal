@@ -1,7 +1,11 @@
 import { sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { resetDb, useTestDb } from '../../../test/test-db.ts';
+import journal from '../../../drizzle/meta/_journal.json' with { type: 'json' };
 import { createApp } from '../../app.ts';
+
+/** Every generated migration is applied to the template. */
+const migrationCount = journal.entries.length;
 
 const testDb = useTestDb();
 
@@ -30,7 +34,7 @@ describe('test database harness', () => {
     );
 
     expect(extensions.rows).toHaveLength(1);
-    expect(await count('drizzle', '__drizzle_migrations')).toBe(1);
+    expect(await count('drizzle', '__drizzle_migrations')).toBe(migrationCount);
   });
 
   it('pings the real database', async () => {
@@ -55,7 +59,7 @@ describe('resetDb', () => {
     await resetDb(testDb.handle);
 
     expect(await count('public', 'scratch')).toBe(0);
-    expect(await count('drizzle', '__drizzle_migrations')).toBe(1);
+    expect(await count('drizzle', '__drizzle_migrations')).toBe(migrationCount);
     await db.execute(sql`insert into scratch (note) values ('left behind')`);
   });
 

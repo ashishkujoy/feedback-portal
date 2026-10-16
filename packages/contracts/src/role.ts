@@ -1,4 +1,7 @@
 import { z } from 'zod';
 
-export const Role = z.enum(['admin', 'mentor', 'program_manager']);
+/** Tuple form, for consumers that need the literal list (e.g. the Postgres enum). */
+export const roles = ['admin', 'mentor', 'program_manager'] as const;
+
+export const Role = z.enum(roles);
 export type Role = z.infer<typeof Role>;

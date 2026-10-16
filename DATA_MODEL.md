@@ -3,7 +3,7 @@
 Database: PostgreSQL 18 (18.6) via Drizzle.
 
 Conventions:
-- **Primary keys:** `uuid` (v7, time-sortable, generated in the app).
+- **Primary keys:** `uuid` v7 (time-sortable). The app generates them (`newId()` in `shared/ids.ts`), so an entity has its ID before it is saved. Columns also default to Postgres 18's `uuidv7()`, for rows inserted by hand.
 - **Timestamps:** `timestamptz`.
 - **Column names:** `snake_case`.
 - **Enums:** defined once in `packages/contracts` (Zod) and mirrored as Postgres enums.
@@ -61,7 +61,7 @@ Color codes have a fixed **severity order**, used for sorting and trend charts. 
 | Column | Type | Notes |
 |---|---|---|
 | id | uuid PK | |
-| email | text | Stored lower-cased. Unique index on `email`. |
+| email | citext | Unique, case-insensitive at the DB level. The app also trims and lower-cases it. |
 | name | text | |
 | google_sub | text null | Unique. Filled on first Google sign-in. |
 | avatar_url | text null | From the Google profile |
@@ -74,7 +74,7 @@ Color codes have a fixed **severity order**, used for sorting and trend charts. 
 |---|---|---|
 | user_id | uuid FK → users | |
 | role | `role` | |
-| granted_by | uuid FK → users | |
+| granted_by | uuid FK → users null | `NULL` = granted by the system (the bootstrap admin seed, 3.4) |
 | granted_at | timestamptz | |
 | | | PK (`user_id`, `role`) |
 
@@ -82,8 +82,8 @@ Color codes have a fixed **severity order**, used for sorting and trend charts. 
 | Column | Type | Notes |
 |---|---|---|
 | id | text PK | SHA-256 hash of the session token. The raw token exists only in the cookie. |
-| user_id | uuid FK → users | |
-| expires_at | timestamptz | Sliding expiry |
+| user_id | uuid FK → users | Indexed, to revoke all of a user's sessions |
+| expires_at | timestamptz | Sliding expiry. Indexed, for cleanup. |
 | user_agent / ip | text null | |
 | created_at | timestamptz | |
 

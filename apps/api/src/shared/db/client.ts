@@ -25,7 +25,7 @@ export const createDb = ({ url, poolMax }: DbConfig): DbHandle => {
   pool.on('error', (error) => {
     logger.warning('idle database connection failed: {error}', { error });
   });
-  const db = drizzle({ client: pool });
+  const db = drizzle({ client: pool, casing: 'snake_case' });
 
   return {
     db,
