@@ -28,14 +28,14 @@ The UI is designed in Claude Design. **All UI work follows these screens** (see 
 | A3 / P3 / M3 | Batch · interns, table | `view=table` | Columns: Intern, Colour code, Status, Feedback, Last feedback, action. Footer: "Showing 1–12 of 68". |
 | A4 / P4 / M4 | Batch · mentors | `tab=mentors` | Columns: Mentor, Email, Feedback given, Last feedback. Managers also get **Remove**. |
 | A5 / P5 / M5 | Batch · notice tracker | `tab=notice` | An "On notice" table with Intern, Colour, Issued, Ends, a remaining-days progress bar (red when 7 days or fewer are left) and Issued by. Managers also get **Lift notice** and **Terminate**. Below it, a "Terminated" list. |
-| A6 / P6 / M6 | Intern profile | `screen=intern` | Header with **Lift notice**, **Terminate intern** (managers) and **Give feedback**. A notice callout. **Feedback history**: each entry has the author, date, colour, a Notice badge, the markdown body, its conversation (recorded, or "Awaiting conversation" with **Record conversation** for managers), comments with an "Add a comment" box, and **Delete feedback** (managers). Side panel: current colour (from the latest coloured feedback), notice countdown, colour history and the batch's mentors. |
+| A6 / P6 / M6 | Intern profile | `screen=intern` | Header with **Lift notice**, **Terminate intern** (managers) and **Give feedback**. A notice callout. **Feedback history**: each entry has the author, date, colour, a Notice badge, the markdown body, its conversation (recorded, or "Awaiting conversation" with **Record conversation** for managers), and comments with an "Add a comment" box. (The design's **Delete feedback** button is not built; see decision 6.) Side panel: current colour (from the latest coloured feedback), notice countdown, colour history and the batch's mentors. |
 | A7 / P7 / M7 | Give feedback (dialog) | `dialog=feedback` | Colour code radio list (No colour, Green, Yellow, Orange, Red), each with a description. **Mark as notice** switch. A markdown editor with Write/Preview and B/I buttons. **Submit feedback**. |
 | A8 / P8 | Record conversation (dialog) | `dialog=conversation` | Shows the feedback being delivered. Fields: date delivered, delivered by, markdown notes. **Save conversation**. |
 | A9 / P9 | Create batch (dialog) | `dialog=createBatch` | Fields: batch name, start date, end date, programme manager. |
 | A10 / P10 | Import from Airtable (dialog) | `dialog=airtable` | Fields: API key (not stored), table ID, view name. **Test connection** shows a "68 records found" callout with how many are new and how many are updates. Existing interns are matched by username. |
 | A11 / P11 | Assign mentors (dialog) | `dialog=assignMentors` | Mentor search and a checklist showing each mentor's current load. **Save mentors**. |
 | A12 | Users and roles | `screen=users` | Role tabs (All, Admins, Programme managers, Mentors) and search by name or email. Columns: Name, Email, a Role select, Batches. **Remove**. |
-| A13 | Add user (dialog) | `dialog=addUser` | Full name, email and role. **Send invite**. |
+| A13 | Add user (dialog) | `dialog=addUser` | Full name, email and role. The design says **Send invite**, but there is no invite; see decision 5. |
 | MM1–MM5 | Mentor · mobile | `device=mobile`, `mscreen=batches\|interns\|intern\|feedback\|comment` | My batches, a batch's interns (search and filter tags), intern feedback history, give feedback (full-screen form), and a feedback detail with its conversation and comments. |
 
 **Role visibility in the screens:**
@@ -76,7 +76,6 @@ Decided 2026-10-16. PRODUCT.md, DATA_MODEL.md, TECH_STACK.md, ROADMAP.md and con
 | 3 | Roles per user | **As in PRODUCT.md: several roles per user.** The design's single Role select on Users and roles must become a multi-select (or a set of checkboxes). |
 | 4 | Airtable import | **As designed.** An admin or the batch's PM can import repeatedly. Interns are matched by `username`; new ones are added and existing ones updated. |
 
-**Still open (ask before building these):**
-- **Add user:** the design says "Send invite" by email. PRODUCT.md only says an admin adds the email and the user signs in with Google.
-- **Deleting feedback:** the design lets managers delete feedback. PRODUCT.md doesn't cover it.
-- **End of notice:** the design's copy says the intern "is terminated at the end unless it is lifted", but the tracker also has a manual **Terminate** button. It's undecided whether termination is automatic or always a PM action.
+| 5 | Adding users | **As in PRODUCT.md.** An admin adds the user's email and roles, and the user signs in with Google. **No invite email is sent.** In the Add user dialog, replace "Send invite" with "Add user", and change the "They receive an email invite" copy to say they can sign in with Google using that email. |
+| 6 | Deleting feedback | **Not allowed.** Leave the design's **Delete feedback** button out of the intern profile. |
+| 7 | End of notice | **Termination is always manual.** Nothing happens automatically when the notice period ends; the PM uses **Terminate** (or **Lift notice**). Don't use the design's "is terminated at the end unless it is lifted" copy. Say instead that the PM can lift the notice or terminate the intern. |

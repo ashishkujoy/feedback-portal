@@ -274,3 +274,5 @@ Constraint: `CHECK (num_nonnulls(feedback_id, conversation_id) = 1)`, so each co
 2. **An intern cannot be terminated without first going through notice.** If immediate termination is needed, add `active → terminated`.
 3. **Comments can go on both feedback entries and conversations.** For example, a mentor adds context to another mentor's feedback.
 4. **Admins without a batch assignment are read-only** for that batch's feedback.
+5. **Feedback is never deleted.** There is no delete endpoint or soft-delete column.
+6. **Termination is manual.** `notice_ends_on` passing changes nothing by itself; the PM terminates or lifts the notice.

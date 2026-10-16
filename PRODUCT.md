@@ -114,6 +114,7 @@ The original scale had only Green, Yellow, Orange, and Red. Over time, several i
 | 5 | Airtable | **Repeatable import per batch**, run by an admin or the batch's PM. Interns are matched by **username**: new ones are added and existing ones are updated. Fields edited in the portal are part of the intern record, so a re-import overwrites only the fields that come from Airtable. |
 | 6 | Authentication | **Google sign-in.** Only users an admin has already added (by email) can sign in. |
 | 7 | Visibility | Mentors and PMs see **only the batches they are currently assigned to**. Admins can see all batches. |
+| 8 | Deleting feedback | **Feedback cannot be deleted.** Every entry stays on the record. Context or corrections are added as comments. |
 
 ## 10. Intern Status Lifecycle
 
@@ -135,6 +136,8 @@ Color code and status are separate:
 3. **Leaving notice:** While an intern is On Notice, the PM can either:
    - **lift** the notice, which sets the status back to **Active** (for example, because the intern improved), or
    - **terminate** the intern, which sets the status to **Terminated**.
+
+   Nothing happens automatically when the notice period ends. Termination is always a **manual** PM action.
 4. **Closing out:** The PM can mark an intern **Graduated** or **Withdrawn**. The PM must give a short reason or note.
 5. **History:** Every status change is stored with who made it, when, the reason, and a link to the related feedback or conversation. This gives a full timeline when an intern graduates or leaves.
 
