@@ -100,10 +100,54 @@ const TraceExport = z.object({
 const MetricExport = z.object({
   resourceMetrics: z.array(
     z.object({
-      scopeMetrics: z.array(z.object({ metrics: z.array(z.object({ name: z.string() })) })),
+      scopeMetrics: z.array(
+        z.object({
+          metrics: z.array(
+            z.object({
+              name: z.string(),
+              histogram: z
+                .object({
+                  dataPoints: z.array(z.object({ attributes: OtlpSpan.shape.attributes })),
+                })
+                .optional(),
+            }),
+          ),
+        }),
+      ),
     }),
   ),
 });
+
+const OtlpLog = z.object({
+  body: z.object({ stringValue: z.string() }).optional(),
+  traceId: z.string().optional(),
+  spanId: z.string().optional(),
+});
+type OtlpLog = z.infer<typeof OtlpLog>;
+const LogExport = z.object({
+  resourceLogs: z.array(
+    z.object({ scopeLogs: z.array(z.object({ logRecords: z.array(OtlpLog) })) }),
+  ),
+});
+
+/** One stdout JSON line from `jsonLinesFormatter`; only the fields asserted on. */
+const StdoutRecord = z.object({
+  logger: z.string(),
+  properties: z.record(z.string(), z.unknown()),
+});
+
+const logsOf = (received: Received[]): OtlpLog[] =>
+  received
+    .filter(({ path }) => path === '/v1/logs')
+    .flatMap(({ body }) => LogExport.parse(body).resourceLogs)
+    .flatMap(({ scopeLogs }) => scopeLogs)
+    .flatMap(({ logRecords }) => logRecords);
+
+const stdoutRecords = (output: string) =>
+  output
+    .split('\n')
+    .filter((line) => line.startsWith('{'))
+    .map((line) => StdoutRecord.parse(JSON.parse(line)));
 
 const spansOf = (received: Received[]): OtlpSpan[] =>
   received
@@ -112,12 +156,12 @@ const spansOf = (received: Received[]): OtlpSpan[] =>
     .flatMap(({ scopeSpans }) => scopeSpans)
     .flatMap(({ spans }) => spans);
 
-const metricNamesOf = (received: Received[]): string[] =>
+const metricsOf = (received: Received[]) =>
   received
     .filter(({ path }) => path === '/v1/metrics')
     .flatMap(({ body }) => MetricExport.parse(body).resourceMetrics)
     .flatMap(({ scopeMetrics }) => scopeMetrics)
-    .flatMap(({ metrics }) => metrics.map(({ name }) => name));
+    .flatMap(({ metrics }) => metrics);
 
 const attr = (span: OtlpSpan, key: string): string | number | undefined => {
   const value = span.attributes.find((a) => a.key === key)?.value;
@@ -131,16 +175,17 @@ afterEach(() => {
 });
 
 describe('telemetry (real process)', () => {
-  it('exports a route-named server span with the DB query as a descendant', async () => {
+  it('exports a route-named server span, its DB query, and its linked log', async () => {
     const otlp = await startReceiver();
     receiver = otlp.server;
     const api = await startApi({ OTEL_EXPORTER_OTLP_ENDPOINT: otlp.endpoint });
 
+    expect((await fetch(`${api.baseUrl}/health`)).status).toBe(200); // liveness: silent
     const res = await fetch(`${api.baseUrl}/health/ready`, {
       headers: { 'x-request-id': 'trace-test-1' },
     });
     expect(res.status).toBe(200);
-    expect(await stopApi(api.child)).toBe(0); // shutdown flushes spans and metrics
+    expect(await stopApi(api.child)).toBe(0); // shutdown flushes spans, metrics and logs
 
     const spans = spansOf(otlp.received);
     const server = spans.find((s) => s.name === 'GET /health/ready');
@@ -164,7 +209,27 @@ describe('telemetry (real process)', () => {
     while (current && current !== server) current = byId.get(current.parentSpanId ?? '');
     expect(current).toBe(server);
 
-    expect(metricNamesOf(otlp.received)).toContain('http.server.request.duration');
+    const durationRoutes = metricsOf(otlp.received)
+      .filter(({ name }) => name === 'http.server.request.duration')
+      .flatMap(({ histogram }) => histogram?.dataPoints ?? [])
+      .map(({ attributes }) => attributes.find((a) => a.key === 'http.route')?.value.stringValue);
+    expect(durationRoutes).toContain('/health/ready');
+
+    // The request's log line reaches the backend linked to the same trace…
+    const logs = logsOf(otlp.received);
+    const requestLog = logs.find((l) => l.body?.stringValue.startsWith('GET /health/ready 200'));
+    expect(requestLog, `logs: ${logs.map((l) => l.body?.stringValue).join(' | ')}`).toMatchObject({
+      traceId: server.traceId,
+    });
+    // …and the stdout JSON line carries the trace ID too.
+    const stdoutLine = stdoutRecords(api.output()).find(
+      (r) => r.logger === 'api.http' && r.properties['path'] === '/health/ready',
+    );
+    expect(stdoutLine?.properties['trace_id']).toBe(server.traceId);
+
+    // The /health liveness probe is neither traced nor logged.
+    expect(spans.filter((s) => attr(s, 'url.path') === '/health')).toEqual([]);
+    expect(logs.filter((l) => l.body?.stringValue.startsWith('GET /health '))).toEqual([]);
   });
 
   it('exports nothing without an endpoint, and still serves', async () => {

@@ -10,6 +10,9 @@ export const setTelemetry = (telemetry: Telemetry): void => {
 
 export const isTelemetryStarted = (): boolean => current !== undefined;
 
+/** OTLP log sink when telemetry started, else `undefined` (logs go to stdout only). */
+export const telemetryLogSink = (): Telemetry['logSink'] | undefined => current?.logSink;
+
 export const shutdownTelemetry = async (): Promise<void> => {
   await current?.shutdown();
 };

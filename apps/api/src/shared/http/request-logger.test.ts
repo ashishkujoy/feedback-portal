@@ -39,12 +39,20 @@ describe('requestLogger', () => {
     expect(JSON.stringify(record)).not.toContain('secret-token');
   });
 
-  it.each(['/health?probe=1', '/health/ready'])('does not log the %s probe', async (path) => {
-    const res = await createTestApp().request(path);
+  it('does not log the /health liveness probe', async () => {
+    const res = await createTestApp().request('/health?probe=1');
 
     expect(res.status).toBe(200);
     expect(res.headers.get('x-request-id')).toMatch(uuid);
     expect(httpRecords()).toEqual([]);
+  });
+
+  it('logs /health/ready like any other request', async () => {
+    const res = await createTestApp().request('/health/ready');
+
+    expect(res.status).toBe(200);
+    expect(httpRecords()).toHaveLength(1);
+    expect(httpRecords()[0]?.properties).toMatchObject({ path: '/health/ready', status: 200 });
   });
 
   it('reuses and echoes a safe incoming x-request-id', async () => {

@@ -1,6 +1,18 @@
 import { getLogger, type LogRecord, reset } from '@logtape/logtape';
 import { afterEach, describe, expect, it } from 'vitest';
-import { configureLogging } from './logging.ts';
+import { configureLogging, otelCategory } from './logging.ts';
+
+/** Configures logging with capturing main and OTel sinks. */
+const configureBoth = async () => {
+  const main: LogRecord[] = [];
+  const otel: LogRecord[] = [];
+  await configureLogging(
+    { level: 'info', format: 'json' },
+    (record) => main.push(record),
+    (record) => otel.push(record),
+  );
+  return { main, otel };
+};
 
 describe('configureLogging', () => {
   afterEach(async () => {
@@ -27,5 +39,25 @@ describe('configureLogging', () => {
     getLogger(['other']).error('not ours');
 
     expect(records).toEqual([]);
+  });
+
+  describe('with an OTel sink', () => {
+    it('sends api records to both sinks', async () => {
+      const { main, otel } = await configureBoth();
+
+      getLogger(['api', 'http']).info('request');
+
+      expect(main.map((r) => r.rawMessage)).toEqual(['request']);
+      expect(otel.map((r) => r.rawMessage)).toEqual(['request']);
+    });
+
+    it('keeps the SDK diagnostics (api.otel) on stdout only', async () => {
+      const { main, otel } = await configureBoth();
+
+      getLogger([...otelCategory]).warn('export failed');
+
+      expect(main.map((r) => r.rawMessage)).toEqual(['export failed']);
+      expect(otel).toEqual([]);
+    });
   });
 });

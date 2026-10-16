@@ -1,4 +1,4 @@
-# Local stack: postgres, a one-shot migrate job, and the api. Later tasks add web and otel-lgtm.
+# Local stack: postgres, a one-shot migrate job, the api, and Grafana LGTM. A later task adds web.
 # Branding (PROGRAM_NAME, ORG_NAME) comes from apps/api/.env — copy it from .env.example first.
 name: feedback-portal
 
@@ -51,17 +51,35 @@ services:
       <<: *api-environment
       HOST: 0.0.0.0
       PORT: 3000
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
+      OTEL_METRIC_EXPORT_INTERVAL: 10000
     ports:
       - '3000:3000' # same port as `pnpm dev` — run one or the other
     depends_on:
       migrate:
         condition: service_completed_successfully
+      otel-lgtm:
+        condition: service_healthy
     healthcheck:
-      # Ready = the api answers and can reach the database.
-      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:3000/health/ready || exit 1']
+      # Liveness only: /health is neither logged nor traced, so frequent probes stay silent.
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:3000/health || exit 1']
       interval: 10s
       timeout: 3s
       start_period: 10s
+      retries: 3
+
+  # OTel Collector + Tempo (traces) + Loki (logs) + Mimir (metrics) + Grafana in one container.
+  # Telemetry is throwaway local data: no volume, so it resets on `docker compose down`.
+  otel-lgtm:
+    image: grafana/otel-lgtm:0.36.0
+    ports:
+      - '3001:3000' # Grafana UI (3000 is the api); local-only anonymous admin
+      - '4318:4318' # OTLP/HTTP, so `pnpm dev` on the host can export here too
+    healthcheck:
+      test: ['CMD', '/otel-lgtm/docker/healthcheck.sh']
+      interval: 5s
+      timeout: 5s
+      start_period: 60s
       retries: 3
 
 volumes:

@@ -4,12 +4,16 @@ import { createApp } from './app.ts';
 import { loadConfigOrExit } from './shared/config/load-config-or-exit.ts';
 import { createDb } from './shared/db/client.ts';
 import { configureLogging, rootCategory } from './shared/logging/logging.ts';
-import { isTelemetryStarted, shutdownTelemetry } from './shared/telemetry/handle.ts';
+import {
+  isTelemetryStarted,
+  shutdownTelemetry,
+  telemetryLogSink,
+} from './shared/telemetry/handle.ts';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
 const config = loadConfigOrExit();
-await configureLogging(config.log);
+await configureLogging(config.log, undefined, telemetryLogSink());
 const logger = getLogger([rootCategory]);
 const database = createDb(config.db);
 

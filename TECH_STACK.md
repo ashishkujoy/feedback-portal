@@ -30,7 +30,7 @@ The `grafana/otel-lgtm` image runs an OTel Collector, Tempo (traces), Loki (logs
 | Authorization | Role and batch-scope checks in the application layer (Admin / PM / Mentor, limited to assigned batches) |
 | Photo storage | Cloudinary. The backend issues signed uploads, and the DB stores only `public_id` |
 | Airtable | Repeatable import per batch using the Airtable REST API. Records are validated with Zod, the admin or PM sees a preview (new vs updated) and confirms, and interns are matched by username so re-running it creates no duplicates |
-| Logging | **LogTape** (zero dependencies). Structured JSON logs to stdout, plus `@logtape/otel` to send logs over OTLP to Grafana LGTM. Trace and span IDs from the active OTel context are added to every record. Each module gets its own logger category (for example `["api", "feedback"]`) |
+| Logging | **LogTape** (zero dependencies). Structured JSON logs to stdout, plus our own small LogTape → OpenTelemetry sink (`shared/telemetry/otel-log-sink.ts`) that sends logs over OTLP to Grafana LGTM. `@logtape/otel` was not used, because it pins an older OTel SDK and bundles the gRPC and protobuf exporters. Records written inside a traced request carry `trace_id` and `span_id`. Each module gets its own logger category (for example `["api", "feedback"]`) |
 | Testing | Vitest. Testcontainers (Postgres) for integration and repository tests. Unit tests for domain logic without I/O |
 | Markdown safety | Markdown is stored as raw text and sanitized when rendered (see Frontend) |
 

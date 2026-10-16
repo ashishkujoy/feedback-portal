@@ -24,8 +24,9 @@ On macOS with Colima, run `colima start` first.
 
 ```sh
 cp apps/api/.env.example apps/api/.env   # PROGRAM_NAME / ORG_NAME are read from here
-docker compose up -d --build --wait      # postgres → migrate (one-shot) → api
+docker compose up -d --build --wait      # postgres, otel-lgtm → migrate (one-shot) → api
 curl localhost:3000/health/ready
+open http://localhost:3001               # Grafana: traces, logs, metrics
 docker compose down                      # add -v to also delete the database volume
 ```
 
@@ -33,6 +34,19 @@ docker compose down                      # add -v to also delete the database vo
 - Inside Docker the api always uses `NODE_ENV=production`, JSON logs and the `postgres` service. Those values override `apps/api/.env`.
 - The api in Docker and `pnpm dev` both use port 3000, so run one or the other.
 - To build the image alone, run `docker build -f apps/api/Dockerfile -t feedback-portal-api .` from the repo root.
+
+### Observability (Grafana LGTM)
+- **Grafana** is at http://localhost:3001 (local only, no login). The data is throwaway and is reset by `docker compose down`.
+- **Traces:**
+  - Explore → **Tempo** → search for service `feedback-portal-api`.
+  - Each request is a span named after its route (`GET /health/ready`), with its `pg` query spans underneath.
+  - A request's `x-request-id` is on its span as `request.id`.
+- **Logs:**
+  - Explore → **Loki** → `{service_name="feedback-portal-api"}`.
+  - Every log line written in a request carries `trace_id`. Its **Trace** link opens the trace, and in Tempo, **Logs for this span** goes back to the logs.
+- **Metrics:** Explore → **Prometheus**, for example `http_server_request_duration_seconds_count`, by `http_route`.
+- **`/health` is the liveness probe.** It is neither logged nor traced, so Docker's 10 s healthcheck stays silent. `/health/ready` (which checks the DB) is logged and traced like any other request.
+- **Using it with `pnpm dev`:** set `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` in `apps/api/.env` to send local runs to the same Grafana.
 
 ## Running tests
 
