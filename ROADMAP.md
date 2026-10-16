@@ -84,7 +84,7 @@ This file is the overview. Detailed plans, reviews, findings and status for each
 | 7.3 | **Manual add intern API + UI**: a fallback when Airtable isn't available | — |
 | 7.4 | **Batch roster UI**: interns shown as cards or a table with color code, status, and filters | — |
 | 7.5 | **Intern profile page**: details, interview notes, and a timeline placeholder | — |
-| 7.6 | **Status change API + UI**: graduate, withdraw, revoke notice, or terminate, with a reason | Only the PM can do this; final statuses are read-only |
+| 7.6 | **Status change API + UI**: graduate, withdraw, lift notice, or terminate, with a reason | Only the PM can do this; final statuses are read-only |
 | 7.7 | **Cloudinary photos**: a signed-upload endpoint, an upload widget, and the photo shown on the card and profile | — |
 
 ## Phase 8 — Airtable import
@@ -94,7 +94,7 @@ This file is the overview. Detailed plans, reviews, findings and status for each
 | 8.1 | **Airtable adapter**: fetch records from a base, table, and view, and validate them with Zod | Tests use recorded fixtures |
 | 8.2 | **Field mapping**: map Airtable fields to intern fields and keep the raw record in `airtable_fields` | Unit tests pass |
 | 8.3 | **Import preview API**: returns valid and invalid rows without writing anything | — |
-| 8.4 | **Import commit API**: `airtable_imports` table, an idempotent import keyed on the Airtable record ID, and one completed import per batch | Re-running the import creates no duplicates |
+| 8.4 | **Import commit API**: `airtable_imports` table; adds new interns and updates existing ones matched by username; repeatable | Re-running the import creates no duplicates |
 | 8.5 | **Import UI**: enter the source, preview, confirm, and see the result | — |
 
 ## Phase 9 — Feedback
@@ -102,10 +102,10 @@ This file is the overview. Detailed plans, reviews, findings and status for each
 | # | Step | Done when |
 |---|---|---|
 | 9.1 | **Schema**: `feedback` table | Migration applies |
-| 9.2 | **Feedback domain**: draft → submitted → delivered; submitting snapshots `previous_color_code` and updates the intern's color code; no reset to "none" | Unit tests pass |
+| 9.2 | **Feedback domain**: draft → submitted → delivered; submitting snapshots `previous_color_code` and updates the intern's color code; no reset to "none"; feedback marked as notice puts the intern `on_notice` for one month in the same transaction | Unit tests pass |
 | 9.3 | **Feedback API**: create draft, edit, submit, and list per intern (drafts visible to the author only) | API tests pass |
 | 9.4 | **Markdown components**: an editor with a Write/Preview toggle and a sanitized renderer | A test shows XSS content is stripped |
-| 9.5 | **Write feedback UI**: period, body, color picker (with descriptions), and a "recommend notice" checkbox | — |
+| 9.5 | **Write feedback UI**: period, body, color picker (with descriptions), and a "Mark as notice" switch | — |
 | 9.6 | **Feedback on intern timeline**: color change badges and notice flags | — |
 | 9.7 | **Color code history**: the intern's color codes over time, as a trend strip or chart | — |
 
@@ -114,8 +114,8 @@ This file is the overview. Detailed plans, reviews, findings and status for each
 | # | Step | Done when |
 |---|---|---|
 | 10.1 | **Schema**: `conversations` and `comments` tables, with the one-parent check | Migration applies |
-| 10.2 | **Conversation domain**: only the PM records a conversation; it delivers the chosen submitted feedback; if notice is given, the intern moves to `on_notice` in the same transaction | Unit tests pass |
-| 10.3 | **Conversation API + UI**: pick the feedback, enter notes and date, and optionally give notice with its dates | — |
+| 10.2 | **Conversation domain**: only the PM records a conversation; it delivers the chosen submitted feedback | Unit tests pass |
+| 10.3 | **Conversation API + UI**: pick the feedback, enter notes and date | — |
 | 10.4 | **Comments API**: add, edit, and soft-delete comments on feedback or a conversation | API tests pass |
 | 10.5 | **Comments UI**: a thread under each feedback entry and each conversation | — |
 | 10.6 | **Unified intern timeline**: feedback, conversations, comments, and status events in date order | — |

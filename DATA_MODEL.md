@@ -42,14 +42,14 @@ erDiagram
 |---|---|
 | `role` | `admin`, `mentor`, `program_manager` |
 | `batch_member_role` | `mentor`, `program_manager` |
-| `color_code` | `green`, `yellow`, `nearly_yellow`, `orange`, `nearly_red`, `red` |
+| `color_code` | `green`, `yellow`, `borderline_yellow`, `orange`, `borderline_red`, `red` |
 | `intern_status` | `active`, `on_notice`, `graduated`, `terminated`, `withdrawn` |
 | `feedback_state` | `draft`, `submitted`, `delivered` |
 | `import_status` | `pending`, `completed`, `failed` |
 
 Color codes have a fixed **severity order**, used for sorting and trend charts. This order lives in the contracts package, not in the database:
 
-`green (1) → yellow (2) → nearly_yellow (3) → orange (4) → nearly_red (5) → red (6)`
+`green (1) → yellow (2) → borderline_yellow (3) → orange (4) → borderline_red (5) → red (6)`
 
 "No color code" is stored as `NULL`.
 
@@ -124,7 +124,8 @@ Constraints:
 |---|---|---|
 | id | uuid PK | |
 | batch_id | uuid FK → batches | An intern belongs to exactly one batch |
-| airtable_record_id | text null | Unique. Makes the import idempotent. |
+| airtable_record_id | text null | Airtable record the intern was last imported from |
+| username | citext | Unique within the batch (`batch_id`, `username`). Shown as `@username`. Re-imports match on it. |
 | name | text | |
 | email | text | Lower-cased |
 | phone | text null | |
@@ -149,18 +150,19 @@ Index on (`batch_id`, `status`).
 | to_status | `intern_status` | |
 | reason | text | Markdown. Required for every change except onboarding. |
 | notice_starts_on / notice_ends_on | date null | Required when `to_status = on_notice` |
-| conversation_id | uuid FK null | The conversation in which notice was confirmed, if any |
+| feedback_id | uuid FK null | The feedback marked as notice that started it, if any |
 | actor_id | uuid FK → users | |
 | created_at | timestamptz | |
 
-**`airtable_imports`**: one import per batch.
+**`airtable_imports`**: one row per import run. A batch can be imported many times.
 | Column | Type | Notes |
 |---|---|---|
 | id | uuid PK | |
-| batch_id | uuid FK → batches | Partial unique where `status = 'completed'` |
+| batch_id | uuid FK → batches | |
 | base_id / table_id / view_id | text | Airtable source (`view_id` is nullable) |
 | status | `import_status` | |
 | record_count | int | |
+| created_count / updated_count | int | Interns added and interns updated (matched by username) |
 | errors | jsonb null | Per-record validation errors |
 | imported_by | uuid FK → users | |
 | created_at / completed_at | timestamptz | |
@@ -176,8 +178,8 @@ Index on (`batch_id`, `status`).
 | period | date | First day of the month the feedback covers |
 | body | text | Markdown |
 | color_code | `color_code` null | `NULL` means "leave unchanged" |
-| previous_color_code | `color_code` null | Snapshot taken at submission, so history reads as "orange → nearly_red" |
-| recommend_notice | boolean | Default `false` |
+| previous_color_code | `color_code` null | Snapshot taken at submission, so history reads as "orange → borderline_red" |
+| gives_notice | boolean | Default `false`. When `true`, submitting the feedback puts the intern `on_notice` for one month in the same transaction. |
 | state | `feedback_state` | `draft` → `submitted` → `delivered` |
 | conversation_id | uuid FK null | Set when the feedback is delivered |
 | submitted_at | timestamptz null | |
@@ -193,7 +195,6 @@ Indexes: (`intern_id`, `period`); (`intern_id`, `submitted_at`) where `color_cod
 | recorded_by | uuid FK → users | The PM |
 | held_on | date | |
 | notes | text | Markdown: how it went and what new information came up |
-| notice_given | boolean | `true` means notice was confirmed in this meeting. This creates an `on_notice` status event. |
 | created_at / updated_at | timestamptz | |
 
 **`comments`**: a flat thread on **either** a feedback entry or a conversation.
@@ -235,9 +236,9 @@ Constraint: `CHECK (num_nonnulls(feedback_id, conversation_id) = 1)`, so each co
 
 | From | To | Who | Trigger |
 |---|---|---|---|
-| — | `active` | Admin | Onboarding / import |
-| `active` | `on_notice` | PM | Conversation with `notice_given = true` |
-| `on_notice` | `active` | PM | Notice revoked, with a reason |
+| — | `active` | Admin or PM | Onboarding / import |
+| `active` | `on_notice` | Mentor or PM of the batch | Submitting feedback with `gives_notice = true`. Notice runs one month. |
+| `on_notice` | `active` | PM | Notice lifted, with a reason |
 | `on_notice` | `terminated` | PM | Notice period ended, with a reason |
 | `active` | `graduated` | PM | Program completed, with a reason |
 | `active` / `on_notice` | `withdrawn` | PM | Intern left, with a reason |
@@ -254,12 +255,13 @@ Constraint: `CHECK (num_nonnulls(feedback_id, conversation_id) = 1)`, so each co
 | Action | Admin | PM (of batch) | Mentor (of batch) |
 |---|:-:|:-:|:-:|
 | Manage users and roles | ✅ | | |
-| Create or archive batch; import interns | ✅ | | |
+| Create or archive batch | ✅ | | |
+| Import interns from Airtable (repeatable) | ✅ | ✅ | |
 | Assign or unassign mentors | ✅ | ✅ | |
 | Assign PM | ✅ | | |
 | View interns and submitted feedback | ✅ | ✅ | ✅ |
-| Write feedback, set color code, recommend notice | ✅* | ✅ | ✅ |
-| Record conversation, give notice | | ✅ | |
+| Write feedback, set color code, mark as notice | ✅* | ✅ | ✅ |
+| Record conversation | | ✅ | |
 | Change intern status | | ✅ | |
 | Comment on feedback or conversation | ✅* | ✅ | ✅ |
 | Upload intern photo | ✅ | ✅ | ✅ |

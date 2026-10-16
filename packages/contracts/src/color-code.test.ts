@@ -16,9 +16,9 @@ describe('compareColorCodes', () => {
     const shuffled: (ColorCode | null)[] = [
       'red',
       null,
-      'nearly_yellow',
+      'borderline_yellow',
       'green',
-      'nearly_red',
+      'borderline_red',
       'orange',
       'yellow',
     ];
@@ -26,9 +26,9 @@ describe('compareColorCodes', () => {
       null,
       'green',
       'yellow',
-      'nearly_yellow',
+      'borderline_yellow',
       'orange',
-      'nearly_red',
+      'borderline_red',
       'red',
     ]);
   });

@@ -3,9 +3,9 @@ import { z } from 'zod';
 export const ColorCode = z.enum([
   'green',
   'yellow',
-  'nearly_yellow',
+  'borderline_yellow',
   'orange',
-  'nearly_red',
+  'borderline_red',
   'red',
 ]);
 export type ColorCode = z.infer<typeof ColorCode>;
@@ -14,9 +14,9 @@ export type ColorCode = z.infer<typeof ColorCode>;
 export const colorCodeSeverity: Readonly<Record<ColorCode, number>> = Object.freeze({
   green: 1,
   yellow: 2,
-  nearly_yellow: 3,
+  borderline_yellow: 3,
   orange: 4,
-  nearly_red: 5,
+  borderline_red: 5,
   red: 6,
 });
 

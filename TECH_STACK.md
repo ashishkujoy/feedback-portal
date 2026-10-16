@@ -28,7 +28,7 @@ The `grafana/otel-lgtm` image runs an OTel Collector, Tempo (traces), Loki (logs
 | Auth | Google OAuth 2.0 / OIDC using **Arctic** _(chosen)_. Only emails an admin has added can sign in. Sessions are stored server-side in Postgres, and the browser holds an HttpOnly, Secure, SameSite=Lax cookie |
 | Authorization | Role and batch-scope checks in the application layer (Admin / PM / Mentor, limited to assigned batches) |
 | Photo storage | Cloudinary. The backend issues signed uploads, and the DB stores only `public_id` |
-| Airtable | One-time import per batch using the Airtable REST API. Records are validated with Zod, admins see a preview and confirm before the import, and the import is idempotent on Airtable record ID |
+| Airtable | Repeatable import per batch using the Airtable REST API. Records are validated with Zod, the admin or PM sees a preview (new vs updated) and confirms, and interns are matched by username so re-running it creates no duplicates |
 | Logging | **LogTape** (zero dependencies). Structured JSON logs to stdout, plus `@logtape/otel` to send logs over OTLP to Grafana LGTM. Trace and span IDs from the active OTel context are added to every record. Each module gets its own logger category (for example `["api", "feedback"]`) |
 | Testing | Vitest. Testcontainers (Postgres) for integration and repository tests. Unit tests for domain logic without I/O |
 | Markdown safety | Markdown is stored as raw text and sanitized when rendered (see Frontend) |
@@ -39,7 +39,7 @@ The backend is split into bounded contexts:
 - **identity**: users, roles, sessions, Google login
 - **cohort**: batches, and assigning mentors and PMs to batches
 - **intern**: intern profile, status lifecycle, Airtable import, photo
-- **feedback**: feedback entries, color codes, notice recommendations, conversations, comments
+- **feedback**: feedback entries, color codes, notice, conversations, comments
 
 ```
 apps/api/src/
@@ -56,7 +56,7 @@ apps/api/src/
 - The domain layer does not import Hono, Drizzle, or any SDK.
 - Invariants live in the domain. Examples:
   - A color code can change only through a feedback entry.
-  - Only the PM can confirm notice.
+  - Feedback marked as notice puts the intern on notice when it is submitted. Only the PM can lift notice or terminate.
   - Only allowed status transitions can happen.
 
 ## 3. Frontend (`apps/web`)

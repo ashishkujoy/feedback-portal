@@ -4,7 +4,11 @@ import { BatchMemberRole, ColorCode, FeedbackState, InternStatus, Role } from '.
 const cases = [
   ['Role', Role, ['admin', 'mentor', 'program_manager']],
   ['BatchMemberRole', BatchMemberRole, ['mentor', 'program_manager']],
-  ['ColorCode', ColorCode, ['green', 'yellow', 'nearly_yellow', 'orange', 'nearly_red', 'red']],
+  [
+    'ColorCode',
+    ColorCode,
+    ['green', 'yellow', 'borderline_yellow', 'orange', 'borderline_red', 'red'],
+  ],
   ['InternStatus', InternStatus, ['active', 'on_notice', 'graduated', 'terminated', 'withdrawn']],
   ['FeedbackState', FeedbackState, ['draft', 'submitted', 'delivered']],
 ] as const;

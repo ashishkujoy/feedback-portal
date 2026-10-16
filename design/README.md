@@ -1,0 +1,82 @@
+# UI design
+
+The UI is designed in Claude Design. **All UI work follows these screens** (see `CLAUDE.md`).
+
+- **Project:** https://claude.ai/design/p/937031fc-fdf0-4c3a-9742-02d65fb499f5
+- **Read it with** the claude_design MCP (`DesignSync`):
+  - `list_files` and `get_file` with `projectId` `937031fc-fdf0-4c3a-9742-02d65fb499f5`.
+  - If it says authorization is missing, run `/design-login`.
+- **Nothing from the project is copied into this repo.** The mockups contain the real program name and sample data, so read the source when you need detail. This file is the index.
+
+## Files in the project
+| File | What it is |
+|---|---|
+| `* Mentor Portal.dc.html` | **Canvas.** Lays out every screen by role (IDs below). Each tile embeds the screen file with props. |
+| `* Screen.dc.html` | **All screens.** A single parameterised component, with props `role`, `screen`, `tab`, `view`, `dialog`, `device`, `mscreen` and `height`. Its logic script holds the sample data and the colour-code → token map. |
+| `_ds/ee-design-system-kuat-…/` | The **Kuat** design system (Equal Experts). It contains `styles.css` (the entry point), `tokens/*.css`, the Lexend fonts, `_ds_bundle.js` (React primitives) and `readme.md` (visual and content rules). |
+| `support.js` | The design tool's canvas runtime. It isn't needed for the app. |
+
+## Screens
+**Desktop is 1440 wide; mobile is 390×844.** Every desktop screen has the same shell:
+- A 240px **Tech Blue sidebar**: logo mark, program name and "Mentor portal", a "Workspace" section, **Batches** (shown as "My batches" for mentors) and **Users and roles** (admin only).
+- A top bar with a breadcrumb, the signed-in user's avatar and a "Viewing as \<role\>" tag.
+
+| ID (Admin / PM / Mentor) | Screen | Props | Contents |
+|---|---|---|---|
+| A1 / P1 / M1 | Batches | `screen=batches` | One card per batch: status badge, dates, counts (interns, mentors, on notice, terminated), a colour-distribution bar, a mentor avatar stack and **View batch**. Empty state: "No interns yet. Import them from Airtable to get started." Admin and PM also get **Create batch**. Mentors see only their own batches. |
+| A2 / P2 / M2 | Batch · interns, cards | `screen=batch` | Header: name, dates, Active badge, the batch's PM; **Import from Airtable** and **Assign mentors** (managers only). Tabs: Interns, Mentors, Notice tracker. A summary strip with counts per colour plus on notice and terminated. Search by username, filter tags (All, colours, On notice, Terminated) and a Cards/Table toggle. Each intern card shows avatar, `@username`, colour, status badge, feedback count, last feedback date and **Give feedback**. |
+| A3 / P3 / M3 | Batch · interns, table | `view=table` | Columns: Intern, Colour code, Status, Feedback, Last feedback, action. Footer: "Showing 1–12 of 68". |
+| A4 / P4 / M4 | Batch · mentors | `tab=mentors` | Columns: Mentor, Email, Feedback given, Last feedback. Managers also get **Remove**. |
+| A5 / P5 / M5 | Batch · notice tracker | `tab=notice` | An "On notice" table with Intern, Colour, Issued, Ends, a remaining-days progress bar (red when 7 days or fewer are left) and Issued by. Managers also get **Lift notice** and **Terminate**. Below it, a "Terminated" list. |
+| A6 / P6 / M6 | Intern profile | `screen=intern` | Header with **Lift notice**, **Terminate intern** (managers) and **Give feedback**. A notice callout. **Feedback history**: each entry has the author, date, colour, a Notice badge, the markdown body, its conversation (recorded, or "Awaiting conversation" with **Record conversation** for managers), comments with an "Add a comment" box, and **Delete feedback** (managers). Side panel: current colour (from the latest coloured feedback), notice countdown, colour history and the batch's mentors. |
+| A7 / P7 / M7 | Give feedback (dialog) | `dialog=feedback` | Colour code radio list (No colour, Green, Yellow, Orange, Red), each with a description. **Mark as notice** switch. A markdown editor with Write/Preview and B/I buttons. **Submit feedback**. |
+| A8 / P8 | Record conversation (dialog) | `dialog=conversation` | Shows the feedback being delivered. Fields: date delivered, delivered by, markdown notes. **Save conversation**. |
+| A9 / P9 | Create batch (dialog) | `dialog=createBatch` | Fields: batch name, start date, end date, programme manager. |
+| A10 / P10 | Import from Airtable (dialog) | `dialog=airtable` | Fields: API key (not stored), table ID, view name. **Test connection** shows a "68 records found" callout with how many are new and how many are updates. Existing interns are matched by username. |
+| A11 / P11 | Assign mentors (dialog) | `dialog=assignMentors` | Mentor search and a checklist showing each mentor's current load. **Save mentors**. |
+| A12 | Users and roles | `screen=users` | Role tabs (All, Admins, Programme managers, Mentors) and search by name or email. Columns: Name, Email, a Role select, Batches. **Remove**. |
+| A13 | Add user (dialog) | `dialog=addUser` | Full name, email and role. **Send invite**. |
+| MM1–MM5 | Mentor · mobile | `device=mobile`, `mscreen=batches\|interns\|intern\|feedback\|comment` | My batches, a batch's interns (search and filter tags), intern feedback history, give feedback (full-screen form), and a feedback detail with its conversation and comments. |
+
+**Role visibility in the screens:**
+- `canManage` (admin and PM) shows create, import, assign, remove, lift notice, terminate, record conversation and delete feedback.
+- Mentors give feedback, including notice, and comment.
+
+## Design system (Kuat) essentials
+- **Built on shadcn/ui** with Equal Experts brand tokens. It is published on npm as `@equal-experts/kuat-core` (tokens), `@equal-experts/kuat-react` and `@equal-experts/kuat-vue`. Choosing between that package and porting the tokens into the Tailwind v4 theme is a decision for 4.1.
+- **Primitives the screens use:** Button, Input, Textarea, Select, Checkbox, Switch, Avatar, AvatarStack, StatusBadge, Tag, Callout, Tabs, Breadcrumb, Dialog and Logo.
+- **Type:**
+  - **Lexend** for all UI text. Headings use weight 600 with tight tracking. Body text is 16/24.
+  - JetBrains Mono for code and data.
+- **Colour:**
+  - EE Blue `#1795D4` is the primary colour. Tech Blue `#22567C` is used for the sidebar and chrome. Neutrals use the Slate scale.
+  - The extended palette is only for categorical coding, which here means **colour codes**:
+    - Green → `uptime-green` (500 dot / 50 background / 700 text)
+    - Yellow → `signal-yellow` (300 / 50 / 700)
+    - Orange → `equal-ember` (500 / 50 / 700)
+    - Red → `runtime-red` (600 / 50 / 700)
+    - No colour → `slate` (300 / 100 / 600)
+- **Corners:** flat by default.
+  - Cards, tables, dialogs and menus: `--radius-none`.
+  - Interactive elements: `--radius-md`.
+  - Form inputs: `--radius-sm`.
+  - Pills and avatars: fully rounded.
+  - Never hard-code a pixel radius.
+- **Borders, shadows and backgrounds:** 1px Slate-200 hairline borders. Shadows are soft and used sparingly. No gradients.
+- **Icons:** Lucide, with a 2px stroke. No emoji.
+- **Copy:** sentence case everywhere. Buttons start with a specific verb ("Create batch", "Submit feedback").
+
+## Differences from PRODUCT.md
+Decided 2026-10-16. PRODUCT.md, DATA_MODEL.md, TECH_STACK.md, ROADMAP.md and contracts are updated to match.
+
+| # | Topic | Decision |
+|---|---|---|
+| 1 | Colour codes | **Six codes plus "no colour"**: Green, Yellow, **Borderline Yellow**, Orange, **Borderline Red**, Red. The domain terms are `borderline_yellow` and `borderline_red`, replacing "nearly". The design shows only four codes, so the UI must add both borderline codes to the colour picker, the colour bar, the filters and the summary, using the same token pattern. |
+| 2 | Notice | **As designed.** Feedback marked as notice puts the intern on notice when it is submitted, whether a mentor or the PM wrote it. The notice lasts one month. The PM can **lift** it or **terminate** the intern. |
+| 3 | Roles per user | **As in PRODUCT.md: several roles per user.** The design's single Role select on Users and roles must become a multi-select (or a set of checkboxes). |
+| 4 | Airtable import | **As designed.** An admin or the batch's PM can import repeatedly. Interns are matched by `username`; new ones are added and existing ones updated. |
+
+**Still open (ask before building these):**
+- **Add user:** the design says "Send invite" by email. PRODUCT.md only says an admin adds the email and the user signs in with Google.
+- **Deleting feedback:** the design lets managers delete feedback. PRODUCT.md doesn't cover it.
+- **End of notice:** the design's copy says the intern "is terminated at the end unless it is lifted", but the tracker also has a manual **Terminate** button. It's undecided whether termination is automatic or always a PM action.
