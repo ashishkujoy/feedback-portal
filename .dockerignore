@@ -1,0 +1,14 @@
+# Allow-list: the build context only contains what apps/api/Dockerfile copies.
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!.npmrc
+!apps/api/package.json
+!apps/api/src
+!apps/api/drizzle
+!packages/*/package.json
+!packages/contracts/src
+
+# Tests never reach the image.
+**/*.test.ts

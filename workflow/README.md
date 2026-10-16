@@ -48,7 +48,7 @@ Update the status in both `PLAN.md` and the board below whenever it changes.
 
 | Task | Folder | Status |
 |---|---|---|
-| 2.1 Compose: postgres + api | [`phase/02-docker-observability/01-compose-postgres-api`](phase/02-docker-observability/01-compose-postgres-api/PLAN.md) | Not started |
+| 2.1 Compose: postgres + api | [`phase/02-docker-observability/01-compose-postgres-api`](phase/02-docker-observability/01-compose-postgres-api/PLAN.md) | Done |
 | 2.2 OpenTelemetry (api) | [`phase/02-docker-observability/02-opentelemetry-api`](phase/02-docker-observability/02-opentelemetry-api/PLAN.md) | Not started |
 | 2.3 Grafana LGTM in Compose | [`phase/02-docker-observability/03-grafana-lgtm-in-compose`](phase/02-docker-observability/03-grafana-lgtm-in-compose/PLAN.md) | Not started |
 

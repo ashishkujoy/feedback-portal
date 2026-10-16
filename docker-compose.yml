@@ -1,5 +1,21 @@
-# Local development stack. 2.1 adds the api; later tasks add web and otel-lgtm.
+# Local stack: postgres, a one-shot migrate job, and the api. Later tasks add web and otel-lgtm.
+# Branding (PROGRAM_NAME, ORG_NAME) comes from apps/api/.env — copy it from .env.example first.
 name: feedback-portal
+
+x-api-image: &api-image
+  image: feedback-portal-api
+  build:
+    context: .
+    dockerfile: apps/api/Dockerfile
+  init: true
+  env_file:
+    - path: apps/api/.env
+      required: false
+  # Overrides what differs inside a container from local `pnpm dev`.
+  environment: &api-environment
+    NODE_ENV: production
+    LOG_FORMAT: json
+    DATABASE_URL: postgres://feedback:feedback@postgres:5432/feedback_portal
 
 services:
   postgres:
@@ -19,6 +35,34 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # Applies pending migrations, then exits. Re-running is a no-op.
+  migrate:
+    <<: *api-image
+    command: ['node', 'src/shared/db/migrate.cli.ts']
+    restart: 'no'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *api-image
+    environment:
+      <<: *api-environment
+      HOST: 0.0.0.0
+      PORT: 3000
+    ports:
+      - '3000:3000' # same port as `pnpm dev` — run one or the other
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      # Ready = the api answers and can reach the database.
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:3000/health/ready || exit 1']
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
 
 volumes:
   postgres-data:

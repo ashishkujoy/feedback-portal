@@ -20,6 +20,20 @@ pnpm --filter @feedback-portal/api dev   # http://localhost:3000/health
 
 On macOS with Colima, run `colima start` first.
 
+## Running everything in Docker
+
+```sh
+cp apps/api/.env.example apps/api/.env   # PROGRAM_NAME / ORG_NAME are read from here
+docker compose up -d --build --wait      # postgres → migrate (one-shot) → api
+curl localhost:3000/health/ready
+docker compose down                      # add -v to also delete the database volume
+```
+
+- `migrate` applies pending migrations and exits. The `api` service starts only after it succeeds.
+- Inside Docker the api always uses `NODE_ENV=production`, JSON logs and the `postgres` service. Those values override `apps/api/.env`.
+- The api in Docker and `pnpm dev` both use port 3000, so run one or the other.
+- To build the image alone, run `docker build -f apps/api/Dockerfile -t feedback-portal-api .` from the repo root.
+
 ## Running tests
 
 | Command | What runs | Needs Docker |
