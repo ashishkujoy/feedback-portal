@@ -24,6 +24,7 @@ The `grafana/otel-lgtm` image runs an OTel Collector, Tempo (traces), Loki (logs
 | HTTP framework | Hono (`@hono/node-server`), with `@hono/zod-validator` using the shared contracts |
 | Database | PostgreSQL 18 (18.6; image `postgres:18.6-alpine`) |
 | ORM / migrations | Drizzle ORM + drizzle-kit |
+| Postgres driver | **pg** (node-postgres) _(chosen)_. It is the only driver with official OpenTelemetry instrumentation (`@opentelemetry/instrumentation-pg`: query spans and pool metrics). postgres.js was used until 2.2. |
 | Architecture | Domain-Driven Design. Details below |
 | Auth | Google OAuth 2.0 / OIDC using **Arctic** _(chosen)_. Only emails an admin has added can sign in. Sessions are stored server-side in Postgres, and the browser holds an HttpOnly, Secure, SameSite=Lax cookie |
 | Authorization | Role and batch-scope checks in the application layer (Admin / PM / Mentor, limited to assigned batches) |

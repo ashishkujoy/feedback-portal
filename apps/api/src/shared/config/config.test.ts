@@ -22,6 +22,7 @@ describe('loadConfig', () => {
       log: { level: 'info', format: 'json' },
       db: { url: dbUrl, poolMax: 10 },
       branding: { programName: 'Test Program', orgName: 'Test Org' },
+      telemetry: { enabled: false },
     });
   });
 
@@ -128,5 +129,52 @@ describe('loadConfig', () => {
     expect(loadConfig({ ...validEnv, SOMETHING_ELSE: 'x', PATH: '/bin' })).toEqual(
       loadConfig(validEnv),
     );
+  });
+
+  describe('telemetry', () => {
+    const endpoint = 'http://localhost:4318';
+
+    it('is off when no OTLP endpoint is set', () => {
+      expect(loadConfig(validEnv).telemetry).toEqual({ enabled: false });
+    });
+
+    it('is on with an endpoint, with defaults', () => {
+      expect(loadConfig({ ...validEnv, OTEL_EXPORTER_OTLP_ENDPOINT: endpoint }).telemetry).toEqual({
+        enabled: true,
+        endpoint,
+        serviceName: 'feedback-portal-api',
+        metricExportIntervalMs: 60_000,
+      });
+    });
+
+    it('uses OTEL_SERVICE_NAME and OTEL_METRIC_EXPORT_INTERVAL', () => {
+      const { telemetry } = loadConfig({
+        ...validEnv,
+        OTEL_EXPORTER_OTLP_ENDPOINT: endpoint,
+        OTEL_SERVICE_NAME: 'api-test',
+        OTEL_METRIC_EXPORT_INTERVAL: '5000',
+      });
+      expect(telemetry).toMatchObject({ serviceName: 'api-test', metricExportIntervalMs: 5000 });
+    });
+
+    it('is forced off by OTEL_SDK_DISABLED=true', () => {
+      const env = { ...validEnv, OTEL_EXPORTER_OTLP_ENDPOINT: endpoint, OTEL_SDK_DISABLED: 'true' };
+      expect(loadConfig(env).telemetry).toEqual({ enabled: false });
+    });
+
+    it('rejects invalid values', () => {
+      expect(
+        issuesFor({
+          ...validEnv,
+          OTEL_EXPORTER_OTLP_ENDPOINT: 'localhost:4318',
+          OTEL_SDK_DISABLED: 'yes',
+          OTEL_METRIC_EXPORT_INTERVAL: '10',
+        }).map(({ key }) => key),
+      ).toEqual([
+        'OTEL_EXPORTER_OTLP_ENDPOINT',
+        'OTEL_SDK_DISABLED',
+        'OTEL_METRIC_EXPORT_INTERVAL',
+      ]);
+    });
   });
 });

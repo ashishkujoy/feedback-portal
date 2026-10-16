@@ -6,7 +6,9 @@ import { createApp } from '../../app.ts';
 const testDb = useTestDb();
 
 const count = async (schema: string, table: string): Promise<number> => {
-  const [row] = await testDb.handle.db.execute<{ n: number }>(
+  const {
+    rows: [row],
+  } = await testDb.handle.db.execute<{ n: number }>(
     sql`select count(*)::int as n from ${sql.identifier(schema)}.${sql.identifier(table)}`,
   );
   return row?.n ?? -1;
@@ -14,9 +16,9 @@ const count = async (schema: string, table: string): Promise<number> => {
 
 describe('test database harness', () => {
   it('connects to this file’s own database', async () => {
-    const [row] = await testDb.handle.db.execute<{ db: string }>(
-      sql`select current_database() as db`,
-    );
+    const {
+      rows: [row],
+    } = await testDb.handle.db.execute<{ db: string }>(sql`select current_database() as db`);
 
     expect(row?.db).toBe(testDb.name);
     expect(testDb.name).toMatch(/^test_[0-9a-f]{32}$/);
@@ -27,7 +29,7 @@ describe('test database harness', () => {
       sql`select extname from pg_extension where extname = 'citext'`,
     );
 
-    expect(extensions).toHaveLength(1);
+    expect(extensions.rows).toHaveLength(1);
     expect(await count('drizzle', '__drizzle_migrations')).toBe(1);
   });
 

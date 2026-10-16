@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
-import postgres from 'postgres';
+import { Client } from 'pg';
 import { afterAll, beforeAll, beforeEach, inject } from 'vitest';
 import { createDb, type DbHandle } from '../src/shared/db/client.ts';
 import { templateDatabase, withDatabase } from './postgres.ts';
@@ -8,6 +8,8 @@ import { templateDatabase, withDatabase } from './postgres.ts';
 export type TestDb = {
   /** This file's database name (`test_<uuid>`). */
   readonly name: string;
+  /** Connection URL for this file's database (contains credentials; tests only). */
+  readonly url: string;
   /** Connected to this file's database; available from `beforeAll` on. */
   readonly handle: DbHandle;
 };
@@ -17,8 +19,8 @@ export const resetDb = async ({ db }: DbHandle): Promise<void> => {
   const tables = await db.execute<{ tablename: string }>(
     sql`select tablename from pg_tables where schemaname = 'public'`,
   );
-  if (tables.length === 0) return;
-  const names = tables.map(({ tablename }) => sql`public.${sql.identifier(tablename)}`);
+  if (tables.rows.length === 0) return;
+  const names = tables.rows.map(({ tablename }) => sql`public.${sql.identifier(tablename)}`);
   await db.execute(sql`truncate ${sql.join(names, sql`, `)} restart identity cascade`);
 };
 
@@ -30,12 +32,14 @@ export const useTestDb = (): TestDb => {
   const adminUrl = inject('pgAdminUrl');
   // Generated, never user input — safe to interpolate as an identifier.
   const name = `test_${randomUUID().replaceAll('-', '')}`;
+  const url = withDatabase(adminUrl, name);
   let handle: DbHandle | undefined;
 
   const runAdmin = async (statement: string): Promise<void> => {
-    const client = postgres(adminUrl, { max: 1, onnotice: () => {} });
+    const client = new Client({ connectionString: adminUrl });
+    await client.connect();
     try {
-      await client.unsafe(statement);
+      await client.query(statement);
     } finally {
       await client.end();
     }
@@ -43,7 +47,7 @@ export const useTestDb = (): TestDb => {
 
   beforeAll(async () => {
     await runAdmin(`create database "${name}" template "${templateDatabase}" strategy file_copy`);
-    handle = createDb({ url: withDatabase(adminUrl, name), poolMax: 2 });
+    handle = createDb({ url, poolMax: 2 });
   });
 
   beforeEach(async () => {
@@ -57,6 +61,7 @@ export const useTestDb = (): TestDb => {
 
   return {
     name,
+    url,
     get handle() {
       if (!handle) throw new Error('useTestDb: handle is only available inside tests and hooks');
       return handle;

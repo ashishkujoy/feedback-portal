@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import type { Database } from './client.ts';
 
 /** Generated SQL migrations, committed under `apps/api/drizzle`. */

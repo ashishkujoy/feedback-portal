@@ -4,6 +4,7 @@ import { createApp } from './app.ts';
 import { loadConfigOrExit } from './shared/config/load-config-or-exit.ts';
 import { createDb } from './shared/db/client.ts';
 import { configureLogging, rootCategory } from './shared/logging/logging.ts';
+import { isTelemetryStarted, shutdownTelemetry } from './shared/telemetry/handle.ts';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
@@ -11,6 +12,12 @@ const config = loadConfigOrExit();
 await configureLogging(config.log);
 const logger = getLogger([rootCategory]);
 const database = createDb(config.db);
+
+if (config.telemetry.enabled && !isTelemetryStarted()) {
+  logger.warning(
+    'telemetry is configured but not loaded; start with --import ./src/instrumentation.ts',
+  );
+}
 
 const exit = async (code: number): Promise<never> => {
   await dispose(); // flush buffered records
@@ -49,6 +56,7 @@ const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
   try {
     await closeServer(); // stop accepting requests; wait for in-flight ones
     await database.close(); // then drain and close the pool
+    await shutdownTelemetry(); // flush the last spans and metrics
     await exit(0);
   } catch (error) {
     logger.error('shutdown failed: {error}', { error });
