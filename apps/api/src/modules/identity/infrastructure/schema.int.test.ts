@@ -1,6 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { useTestDb } from '../../../../test/test-db.ts';
+import { pgErrorCodes, pgErrorOf } from '../../../shared/db/pg-error.ts';
 import { newId } from '../../../shared/ids.ts';
 import { sessions, userRoles, users } from './schema.ts';
 
@@ -9,15 +10,13 @@ const db = () => testDb.handle.db;
 
 const uuidV7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-/** Postgres SQLSTATE of a failed query (Drizzle wraps the driver error in `cause`). */
+/** Postgres SQLSTATE of a failed query. */
 const sqlState = async (query: Promise<unknown>): Promise<string | undefined> => {
   try {
     await query;
   } catch (error) {
-    const cause = error instanceof Error ? error.cause : undefined;
-    if (cause && typeof cause === 'object' && 'code' in cause && typeof cause.code === 'string') {
-      return cause.code;
-    }
+    const info = pgErrorOf(error);
+    if (info) return info.code;
     throw error;
   }
   return undefined;
@@ -25,9 +24,7 @@ const sqlState = async (query: Promise<unknown>): Promise<string | undefined> =>
 
 const inOneHour = () => new Date(Date.now() + 3_600_000);
 
-const uniqueViolation = '23505';
-const foreignKeyViolation = '23503';
-const invalidTextRepresentation = '22P02';
+const { uniqueViolation, foreignKeyViolation, invalidTextRepresentation } = pgErrorCodes;
 
 const insertUser = async (values: { email: string; googleSub?: string | null; id?: string }) => {
   const [user] = await db()

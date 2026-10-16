@@ -1,12 +1,16 @@
 import { getLogger } from '@logtape/logtape';
 import { sql } from 'drizzle-orm';
-import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { drizzle, type NodePgDatabase, type NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
+import type { PgDatabase } from 'drizzle-orm/pg-core';
 import { Pool } from 'pg';
 import type { DbConfig } from '../config/config.ts';
 import { rootCategory } from '../logging/logging.ts';
 
-// The relational-query schema is added once tables exist (3.1).
+// Repositories use the core query builder, not the relational API, so no schema is attached.
 export type Database = NodePgDatabase;
+
+/** The pool or a transaction: what repositories take, so a use case can compose them atomically. */
+export type DbExecutor = PgDatabase<NodePgQueryResultHKT>;
 
 export type DbHandle = Readonly<{
   db: Database;

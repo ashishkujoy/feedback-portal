@@ -11,6 +11,7 @@ export const ErrorCode = z.enum([
   'unavailable',
   'user_requires_role',
   'cannot_deactivate_self',
+  'email_taken',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 
