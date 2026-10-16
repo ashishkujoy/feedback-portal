@@ -2,6 +2,7 @@ import type { ValidationTargets } from 'hono';
 import { validator } from 'hono/validator';
 import type { z } from 'zod';
 import { validationFailed } from '../errors/app-error.ts';
+import { fieldIssues } from '../errors/field-issues.ts';
 
 /**
  * Validates a request part with a Zod schema; on failure throws `validationFailed` with field
@@ -11,10 +12,5 @@ export const validate = <S extends z.ZodType>(target: keyof ValidationTargets, s
   validator(target, async (value): Promise<z.output<S>> => {
     const result = await schema.safeParseAsync(value);
     if (result.success) return result.data;
-    throw validationFailed(
-      result.error.issues.map((issue) => ({
-        path: issue.path.join('.'),
-        message: issue.message,
-      })),
-    );
+    throw validationFailed(fieldIssues(result.error));
   });

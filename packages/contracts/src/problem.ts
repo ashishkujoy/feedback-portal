@@ -9,6 +9,8 @@ export const ErrorCode = z.enum([
   'conflict',
   'internal',
   'unavailable',
+  'user_requires_role',
+  'cannot_deactivate_self',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

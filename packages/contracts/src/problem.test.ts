@@ -39,6 +39,8 @@ describe('ProblemDetails', () => {
       'conflict',
       'internal',
       'unavailable',
+      'user_requires_role',
+      'cannot_deactivate_self',
     ]);
   });
 });

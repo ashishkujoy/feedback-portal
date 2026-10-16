@@ -57,7 +57,7 @@ Update the status in both `PLAN.md` and the board below whenever it changes.
 | Task | Folder | Status |
 |---|---|---|
 | 3.1 Schema | [`phase/03-identity-users-roles-login/01-schema`](phase/03-identity-users-roles-login/01-schema/PLAN.md) | Done |
-| 3.2 User domain | [`phase/03-identity-users-roles-login/02-user-domain`](phase/03-identity-users-roles-login/02-user-domain/PLAN.md) | Not started |
+| 3.2 User domain | [`phase/03-identity-users-roles-login/02-user-domain`](phase/03-identity-users-roles-login/02-user-domain/PLAN.md) | Done |
 | 3.3 User repository | [`phase/03-identity-users-roles-login/03-user-repository`](phase/03-identity-users-roles-login/03-user-repository/PLAN.md) | Not started |
 | 3.4 Bootstrap admin | [`phase/03-identity-users-roles-login/04-bootstrap-admin`](phase/03-identity-users-roles-login/04-bootstrap-admin/PLAN.md) | Not started |
 | 3.5 Sessions | [`phase/03-identity-users-roles-login/05-sessions`](phase/03-identity-users-roles-login/05-sessions/PLAN.md) | Not started |
