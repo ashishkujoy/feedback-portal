@@ -9,6 +9,8 @@
     "dev": "node --env-file-if-exists=.env --watch src/main.ts",
     "start": "node --env-file-if-exists=.env src/main.ts",
     "test": "vitest run",
+    "test:int": "vitest run --project integration",
+    "test:unit": "vitest run --project unit",
     "typecheck": "tsc -p ."
   },
   "dependencies": {
@@ -22,7 +24,9 @@
   },
   "devDependencies": {
     "@feedback-portal/tsconfig": "workspace:*",
+    "@testcontainers/postgresql": "12.2.1",
     "drizzle-kit": "0.31.11",
+    "testcontainers": "12.2.1",
     "vitest": "5.0.2"
   }
 }

@@ -1,1 +1,4 @@
-{ "extends": "@feedback-portal/tsconfig/node.json", "include": ["src"] }
+{
+  "extends": "@feedback-portal/tsconfig/node.json",
+  "include": ["src", "test", "*.config.ts"]
+}
