@@ -83,7 +83,7 @@ Color codes have a fixed **severity order**, used for sorting and trend charts. 
 |---|---|---|
 | id | text PK | SHA-256 hash of the session token. The raw token exists only in the cookie. |
 | user_id | uuid FK → users | Indexed, to revoke all of a user's sessions |
-| expires_at | timestamptz | Sliding expiry. Indexed, for cleanup. |
+| expires_at | timestamptz | Sliding expiry: 7 days after last use, renewed once less than half is left, never more than 30 days after `created_at`. Indexed: expired rows are deleted on each sign-in. |
 | user_agent / ip | text null | |
 | created_at | timestamptz | |
 

@@ -26,7 +26,7 @@ The `grafana/otel-lgtm` image runs an OTel Collector, Tempo (traces), Loki (logs
 | ORM / migrations | Drizzle ORM + drizzle-kit |
 | Postgres driver | **pg** (node-postgres) _(chosen)_. It is the only driver with official OpenTelemetry instrumentation (`@opentelemetry/instrumentation-pg`: query spans and pool metrics). postgres.js was used until 2.2. |
 | Architecture | Domain-Driven Design. Details below |
-| Auth | Google OAuth 2.0 / OIDC using **Arctic** _(chosen)_. Only emails an admin has added can sign in. Sessions are stored server-side in Postgres, and the browser holds an HttpOnly, Secure, SameSite=Lax cookie |
+| Auth | Google OAuth 2.0 / OIDC using **Arctic** _(chosen)_. Only emails an admin has added can sign in. Sessions are stored server-side in Postgres, keyed by the SHA-256 hash of a 256-bit random token. The browser holds the token in an HttpOnly, SameSite=Lax cookie, which is `__Host-session` and Secure in production. Sessions expire after 7 days without use, and at most 30 days after sign-in. No session secret: an unguessable token needs no signature |
 | Authorization | Role and batch-scope checks in the application layer (Admin / PM / Mentor, limited to assigned batches) |
 | Photo storage | Cloudinary. The backend issues signed uploads, and the DB stores only `public_id` |
 | Airtable | Repeatable import per batch using the Airtable REST API. Records are validated with Zod, the admin or PM sees a preview (new vs updated) and confirms, and interns are matched by username so re-running it creates no duplicates |
@@ -105,4 +105,4 @@ feedback-portal/
 - All env vars are validated with Zod at startup. The app refuses to start if config is invalid.
 - Branding comes **only from config**: `PROGRAM_NAME` and `ORG_NAME` are **required** env vars with no defaults. The API serves them to the web app through `GET /settings`.
 - **No program or organisation name is hard-coded** in code, tests, fixtures, `.env.example`, package names, or file and folder names. Code uses neutral names (for example `feedback-portal`, `@feedback-portal/*`). `.env.example` uses placeholders.
-- Secrets: Google client ID and secret, Cloudinary credentials, Airtable token, and session secret. These live in `.env` locally, and `.env.example` is committed.
+- Secrets: Google client ID and secret, Cloudinary credentials, and Airtable token. These live in `.env` locally, and `.env.example` is committed.
