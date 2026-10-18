@@ -74,7 +74,7 @@ Color codes have a fixed **severity order**, used for sorting and trend charts. 
 |---|---|---|
 | user_id | uuid FK → users | |
 | role | `role` | |
-| granted_by | uuid FK → users null | `NULL` = granted by the system (the bootstrap admin seed, 3.4) |
+| granted_by | uuid FK → users null | `NULL` = granted by the system: the bootstrap admin seed, which acts only when no active admin exists |
 | granted_at | timestamptz | |
 | | | PK (`user_id`, `role`) |
 

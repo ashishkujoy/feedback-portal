@@ -6,6 +6,7 @@
   "scripts": {
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env src/shared/db/migrate.cli.ts",
+    "db:seed": "node --env-file-if-exists=.env src/modules/identity/bootstrap-admin.cli.ts",
     "dev": "node --env-file-if-exists=.env --import ./src/instrumentation.ts --watch src/main.ts",
     "start": "node --env-file-if-exists=.env --import ./src/instrumentation.ts src/main.ts",
     "test": "vitest run",

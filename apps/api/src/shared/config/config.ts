@@ -62,6 +62,12 @@ const EnvSchema = z.object({
     .min(1000, { error: metricIntervalError })
     .max(3_600_000, { error: metricIntervalError })
     .default(60_000),
+  // Read only by the seed (`pnpm db:seed`); the API server ignores them.
+  BOOTSTRAP_ADMIN_EMAIL: z.email({ error: 'expected an email address' }).optional(),
+  BOOTSTRAP_ADMIN_NAME: z
+    .string()
+    .max(200, { error: 'expected at most 200 characters' })
+    .optional(),
 });
 
 const envKeys = EnvSchema.keyof().options;
@@ -74,7 +80,12 @@ export type Config = Readonly<{
   db: DbConfig;
   branding: Readonly<{ programName: string; orgName: string }>;
   telemetry: TelemetryConfig;
+  /** `null` when `BOOTSTRAP_ADMIN_EMAIL` isn't set. */
+  bootstrapAdmin: BootstrapAdminConfig | null;
 }>;
+
+/** `name: null` means "derive it from the email". */
+export type BootstrapAdminConfig = Readonly<{ email: string; name: string | null }>;
 
 export type TelemetryConfig =
   | Readonly<{ enabled: false }>
@@ -146,6 +157,8 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => {
     OTEL_SERVICE_NAME,
     OTEL_SDK_DISABLED,
     OTEL_METRIC_EXPORT_INTERVAL,
+    BOOTSTRAP_ADMIN_EMAIL,
+    BOOTSTRAP_ADMIN_NAME,
   } = result.data;
   const telemetry: TelemetryConfig =
     OTEL_EXPORTER_OTLP_ENDPOINT && OTEL_SDK_DISABLED === 'false'
@@ -163,5 +176,8 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => {
     db: Object.freeze({ url: DATABASE_URL, poolMax: DATABASE_POOL_MAX }),
     branding: Object.freeze({ programName: PROGRAM_NAME, orgName: ORG_NAME }),
     telemetry: Object.freeze(telemetry),
+    bootstrapAdmin: BOOTSTRAP_ADMIN_EMAIL
+      ? Object.freeze({ email: BOOTSTRAP_ADMIN_EMAIL, name: BOOTSTRAP_ADMIN_NAME ?? null })
+      : null,
   });
 };

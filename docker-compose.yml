@@ -1,4 +1,4 @@
-# Local stack: postgres, a one-shot migrate job, the api, and Grafana LGTM. A later task adds web.
+# Local stack: postgres, one-shot migrate and seed jobs, the api, and Grafana LGTM. A later task adds web.
 # Branding (PROGRAM_NAME, ORG_NAME) comes from apps/api/.env — copy it from .env.example first.
 name: feedback-portal
 
@@ -45,6 +45,16 @@ services:
       postgres:
         condition: service_healthy
 
+  # Creates the first admin from BOOTSTRAP_ADMIN_EMAIL (apps/api/.env) when no active admin
+  # exists, then exits. Does nothing when an active admin exists or the variable isn't set.
+  seed:
+    <<: *api-image
+    command: ['node', 'src/modules/identity/bootstrap-admin.cli.ts']
+    restart: 'no'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
   api:
     <<: *api-image
     environment:
@@ -56,7 +66,7 @@ services:
     ports:
       - '3000:3000' # same port as `pnpm dev` — run one or the other
     depends_on:
-      migrate:
+      seed:
         condition: service_completed_successfully
       otel-lgtm:
         condition: service_healthy

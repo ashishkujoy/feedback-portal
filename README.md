@@ -15,8 +15,15 @@ pnpm install
 cp apps/api/.env.example apps/api/.env
 docker compose up -d --wait postgres     # Postgres 18.6 on localhost:5433
 pnpm db:migrate
+pnpm db:seed                             # first admin, from BOOTSTRAP_ADMIN_EMAIL in apps/api/.env
 pnpm --filter @feedback-portal/api dev   # http://localhost:3000/health
 ```
+
+### The first admin
+- Set `BOOTSTRAP_ADMIN_EMAIL` (and optionally `BOOTSTRAP_ADMIN_NAME`) in `apps/api/.env`, then run `pnpm db:seed`. Compose runs it for you as the `seed` job.
+- **The seed acts only when there is no active admin.** Then it creates that user as an admin, or, if the user exists, grants them `admin` and reactivates them. While any active admin exists, it does nothing, so it never undoes an admin's changes.
+- It's safe to run on every start. If every admin is ever deactivated by mistake, running it again restores access.
+- Its log line says `created`, `restored`, `admin_exists` or `not_configured`.
 
 On macOS with Colima, run `colima start` first.
 
@@ -24,13 +31,13 @@ On macOS with Colima, run `colima start` first.
 
 ```sh
 cp apps/api/.env.example apps/api/.env   # PROGRAM_NAME / ORG_NAME are read from here
-docker compose up -d --build --wait      # postgres, otel-lgtm → migrate (one-shot) → api
+docker compose up -d --build --wait      # postgres, otel-lgtm → migrate → seed (one-shot) → api
 curl localhost:3000/health/ready
 open http://localhost:3001               # Grafana: traces, logs, metrics
 docker compose down                      # add -v to also delete the database volume
 ```
 
-- `migrate` applies pending migrations and exits. The `api` service starts only after it succeeds.
+- `migrate` applies pending migrations and exits, then `seed` makes sure the first admin exists (see above). The `api` service starts only after both succeed.
 - Inside Docker the api always uses `NODE_ENV=production`, JSON logs and the `postgres` service. Those values override `apps/api/.env`.
 - The api in Docker and `pnpm dev` both use port 3000, so run one or the other.
 - To build the image alone, run `docker build -f apps/api/Dockerfile -t feedback-portal-api .` from the repo root.

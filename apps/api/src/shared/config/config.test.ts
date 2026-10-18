@@ -23,6 +23,7 @@ describe('loadConfig', () => {
       db: { url: dbUrl, poolMax: 10 },
       branding: { programName: 'Test Program', orgName: 'Test Org' },
       telemetry: { enabled: false },
+      bootstrapAdmin: null,
     });
   });
 
@@ -174,6 +175,40 @@ describe('loadConfig', () => {
         'OTEL_EXPORTER_OTLP_ENDPOINT',
         'OTEL_SDK_DISABLED',
         'OTEL_METRIC_EXPORT_INTERVAL',
+      ]);
+    });
+  });
+
+  describe('bootstrapAdmin', () => {
+    it('is set from BOOTSTRAP_ADMIN_EMAIL, with an optional name', () => {
+      expect(
+        loadConfig({ ...validEnv, BOOTSTRAP_ADMIN_EMAIL: ' admin@example.com ' }).bootstrapAdmin,
+      ).toEqual({ email: 'admin@example.com', name: null });
+      expect(
+        loadConfig({
+          ...validEnv,
+          BOOTSTRAP_ADMIN_EMAIL: 'admin@example.com',
+          BOOTSTRAP_ADMIN_NAME: 'First Admin',
+        }).bootstrapAdmin,
+      ).toEqual({ email: 'admin@example.com', name: 'First Admin' });
+    });
+
+    it('is null without an email, even if a name is set', () => {
+      expect(loadConfig({ ...validEnv, BOOTSTRAP_ADMIN_NAME: 'First Admin' }).bootstrapAdmin).toBe(
+        null,
+      );
+    });
+
+    it('rejects an invalid email and an over-long name', () => {
+      expect(
+        issuesFor({
+          ...validEnv,
+          BOOTSTRAP_ADMIN_EMAIL: 'not-an-email',
+          BOOTSTRAP_ADMIN_NAME: 'x'.repeat(201),
+        }),
+      ).toEqual([
+        { key: 'BOOTSTRAP_ADMIN_EMAIL', message: 'expected an email address' },
+        { key: 'BOOTSTRAP_ADMIN_NAME', message: 'expected at most 200 characters' },
       ]);
     });
   });
