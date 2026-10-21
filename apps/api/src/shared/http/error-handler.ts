@@ -50,12 +50,13 @@ export const errorHandler: ErrorHandler<AppEnv> = (error, c) => {
       ...(error.issues ? { errors: [...error.issues] } : {}),
     });
   }
-  // Hono's own 4xx (e.g. malformed JSON from the validator); its messages are generic.
+  // Hono's own 4xx (e.g. malformed JSON from the validator, csrf()); its messages are generic,
+  // and some (csrf()) have none.
   if (error instanceof HTTPException && error.status < 500) {
     return problemResponse(c, {
       status: error.status,
       code: codesByStatus[error.status] ?? 'validation_failed',
-      detail: error.message,
+      ...(error.message ? { detail: error.message } : {}),
     });
   }
   return internalError(c, error);

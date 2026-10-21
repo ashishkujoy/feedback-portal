@@ -39,6 +39,11 @@ Without credentials, the API runs normally and `/auth/google` answers 503. To tr
 - **After signing in**, the browser goes to `WEB_APP_URL` (the web app, from phase 4) with the session cookie set.
 - **Every failure** (unknown or inactive user, cancelled, expired flow) goes to `<WEB_APP_URL>/login?error=sign_in_failed`. The API log says why, without the email.
 
+### Auth endpoints
+- **`GET /me`** returns the signed-in user (`id`, `email`, `name`, `avatarUrl`, `roles`). Without a valid session it answers **401**, and clears a bad cookie. The web app treats a 401 as "go to sign-in".
+- **`POST /auth/logout`** ends the current session and clears the cookie. It always answers **204**.
+- **Writes must come from the web app.** A form-style or bodyless `POST`/`PUT`/`PATCH`/`DELETE` whose `Origin` isn't `WEB_APP_URL` gets **403** (CSRF check).
+
 ## Running everything in Docker
 
 ```sh

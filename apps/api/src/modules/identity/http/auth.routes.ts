@@ -9,7 +9,13 @@ import type { GoogleAuth } from '../application/google-auth.ts';
 import type { Sessions } from '../application/sessions.ts';
 import { signInWithGoogle } from '../application/sign-in-with-google.ts';
 import type { UserRepository } from '../application/user-repository.ts';
-import { cookieAttributes, readCookie, setSessionCookie } from './session-cookie.ts';
+import {
+  clearSessionCookie,
+  cookieAttributes,
+  readCookie,
+  readSessionCookie,
+  setSessionCookie,
+} from './session-cookie.ts';
 
 export type AuthRoutesDeps = Readonly<{
   users: UserRepository;
@@ -32,6 +38,7 @@ const logger = getLogger([rootCategory, 'auth']);
  * `GET /auth/google` starts Google sign-in; `GET /auth/google/callback` finishes it. Every failure
  * redirects to the web app's `/login?error=sign_in_failed`, so the browser never learns why
  * (unknown email, inactive, …); the log records the reason, never the email, code or token.
+ * `POST /auth/logout` ends the cookie's session, if any.
  */
 export const authRoutes = ({
   users,
@@ -101,5 +108,12 @@ export const authRoutes = ({
         logger.error('google sign-in failed: {error}', { error: caught });
         return c.redirect(failureUrl, 302);
       }
+    })
+    .post('/logout', async (c) => {
+      // Idempotent: no cookie, or an unknown or expired one, still signs the browser out.
+      const token = readSessionCookie(c, cookieOptions);
+      if (token !== undefined) await sessions.revoke(token);
+      clearSessionCookie(c, cookieOptions);
+      return c.body(null, 204);
     });
 };

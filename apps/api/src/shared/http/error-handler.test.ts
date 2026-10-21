@@ -1,5 +1,6 @@
 import { ProblemDetails } from '@feedback-portal/contracts';
 import { type LogRecord, reset } from '@logtape/logtape';
+import { HTTPException } from 'hono/http-exception';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { createBaseApp } from '../../app.ts';
@@ -34,6 +35,9 @@ const testApp = () =>
     })
     .get('/unavailable', () => {
       throw unavailable('Google sign-in is not configured');
+    })
+    .get('/hono-403', () => {
+      throw new HTTPException(403, { res: new Response('Forbidden', { status: 403 }) });
     })
     .get('/crash', () => {
       throw new Error(`db password=${secret}`);
@@ -106,6 +110,13 @@ describe('error handling', () => {
     const problem = await expectProblem(await testApp().request(path), status);
 
     expect(problem).toMatchObject({ type: 'about:blank', title, code, detail });
+  });
+
+  it('403 from Hono itself (e.g. csrf()): problem+json, without an empty detail', async () => {
+    const problem = await expectProblem(await testApp().request('/hono-403'), 403);
+
+    expect(problem.code).toBe('forbidden');
+    expect(problem).not.toHaveProperty('detail');
   });
 
   it('404: unknown route', async () => {
