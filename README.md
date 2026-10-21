@@ -24,7 +24,8 @@ pnpm --filter @feedback-portal/api dev   # http://localhost:3000/health
 pnpm dev:web     # http://localhost:5173 (fixed port: it's the API's default WEB_APP_URL)
 pnpm build:web   # static build in apps/web/dist
 ```
-It's a placeholder page for now and doesn't need the API.
+- **The web app calls the API only through `/api` on its own origin.** `pnpm dev:web` and `vite preview` proxy `/api/*` to http://localhost:3000, without the `/api` prefix. Run the API too (`pnpm --filter @feedback-portal/api dev`) for the full app; the API in Docker uses the same port, so run one or the other.
+- **Without a session** the shell shows no signed-in user. Sign-in arrives in 4.4.
 
 ### The first admin
 - Set `BOOTSTRAP_ADMIN_EMAIL` (and optionally `BOOTSTRAP_ADMIN_NAME`) in `apps/api/.env`, then run `pnpm db:seed`. Compose runs it for you as the `seed` job.

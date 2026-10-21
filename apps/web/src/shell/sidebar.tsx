@@ -1,9 +1,10 @@
 import { Layers, Users } from 'lucide-react';
 import { NavItem } from './nav-item.tsx';
+import { UserBlock } from './user-block.tsx';
 
 /**
- * The design's 240px Tech Blue sidebar. The program name (4.5) and the signed-in user (4.4) join
- * the brand block and the foot; the design's logo mark is left out (no organisation's brand is
+ * The design's 240px Tech Blue sidebar, with the signed-in user at its foot. The program name
+ * joins the brand block in 4.5; the design's logo mark is left out (no organisation's brand is
  * hard-coded).
  */
 export const Sidebar = () => (
@@ -20,5 +21,6 @@ export const Sidebar = () => (
         <NavItem to="/users" icon={Users} label="Users and roles" />
       </ul>
     </nav>
+    <UserBlock />
   </aside>
 );

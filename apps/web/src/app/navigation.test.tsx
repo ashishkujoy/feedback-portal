@@ -1,23 +1,16 @@
-import { QueryClientProvider } from '@tanstack/react-query';
-import { createMemoryHistory, RouterProvider } from '@tanstack/react-router';
-import { render, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
-import { createQueryClient } from './query-client.ts';
-import { createAppRouter } from './router.tsx';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderApp } from '../test/render-app.tsx';
+import { signedOut, stubApi } from '../test/stub-api.ts';
 
-/** The real router and shell, on a memory history starting at `path`. */
-const renderAt = (path: string) => {
-  const history = createMemoryHistory({ initialEntries: [path] });
-  const queryClient = createQueryClient();
-  const router = createAppRouter({ queryClient, history });
-  render(
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>,
-  );
-  return { router, history };
-};
+beforeEach(() => {
+  stubApi(signedOut);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 const mainNav = () => screen.getByRole('navigation', { name: 'Main' });
 const breadcrumb = () => screen.getByRole('navigation', { name: 'Breadcrumb' });
@@ -34,7 +27,7 @@ const expectPage = async (title: string) => {
 
 describe('navigation', () => {
   it('redirects / to Batches and marks it active', async () => {
-    const { router } = renderAt('/');
+    const { router } = renderApp('/');
 
     await expectPage('Batches');
     expect(router.state.location.pathname).toBe('/batches');
@@ -43,7 +36,7 @@ describe('navigation', () => {
 
   it('moves between pages from the sidebar, and back', async () => {
     const user = userEvent.setup();
-    const { router, history } = renderAt('/batches');
+    const { router, history } = renderApp('/batches');
     await expectPage('Batches');
 
     await user.click(within(mainNav()).getByRole('link', { name: 'Users and roles' }));
@@ -59,7 +52,7 @@ describe('navigation', () => {
 
   it('shows not found inside the shell, with a way back', async () => {
     const user = userEvent.setup();
-    const { router } = renderAt('/nope');
+    const { router } = renderApp('/nope');
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
     expect(mainNav()).toBeVisible();
@@ -71,7 +64,7 @@ describe('navigation', () => {
   });
 
   it('has one main landmark holding the page', async () => {
-    renderAt('/users');
+    renderApp('/users');
     await expectPage('Users and roles');
 
     const main = screen.getByRole('main');
