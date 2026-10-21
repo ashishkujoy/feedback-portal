@@ -9,5 +9,11 @@
   "arrowParens": "always",
   "endOfLine": "lf",
   "insertFinalNewline": true,
+  "overrides": [
+    {
+      "files": ["apps/web/**/*.tsx", "apps/web/**/*.ts"],
+      "options": { "sortTailwindcss": { "stylesheet": "./apps/web/src/styles.css" } }
+    }
+  ],
   "ignorePatterns": ["pnpm-lock.yaml", "**/dist/**", "**/coverage/**", "**/*.md"]
 }

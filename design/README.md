@@ -43,7 +43,7 @@ The UI is designed in Claude Design. **All UI work follows these screens** (see 
 - Mentors give feedback, including notice, and comment.
 
 ## Design system (Kuat) essentials
-- **Built on shadcn/ui** with Equal Experts brand tokens. It is published on npm as `@equal-experts/kuat-core` (tokens), `@equal-experts/kuat-react` and `@equal-experts/kuat-vue`. Choosing between that package and porting the tokens into the Tailwind v4 theme is a decision for 4.1.
+- **Built on shadcn/ui** with Equal Experts brand tokens. It is published on npm as `@equal-experts/kuat-core` (tokens), `@equal-experts/kuat-react` and `@equal-experts/kuat-vue`. **Decided in 4.1:** the web app uses `@equal-experts/kuat-core` for the tokens (its Tailwind v4 `@theme`), with self-hosted fonts instead of its Google Fonts import. Components (`kuat-react` or written in-repo) are decided when a screen first needs them.
 - **Primitives the screens use:** Button, Input, Textarea, Select, Checkbox, Switch, Avatar, AvatarStack, StatusBadge, Tag, Callout, Tabs, Breadcrumb, Dialog and Logo.
 - **Type:**
   - **Lexend** for all UI text. Headings use weight 600 with tight tracking. Body text is 16/24.

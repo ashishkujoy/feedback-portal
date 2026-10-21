@@ -1,0 +1,21 @@
+/* Self-hosted fonts (no third-party requests), then Tailwind, then Kuat's tokens and @theme. */
+@import '@fontsource-variable/lexend';
+@import '@fontsource-variable/jetbrains-mono';
+@import 'tailwindcss';
+@import '@equal-experts/kuat-core/variables.css';
+
+/*
+ * Kuat names its families `Lexend` and `JetBrains Mono`; the variable builds register them as
+ * `… Variable`. Kuat sets these on an unlayered `:root`, so the override must be unlayered too.
+ */
+:root {
+  --font-sans: 'Lexend Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+}
+
+@layer base {
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    letter-spacing: var(--tracking-normal);
+  }
+}

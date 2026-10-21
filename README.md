@@ -19,6 +19,13 @@ pnpm db:seed                             # first admin, from BOOTSTRAP_ADMIN_EMA
 pnpm --filter @feedback-portal/api dev   # http://localhost:3000/health
 ```
 
+### Web app
+```sh
+pnpm dev:web     # http://localhost:5173 (fixed port: it's the API's default WEB_APP_URL)
+pnpm build:web   # static build in apps/web/dist
+```
+It's a placeholder page for now and doesn't need the API.
+
 ### The first admin
 - Set `BOOTSTRAP_ADMIN_EMAIL` (and optionally `BOOTSTRAP_ADMIN_NAME`) in `apps/api/.env`, then run `pnpm db:seed`. Compose runs it for you as the `seed` job.
 - **The seed acts only when there is no active admin.** Then it creates that user as an admin, or, if the user exists, grants them `admin` and reactivates them. While any active admin exists, it does nothing, so it never undoes an admin's changes.

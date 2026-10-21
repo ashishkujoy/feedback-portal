@@ -44,6 +44,7 @@ This file is the overview. Detailed plans, reviews, findings and status for each
 | 3.6 | **Google OAuth**: `/auth/google` and `/auth/google/callback` using Arctic. Only pre-added, active users can sign in | A test covers a known user signing in and an unknown user being rejected, with Google mocked |
 | 3.7 | **Auth middleware + `GET /me`**: loads the current user and their roles, and adds `logout` | Authenticated and unauthenticated tests pass |
 | 3.8 | **Admin user management API**: list, create, deactivate, and reactivate users, and grant or revoke roles | API tests pass, and non-admins get 403 |
+| 3.9 | **Replace Arctic**: npm marks `arctic` and its `@oslojs/*` dependencies as no longer supported. Swap the adapter behind the `GoogleAuth` port for a maintained library or a small PKCE + token exchange | The 3.6 route and adapter tests pass unchanged against the new adapter, and `arctic` is gone from the lockfile |
 
 ## Phase 4 — Frontend skeleton
 
