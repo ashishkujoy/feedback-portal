@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { resetDb, useTestDb } from '../../../test/test-db.ts';
 import journal from '../../../drizzle/meta/_journal.json' with { type: 'json' };
+import { appDeps } from '../../../test/app-deps.ts';
 import { createApp } from '../../app.ts';
 
 /** Every generated migration is applied to the template. */
@@ -42,7 +43,7 @@ describe('test database harness', () => {
   });
 
   it('serves /health/ready from the real database', async () => {
-    const res = await createApp({ ping: testDb.handle.ping }).request('/health/ready');
+    const res = await createApp(appDeps(testDb.handle.ping)).request('/health/ready');
 
     expect(res.status).toBe(200);
   });

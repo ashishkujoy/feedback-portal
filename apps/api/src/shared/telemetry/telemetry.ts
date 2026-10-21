@@ -40,9 +40,14 @@ const diagLogger: DiagLogger = {
 };
 
 /** The auto-instrumentations, created before the app imports `pg` or `node:http`. */
+/** Query parameters whose values are replaced in server spans. */
+export const redactedQueryParams = ['code', 'state'] as const;
+
 export const createInstrumentations = (): Instrumentation[] => [
   new HttpInstrumentation({
     ignoreIncomingRequestHook: (request) => request.url?.split('?')[0] === livenessPath,
+    // The OAuth callback's `code` and `state` must never reach a span's `url.query`.
+    redactedQueryParamsServer: [...redactedQueryParams],
   }),
   // Values stay out of spans; queries outside a request (pool warm-up, shutdown) make no span.
   new PgInstrumentation({ enhancedDatabaseReporting: false, requireParentSpan: true }),

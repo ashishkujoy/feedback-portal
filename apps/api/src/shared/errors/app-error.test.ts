@@ -5,6 +5,7 @@ import {
   forbidden,
   notFound,
   unauthenticated,
+  unavailable,
   validationFailed,
 } from './app-error.ts';
 
@@ -14,6 +15,7 @@ describe('AppError factories', () => {
     [notFound('missing'), 'not_found', 'not_found', 'missing'],
     [conflict('clash'), 'conflict', 'conflict', 'clash'],
     [unauthenticated(), 'unauthenticated', 'unauthenticated', 'Authentication required'],
+    [unavailable('off'), 'unavailable', 'unavailable', 'off'],
   ] as const)('%o has kind %s and code %s', (error, kind, code, message) => {
     expect(error).toBeInstanceOf(AppError);
     expect(error).toBeInstanceOf(Error);

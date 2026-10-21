@@ -1,11 +1,12 @@
 import { getLogger, type LogRecord, reset } from '@logtape/logtape';
 import { Hono } from 'hono';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { appDeps } from '../../../test/app-deps.ts';
 import { createApp } from '../../app.ts';
 import { configureLogging } from '../logging/logging.ts';
 import { requestLogger } from './request-logger.ts';
 
-const createTestApp = () => createApp({ ping: () => Promise.resolve() });
+const createTestApp = () => createApp(appDeps(() => Promise.resolve()));
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 

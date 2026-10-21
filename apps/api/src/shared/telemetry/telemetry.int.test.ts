@@ -185,6 +185,8 @@ describe('telemetry (real process)', () => {
       headers: { 'x-request-id': 'trace-test-1' },
     });
     expect(res.status).toBe(200);
+    // Google isn't configured here (503), but the span is still recorded.
+    await fetch(`${api.baseUrl}/auth/google/callback?code=secret-code&state=secret-state&x=1`);
     expect(await stopApi(api.child)).toBe(0); // shutdown flushes spans, metrics and logs
 
     const spans = spansOf(otlp.received);
@@ -226,6 +228,13 @@ describe('telemetry (real process)', () => {
       (r) => r.logger === 'api.http' && r.properties['path'] === '/health/ready',
     );
     expect(stdoutLine?.properties['trace_id']).toBe(server.traceId);
+
+    // The OAuth callback's code and state are redacted from the span's query.
+    const callback = spans.find((s) => attr(s, 'url.path') === '/auth/google/callback');
+    expect(JSON.stringify(spans)).not.toMatch(/secret-code|secret-state/);
+    expect(callback).toBeDefined();
+    if (!callback) return;
+    expect(attr(callback, 'url.query')).toBe('code=REDACTED&state=REDACTED&x=1');
 
     // The /health liveness probe is neither traced nor logged.
     expect(spans.filter((s) => attr(s, 'url.path') === '/health')).toEqual([]);

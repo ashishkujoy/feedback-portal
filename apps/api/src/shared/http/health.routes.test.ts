@@ -1,6 +1,7 @@
 import { HealthResponse, ProblemDetails } from '@feedback-portal/contracts';
 import { type LogRecord, reset } from '@logtape/logtape';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { appDeps } from '../../../test/app-deps.ts';
 import { createApp } from '../../app.ts';
 import { configureLogging } from '../logging/logging.ts';
 import { readinessTimeoutMs } from './health.routes.ts';
@@ -23,7 +24,7 @@ describe('GET /health/ready', () => {
   it('returns 200 when the database answers', async () => {
     const ping = vi.fn<() => Promise<void>>(() => Promise.resolve());
 
-    const res = await createApp({ ping }).request('/health/ready');
+    const res = await createApp(appDeps(ping)).request('/health/ready');
 
     expect(res.status).toBe(200);
     expect(HealthResponse.parse(await res.json())).toEqual({ status: 'ok' });
@@ -31,7 +32,7 @@ describe('GET /health/ready', () => {
   });
 
   it('returns a 503 problem without leaking the error, and logs a warning', async () => {
-    const app = createApp({ ping: () => Promise.reject(new Error(`password ${secret}`)) });
+    const app = createApp(appDeps(() => Promise.reject(new Error(`password ${secret}`))));
 
     const res = await app.request('/health/ready');
     const text = await res.clone().text();
@@ -52,7 +53,7 @@ describe('GET /health/ready', () => {
 
   it('returns 503 when the database does not answer in time', async () => {
     vi.useFakeTimers();
-    const app = createApp({ ping: () => new Promise<void>(() => {}) });
+    const app = createApp(appDeps(() => new Promise<void>(() => {})));
 
     const pending = app.request('/health/ready');
     await vi.advanceTimersByTimeAsync(readinessTimeoutMs);

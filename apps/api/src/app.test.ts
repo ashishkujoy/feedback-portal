@@ -1,9 +1,10 @@
 import { HealthResponse, ProblemDetails } from '@feedback-portal/contracts';
 import { describe, expect, it } from 'vitest';
+import { appDeps } from '../test/app-deps.ts';
 import { createApp } from './app.ts';
 
 describe('api app', () => {
-  const app = createApp({ ping: () => Promise.reject(new Error('db down')) });
+  const app = createApp(appDeps(() => Promise.reject(new Error('db down'))));
 
   it('GET /health returns 200 without touching the DB', async () => {
     const res = await app.request('/health');

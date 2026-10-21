@@ -1,6 +1,10 @@
 import { serve } from '@hono/node-server';
 import { dispose, getLogger } from '@logtape/logtape';
 import { createApp } from './app.ts';
+import { createSessions } from './modules/identity/application/sessions.ts';
+import { createArcticGoogleAuth } from './modules/identity/infrastructure/arctic-google-auth.ts';
+import { createSessionRepository } from './modules/identity/infrastructure/drizzle-session-repository.ts';
+import { createUserRepository } from './modules/identity/infrastructure/drizzle-user-repository.ts';
 import { loadConfigOrExit } from './shared/config/load-config-or-exit.ts';
 import { createDb } from './shared/db/client.ts';
 import { configureLogging, rootCategory } from './shared/logging/logging.ts';
@@ -23,6 +27,20 @@ if (config.telemetry.enabled && !isTelemetryStarted()) {
   );
 }
 
+if (!config.auth.google) {
+  logger.warning('Google sign-in is not configured (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET)');
+}
+
+const now = (): Date => new Date();
+const auth = {
+  users: createUserRepository(database.db),
+  sessions: createSessions({ sessions: createSessionRepository(database.db), now }),
+  googleAuth: config.auth.google ? createArcticGoogleAuth(config.auth.google) : null,
+  webAppUrl: config.auth.webAppUrl,
+  secureCookies: config.auth.secureCookies,
+  now,
+};
+
 const exit = async (code: number): Promise<never> => {
   await dispose(); // flush buffered records
   process.exit(code);
@@ -30,7 +48,7 @@ const exit = async (code: number): Promise<never> => {
 
 const server = serve(
   {
-    fetch: createApp({ ping: database.ping }).fetch,
+    fetch: createApp({ ping: database.ping, auth }).fetch,
     hostname: config.server.host,
     port: config.server.port,
   },

@@ -23,6 +23,7 @@ describe('loadConfig', () => {
       db: { url: dbUrl, poolMax: 10 },
       branding: { programName: 'Test Program', orgName: 'Test Org' },
       telemetry: { enabled: false },
+      auth: { google: null, webAppUrl: 'http://localhost:5173', secureCookies: false },
       bootstrapAdmin: null,
     });
   });
@@ -210,6 +211,45 @@ describe('loadConfig', () => {
         { key: 'BOOTSTRAP_ADMIN_EMAIL', message: 'expected an email address' },
         { key: 'BOOTSTRAP_ADMIN_NAME', message: 'expected at most 200 characters' },
       ]);
+    });
+  });
+
+  describe('auth', () => {
+    const google = { GOOGLE_CLIENT_ID: 'client-id', GOOGLE_CLIENT_SECRET: 'client-secret' };
+
+    it('enables Google only when both the ID and the secret are set', () => {
+      expect(loadConfig({ ...validEnv, GOOGLE_CLIENT_ID: 'client-id' }).auth.google).toBeNull();
+      expect(loadConfig({ ...validEnv, GOOGLE_CLIENT_SECRET: 'secret' }).auth.google).toBeNull();
+      expect(loadConfig({ ...validEnv, ...google }).auth.google).toEqual({
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+        redirectUri: 'http://localhost:3000/auth/google/callback',
+      });
+    });
+
+    it('uses the supplied URLs, without a trailing slash on the web app', () => {
+      const { auth } = loadConfig({
+        ...validEnv,
+        ...google,
+        GOOGLE_REDIRECT_URI: 'https://portal.example.com/auth/google/callback',
+        WEB_APP_URL: 'https://portal.example.com/',
+      });
+
+      expect(auth.google?.redirectUri).toBe('https://portal.example.com/auth/google/callback');
+      expect(auth.webAppUrl).toBe('https://portal.example.com');
+    });
+
+    it('uses secure cookies in production only', () => {
+      expect(loadConfig({ ...validEnv, NODE_ENV: 'production' }).auth.secureCookies).toBe(true);
+      expect(loadConfig({ ...validEnv, NODE_ENV: 'test' }).auth.secureCookies).toBe(false);
+    });
+
+    it('rejects non-http URLs', () => {
+      expect(
+        issuesFor({ ...validEnv, GOOGLE_REDIRECT_URI: 'ftp://x/cb', WEB_APP_URL: 'localhost' }).map(
+          ({ key }) => key,
+        ),
+      ).toEqual(['GOOGLE_REDIRECT_URI', 'WEB_APP_URL']);
     });
   });
 });

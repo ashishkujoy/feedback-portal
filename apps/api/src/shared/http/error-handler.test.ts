@@ -3,7 +3,13 @@ import { type LogRecord, reset } from '@logtape/logtape';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { createBaseApp } from '../../app.ts';
-import { conflict, forbidden, notFound, unauthenticated } from '../errors/app-error.ts';
+import {
+  conflict,
+  forbidden,
+  notFound,
+  unauthenticated,
+  unavailable,
+} from '../errors/app-error.ts';
 import { configureLogging } from '../logging/logging.ts';
 import { validate } from './validate.ts';
 
@@ -25,6 +31,9 @@ const testApp = () =>
     })
     .get('/conflict', () => {
       throw conflict('Intern is already terminated', 'conflict');
+    })
+    .get('/unavailable', () => {
+      throw unavailable('Google sign-in is not configured');
     })
     .get('/crash', () => {
       throw new Error(`db password=${secret}`);
@@ -92,6 +101,7 @@ describe('error handling', () => {
     ['/forbidden', 403, 'Forbidden', 'forbidden', 'You are read-only on this batch'],
     ['/missing', 404, 'Not Found', 'not_found', 'Intern not found'],
     ['/conflict', 409, 'Conflict', 'conflict', 'Intern is already terminated'],
+    ['/unavailable', 503, 'Service Unavailable', 'unavailable', 'Google sign-in is not configured'],
   ])('%s → %i with the AppError detail', async (path, status, title, code, detail) => {
     const problem = await expectProblem(await testApp().request(path), status);
 

@@ -1,7 +1,13 @@
 import type { ErrorCode, FieldIssue } from '@feedback-portal/contracts';
 
 /** What went wrong, independent of transport. The HTTP layer maps each kind to a status. */
-export type ErrorKind = 'validation' | 'unauthenticated' | 'forbidden' | 'not_found' | 'conflict';
+export type ErrorKind =
+  | 'validation'
+  | 'unauthenticated'
+  | 'forbidden'
+  | 'not_found'
+  | 'conflict'
+  | 'unavailable';
 
 const defaultCodes = {
   validation: 'validation_failed',
@@ -9,6 +15,7 @@ const defaultCodes = {
   forbidden: 'forbidden',
   not_found: 'not_found',
   conflict: 'conflict',
+  unavailable: 'unavailable',
 } as const satisfies Record<ErrorKind, ErrorCode>;
 
 type AppErrorOptions = Readonly<{ code?: ErrorCode; issues?: readonly FieldIssue[] }>;
@@ -44,3 +51,6 @@ export const notFound = (detail: string): AppError => new AppError('not_found', 
 /** Also used for domain invariant violations, e.g. an illegal status transition. */
 export const conflict = (detail: string, code?: ErrorCode): AppError =>
   new AppError('conflict', detail, code ? { code } : {});
+
+/** A feature that is switched off or a dependency that is down; maps to 503. */
+export const unavailable = (detail: string): AppError => new AppError('unavailable', detail);

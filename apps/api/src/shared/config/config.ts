@@ -6,7 +6,7 @@ const portError = 'expected an integer between 1 and 65535';
 const poolMaxError = 'expected an integer between 1 and 100';
 const databaseUrlError = 'expected a postgres:// or postgresql:// URL';
 
-const otlpEndpointError = 'expected an http:// or https:// URL';
+const httpUrlError = 'expected an http:// or https:// URL';
 const metricIntervalError = 'expected an integer number of milliseconds between 1000 and 3600000';
 
 const hasProtocol =
@@ -48,10 +48,7 @@ const EnvSchema = z.object({
   PROGRAM_NAME: required,
   ORG_NAME: required,
   // Standard OpenTelemetry names. Telemetry is on only when an endpoint is set.
-  OTEL_EXPORTER_OTLP_ENDPOINT: z
-    .string()
-    .refine(isHttpUrl, { error: otlpEndpointError })
-    .optional(),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().refine(isHttpUrl, { error: httpUrlError }).optional(),
   OTEL_SERVICE_NAME: z.string().default('feedback-portal-api'),
   OTEL_SDK_DISABLED: z
     .enum(['true', 'false'], { error: 'expected true or false' })
@@ -62,6 +59,18 @@ const EnvSchema = z.object({
     .min(1000, { error: metricIntervalError })
     .max(3_600_000, { error: metricIntervalError })
     .default(60_000),
+  // Google sign-in. Off (routes answer 503) unless both the ID and the secret are set.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REDIRECT_URI: z
+    .string()
+    .refine(isHttpUrl, { error: httpUrlError })
+    .default('http://localhost:3000/auth/google/callback'),
+  // Where the browser goes after sign-in (and `/login` on failure).
+  WEB_APP_URL: z
+    .string()
+    .refine(isHttpUrl, { error: httpUrlError })
+    .default('http://localhost:5173'),
   // Read only by the seed (`pnpm db:seed`); the API server ignores them.
   BOOTSTRAP_ADMIN_EMAIL: z.email({ error: 'expected an email address' }).optional(),
   BOOTSTRAP_ADMIN_NAME: z
@@ -80,8 +89,25 @@ export type Config = Readonly<{
   db: DbConfig;
   branding: Readonly<{ programName: string; orgName: string }>;
   telemetry: TelemetryConfig;
+  auth: AuthConfig;
   /** `null` when `BOOTSTRAP_ADMIN_EMAIL` isn't set. */
   bootstrapAdmin: BootstrapAdminConfig | null;
+}>;
+
+export type GoogleConfig = Readonly<{
+  clientId: string;
+  /** Secret: never log it. */
+  clientSecret: string;
+  redirectUri: string;
+}>;
+
+export type AuthConfig = Readonly<{
+  /** `null` when Google sign-in isn't configured. */
+  google: GoogleConfig | null;
+  /** Base URL of the web app, without a trailing slash. */
+  webAppUrl: string;
+  /** Secure, `__Host-` prefixed cookies; on in production, off for plain-http local dev. */
+  secureCookies: boolean;
 }>;
 
 /** `name: null` means "derive it from the email". */
@@ -157,6 +183,10 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => {
     OTEL_SERVICE_NAME,
     OTEL_SDK_DISABLED,
     OTEL_METRIC_EXPORT_INTERVAL,
+    GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET,
+    GOOGLE_REDIRECT_URI,
+    WEB_APP_URL,
     BOOTSTRAP_ADMIN_EMAIL,
     BOOTSTRAP_ADMIN_NAME,
   } = result.data;
@@ -176,6 +206,18 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => {
     db: Object.freeze({ url: DATABASE_URL, poolMax: DATABASE_POOL_MAX }),
     branding: Object.freeze({ programName: PROGRAM_NAME, orgName: ORG_NAME }),
     telemetry: Object.freeze(telemetry),
+    auth: Object.freeze({
+      google:
+        GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET
+          ? Object.freeze({
+              clientId: GOOGLE_CLIENT_ID,
+              clientSecret: GOOGLE_CLIENT_SECRET,
+              redirectUri: GOOGLE_REDIRECT_URI,
+            })
+          : null,
+      webAppUrl: WEB_APP_URL.replace(/\/+$/, ''),
+      secureCookies: NODE_ENV === 'production',
+    }),
     bootstrapAdmin: BOOTSTRAP_ADMIN_EMAIL
       ? Object.freeze({ email: BOOTSTRAP_ADMIN_EMAIL, name: BOOTSTRAP_ADMIN_NAME ?? null })
       : null,

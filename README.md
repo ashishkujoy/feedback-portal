@@ -27,6 +27,18 @@ pnpm --filter @feedback-portal/api dev   # http://localhost:3000/health
 
 On macOS with Colima, run `colima start` first.
 
+### Google sign-in (optional locally)
+Without credentials, the API runs normally and `/auth/google` answers 503. To try a real sign-in:
+
+1. In Google Cloud Console, open **APIs & Services → Credentials → Create credentials → OAuth client ID**. Choose type **Web application**.
+2. Add the authorised redirect URI `http://localhost:3000/auth/google/callback`.
+3. Put the client ID and secret in `apps/api/.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+4. Make sure your email exists as an active user: set `BOOTSTRAP_ADMIN_EMAIL` and run `pnpm db:seed`.
+5. Open http://localhost:3000/auth/google.
+
+- **After signing in**, the browser goes to `WEB_APP_URL` (the web app, from phase 4) with the session cookie set.
+- **Every failure** (unknown or inactive user, cancelled, expired flow) goes to `<WEB_APP_URL>/login?error=sign_in_failed`. The API log says why, without the email.
+
 ## Running everything in Docker
 
 ```sh
