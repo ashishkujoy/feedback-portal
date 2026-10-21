@@ -1,10 +1,15 @@
 import type { Role } from '@feedback-portal/contracts';
-import type { AppDeps } from '../src/app.ts';
-import type { Sessions } from '../src/modules/identity/application/sessions.ts';
+import { type AppDeps, createApp } from '../src/app.ts';
+import type { GoogleAuth } from '../src/modules/identity/application/google-auth.ts';
+import { createSessions, type Sessions } from '../src/modules/identity/application/sessions.ts';
 import type { UserRepository } from '../src/modules/identity/application/user-repository.ts';
 import { createUser, deactivate, type User } from '../src/modules/identity/domain/user.ts';
 import { newUserId } from '../src/modules/identity/domain/user-id.ts';
 import type { AuthRoutesDeps } from '../src/modules/identity/http/auth.routes.ts';
+import { createSessionRepository } from '../src/modules/identity/infrastructure/drizzle-session-repository.ts';
+import { createUserAdminTransaction } from '../src/modules/identity/infrastructure/drizzle-user-admin.ts';
+import { createUserRepository } from '../src/modules/identity/infrastructure/drizzle-user-repository.ts';
+import type { Database } from '../src/shared/db/client.ts';
 
 const unused = (): never => {
   throw new Error('not used by this test');
@@ -26,9 +31,14 @@ export const unusedAuthDeps: AuthRoutesDeps = {
   now: () => new Date(),
 };
 
-export const appDeps = (ping: AppDeps['ping']): AppDeps => ({ ping, auth: unusedAuthDeps });
+export const appDeps = (ping: AppDeps['ping']): AppDeps => ({
+  ping,
+  auth: unusedAuthDeps,
+  userAdmin: unused,
+});
 
 type SignInAsOptions = Readonly<{
+  name?: string;
   roles?: readonly [Role, ...Role[]];
   active?: boolean;
   secureCookies?: boolean;
@@ -39,14 +49,23 @@ type SignInAsOptions = Readonly<{
  * routes. `cookie` is the request header value.
  */
 export const signInAs = async (
-  { users, sessions }: Readonly<{ users: UserRepository; sessions: Sessions }>,
-  { roles = ['mentor'], active = true, secureCookies = false }: SignInAsOptions = {},
+  {
+    users,
+    sessions,
+    now = () => new Date(),
+  }: Readonly<{ users: UserRepository; sessions: Sessions; now?: () => Date }>,
+  {
+    name = 'Signed In',
+    roles = ['mentor'],
+    active = true,
+    secureCookies = false,
+  }: SignInAsOptions = {},
 ) => {
-  const at = new Date();
+  const at = now();
   let user: User = createUser({
     id: newUserId(),
     email: `${newUserId()}@example.com`,
-    name: 'Signed In',
+    name,
     roles: [...roles],
     grantedBy: null,
     now: at,
@@ -54,6 +73,39 @@ export const signInAs = async (
   if (!active) user = deactivate(user, { by: newUserId(), now: at });
   await users.save(user);
   const { token, session } = await sessions.create(user.id, { userAgent: null, ip: null });
-  const name = secureCookies ? '__Host-session' : 'session';
-  return { user, token, session, cookie: `${name}=${token}` };
+  const cookieName = secureCookies ? '__Host-session' : 'session';
+  return { user, token, session, cookie: `${cookieName}=${token}` };
+};
+
+/**
+ * The full app on real repositories (Google off unless given), with a clock the test can move. `signInAs`
+ * is bound to the same repositories.
+ */
+export const realApp = (
+  db: Database,
+  {
+    secureCookies = false,
+    googleAuth = null,
+  }: Readonly<{ secureCookies?: boolean; googleAuth?: GoogleAuth | null }> = {},
+) => {
+  let current = new Date();
+  const now = () => current;
+  const users = createUserRepository(db);
+  const sessions = createSessions({ sessions: createSessionRepository(db), now });
+  const app = createApp({
+    ping: () => Promise.resolve(),
+    auth: { users, sessions, googleAuth, webAppUrl: 'http://web.test', secureCookies, now },
+    userAdmin: createUserAdminTransaction(db, now),
+  });
+  return {
+    app,
+    users,
+    sessions,
+    webAppUrl: 'http://web.test',
+    signedInUser: (options: SignInAsOptions = {}) =>
+      signInAs({ users, sessions, now }, { secureCookies, ...options }),
+    travel: (ms: number) => {
+      current = new Date(current.getTime() + ms);
+    },
+  };
 };

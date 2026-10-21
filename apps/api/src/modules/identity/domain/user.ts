@@ -96,6 +96,27 @@ export const revokeRole = (user: User, role: Role, { now }: Readonly<{ now: Date
   return { ...user, roles: user.roles.filter((grant) => grant.role !== role), updatedAt: now };
 };
 
+/**
+ * Makes `roles` the user's complete set: missing roles are granted (by `by`), extra ones revoked,
+ * and kept grants keep their original `grantedBy` and `grantedAt`. Nobody can remove their own
+ * `admin`, so an admin can't demote themselves by mistake.
+ */
+export const setRoles = (
+  user: User,
+  roles: readonly Role[],
+  { by, now }: Readonly<{ by: UserId; now: Date }>,
+): User => {
+  const wanted = new Set(roles);
+  if (by === user.id && hasRole(user, 'admin') && !wanted.has('admin')) {
+    throw conflict('You cannot remove your own admin role', 'cannot_remove_own_admin');
+  }
+  // Grant first, so replacing every role never passes through an empty set.
+  const granted = [...wanted].reduce((next, role) => grantRole(next, role, { by, now }), user);
+  return [...roleSet(granted)]
+    .filter((role) => !wanted.has(role))
+    .reduce((next, role) => revokeRole(next, role, { now }), granted);
+};
+
 /** Nobody can deactivate themselves, so an admin can't lock themselves out. */
 export const deactivate = (user: User, { by, now }: Readonly<{ by: UserId; now: Date }>): User => {
   if (by === user.id) throw conflict('You cannot deactivate yourself', 'cannot_deactivate_self');
@@ -120,9 +141,9 @@ export const signIn = (user: User, { googleSub, avatarUrl, now }: SignInInput): 
   return { ...user, googleSub, avatarUrl, lastLoginAt: now, updatedAt: now };
 };
 
-/** Checked by the admin use cases (3.8) with a count from the repository, after the change. */
+/** Checked by the admin use cases with a count from the repository, after the change. */
 export const ensureAnAdminRemains = (activeAdminCountAfterChange: number): void => {
   if (activeAdminCountAfterChange < 1) {
-    throw conflict('At least one active admin is required');
+    throw conflict('At least one active admin is required', 'last_admin');
   }
 };

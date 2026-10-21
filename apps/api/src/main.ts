@@ -3,6 +3,7 @@ import { dispose, getLogger } from '@logtape/logtape';
 import { createApp } from './app.ts';
 import { createSessions } from './modules/identity/application/sessions.ts';
 import { createArcticGoogleAuth } from './modules/identity/infrastructure/arctic-google-auth.ts';
+import { createUserAdminTransaction } from './modules/identity/infrastructure/drizzle-user-admin.ts';
 import { createSessionRepository } from './modules/identity/infrastructure/drizzle-session-repository.ts';
 import { createUserRepository } from './modules/identity/infrastructure/drizzle-user-repository.ts';
 import { loadConfigOrExit } from './shared/config/load-config-or-exit.ts';
@@ -48,7 +49,11 @@ const exit = async (code: number): Promise<never> => {
 
 const server = serve(
   {
-    fetch: createApp({ ping: database.ping, auth }).fetch,
+    fetch: createApp({
+      ping: database.ping,
+      auth,
+      userAdmin: createUserAdminTransaction(database.db, now),
+    }).fetch,
     hostname: config.server.host,
     port: config.server.port,
   },

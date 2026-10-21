@@ -1,13 +1,9 @@
 import { MeResponse, ProblemDetails } from '@feedback-portal/contracts';
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { signInAs } from '../../../../test/app-deps.ts';
+import { realApp } from '../../../../test/app-deps.ts';
 import { useTestDb } from '../../../../test/test-db.ts';
-import { createApp } from '../../../app.ts';
-import { createSessions } from '../application/sessions.ts';
 import { signIn } from '../domain/user.ts';
-import { createSessionRepository } from '../infrastructure/drizzle-session-repository.ts';
-import { createUserRepository } from '../infrastructure/drizzle-user-repository.ts';
 import { sessions as sessionsTable } from '../infrastructure/schema.ts';
 
 const testDb = useTestDb();
@@ -17,27 +13,7 @@ const day = 24 * 60 * 60 * 1000;
 const webAppUrl = 'http://web.test';
 const clearedCookie = 'session=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax';
 
-/** The full app (CSRF included) on real repositories, with a clock the test moves. */
-const setup = (secureCookies = false) => {
-  let current = new Date();
-  const now = () => current;
-  const users = createUserRepository(db());
-  const sessions = createSessions({ sessions: createSessionRepository(db()), now });
-  const app = createApp({
-    ping: () => Promise.resolve(),
-    auth: { users, sessions, googleAuth: null, webAppUrl, secureCookies, now },
-  });
-  return {
-    app,
-    users,
-    sessions,
-    signedInUser: (options: Parameters<typeof signInAs>[1] = {}) =>
-      signInAs({ users, sessions }, { secureCookies, ...options }),
-    travel: (ms: number) => {
-      current = new Date(current.getTime() + ms);
-    },
-  };
-};
+const setup = (secureCookies = false) => realApp(db(), { secureCookies });
 
 const me = (app: ReturnType<typeof setup>['app'], cookie?: string) =>
   app.request('/me', cookie === undefined ? {} : { headers: { cookie } });

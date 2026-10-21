@@ -65,7 +65,7 @@ Color codes have a fixed **severity order**, used for sorting and trend charts. 
 | name | text | |
 | google_sub | text null | Unique. Filled on first Google sign-in. |
 | avatar_url | text null | From the Google profile |
-| is_active | boolean | Default `true`. "Removing" a user sets this to `false`, which keeps their feedback and comments attributable. Inactive users cannot sign in. |
+| is_active | boolean | Default `true`. "Removing" a user sets this to `false`, which keeps their feedback and comments attributable. Inactive users cannot sign in, and deactivating a user also deletes their sessions. There is always at least one active admin. |
 | last_login_at | timestamptz null | |
 | created_at / updated_at | timestamptz | |
 

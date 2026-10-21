@@ -63,7 +63,7 @@ Update the status in both `PLAN.md` and the board below whenever it changes.
 | 3.5 Sessions | [`phase/03-identity-users-roles-login/05-sessions`](phase/03-identity-users-roles-login/05-sessions/PLAN.md) | Done |
 | 3.6 Google OAuth | [`phase/03-identity-users-roles-login/06-google-oauth`](phase/03-identity-users-roles-login/06-google-oauth/PLAN.md) | Done |
 | 3.7 Auth middleware + `GET /me` | [`phase/03-identity-users-roles-login/07-auth-middleware-get-me`](phase/03-identity-users-roles-login/07-auth-middleware-get-me/PLAN.md) | Done |
-| 3.8 Admin user management API | [`phase/03-identity-users-roles-login/08-admin-user-management-api`](phase/03-identity-users-roles-login/08-admin-user-management-api/PLAN.md) | Not started |
+| 3.8 Admin user management API | [`phase/03-identity-users-roles-login/08-admin-user-management-api`](phase/03-identity-users-roles-login/08-admin-user-management-api/PLAN.md) | Done |
 
 ### Phase 4 — Frontend skeleton
 

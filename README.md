@@ -39,9 +39,15 @@ Without credentials, the API runs normally and `/auth/google` answers 503. To tr
 - **After signing in**, the browser goes to `WEB_APP_URL` (the web app, from phase 4) with the session cookie set.
 - **Every failure** (unknown or inactive user, cancelled, expired flow) goes to `<WEB_APP_URL>/login?error=sign_in_failed`. The API log says why, without the email.
 
-### Auth endpoints
+### API endpoints (identity)
 - **`GET /me`** returns the signed-in user (`id`, `email`, `name`, `avatarUrl`, `roles`). Without a valid session it answers **401**, and clears a bad cookie. The web app treats a 401 as "go to sign-in".
 - **`POST /auth/logout`** ends the current session and clears the cookie. It always answers **204**.
+- **`/users`** (admins only; everyone else gets 403):
+  - `GET /users` lists every user, inactive ones included.
+  - `POST /users` with `{ email, name, roles }` adds a user, who can then sign in with Google. No invite is sent.
+  - `PUT /users/:id/roles` with `{ roles }` replaces their roles.
+  - `POST /users/:id/deactivate` signs them out everywhere. `POST /users/:id/reactivate` lets them sign in again.
+  - You can't deactivate yourself or remove your own `admin` role, and the last active admin can't be removed (409 `last_admin`).
 - **Writes must come from the web app.** A form-style or bodyless `POST`/`PUT`/`PATCH`/`DELETE` whose `Origin` isn't `WEB_APP_URL` gets **403** (CSRF check).
 
 ## Running everything in Docker

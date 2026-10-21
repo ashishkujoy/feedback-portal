@@ -10,6 +10,7 @@ import {
   reactivate,
   revokeRole,
   roleSet,
+  setRoles,
   signIn,
   type CreateUserInput,
   type User,
@@ -143,6 +144,55 @@ describe('roles', () => {
   });
 });
 
+const mentorAndPm = () => createUser(input({ roles: ['mentor', 'program_manager'] }));
+
+describe('setRoles', () => {
+  it('grants and revokes in one go, keeping the grants that stay', () => {
+    const user = mentorAndPm();
+    const next = setRoles(user, ['program_manager', 'admin'], { by: admin, now: t1 });
+
+    expect(next.roles).toEqual([user.roles[1], { role: 'admin', grantedBy: admin, grantedAt: t1 }]);
+    expect(next.updatedAt).toEqual(t1);
+  });
+
+  it('can replace every role', () => {
+    const next = setRoles(mentorAndPm(), ['admin'], { by: admin, now: t1 });
+
+    expect([...roleSet(next)]).toEqual(['admin']);
+  });
+
+  it('returns the same user when the set is unchanged, in any order', () => {
+    const user = mentorAndPm();
+
+    expect(setRoles(user, ['program_manager', 'mentor'], { by: admin, now: t1 })).toBe(user);
+  });
+
+  it('rejects an empty set', () => {
+    expect(errorOf(() => setRoles(mentorAndPm(), [], { by: admin, now: t1 }))).toMatchObject({
+      code: 'user_requires_role',
+    });
+  });
+
+  it('rejects removing your own admin role, but not adding to it', () => {
+    const self = createUser(input({ roles: ['admin'] }));
+
+    expect(errorOf(() => setRoles(self, ['mentor'], { by: self.id, now: t1 }))).toMatchObject({
+      kind: 'conflict',
+      code: 'cannot_remove_own_admin',
+    });
+    expect([...roleSet(setRoles(self, ['admin', 'mentor'], { by: self.id, now: t1 }))]).toEqual([
+      'admin',
+      'mentor',
+    ]);
+  });
+
+  it("lets another admin remove someone's admin role", () => {
+    const other = createUser(input({ roles: ['admin', 'mentor'] }));
+
+    expect([...roleSet(setRoles(other, ['mentor'], { by: admin, now: t1 }))]).toEqual(['mentor']);
+  });
+});
+
 describe('deactivate / reactivate', () => {
   const user = createUser(input());
 
@@ -210,7 +260,7 @@ describe('ensureAnAdminRemains', () => {
   it('rejects zero active admins', () => {
     expect(errorOf(() => ensureAnAdminRemains(0))).toMatchObject({
       kind: 'conflict',
-      code: 'conflict',
+      code: 'last_admin',
     });
   });
 
