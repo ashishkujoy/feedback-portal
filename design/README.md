@@ -19,7 +19,17 @@ The UI is designed in Claude Design. **All UI work follows these screens** (see 
 ## Screens
 **Desktop is 1440 wide; mobile is 390×844.** Every desktop screen has the same shell:
 - A 240px **Tech Blue sidebar**: logo mark, program name and "Mentor portal", a "Workspace" section, **Batches** (shown as "My batches" for mentors) and **Users and roles** (admin only).
-- A top bar with a breadcrumb, the signed-in user's avatar and a "Viewing as \<role\>" tag.
+- A top bar with a breadcrumb and a "Viewing as \<role\>" tag. The signed-in user's avatar, name and role label sit at the **foot of the sidebar**.
+
+**Shell measurements** (built in 4.2, in `apps/web/src/shell/`):
+- **Sidebar:** 240px, `--sidebar` (Tech Blue 500), padding 20px 12px.
+  - Brand block: padding 4px 8px 24px. The program name is 16px/600; "Mentor portal" is 12px `tech-blue-100`.
+  - "Workspace": 11px, uppercase, tracking 0.08em, `tech-blue-200`.
+  - Nav items: 18px Lucide icon, gap 10px, padding 9px 10px, `--radius-md`, 14px/500. Active: white on 14% white. Idle: `tech-blue-100`.
+  - User block: `margin-top:auto`, a 1px top border at 14% white, a 28px initials avatar, the name at 13px/500 and the role at 12px.
+- **Top bar:** 56px, `--background`, a 1px bottom `--border`, padding 0 28px.
+- **Content:** a `--muted` background, padding 28px, gap 24px. The page title is 28/36, weight 600, tracking -0.6px.
+- **The logo mark is left out** (decision in 4.2): no organisation's brand is hard-coded. A configurable logo can come with `GET /settings`.
 
 | ID (Admin / PM / Mentor) | Screen | Props | Contents |
 |---|---|---|---|

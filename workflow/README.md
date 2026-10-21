@@ -71,7 +71,7 @@ Update the status in both `PLAN.md` and the board below whenever it changes.
 | Task | Folder | Status |
 |---|---|---|
 | 4.1 Vite + React + Tailwind v4 | [`phase/04-frontend-skeleton/01-vite-react-tailwind-v4`](phase/04-frontend-skeleton/01-vite-react-tailwind-v4/PLAN.md) | Done |
-| 4.2 Router + Query | [`phase/04-frontend-skeleton/02-router-query`](phase/04-frontend-skeleton/02-router-query/PLAN.md) | Not started |
+| 4.2 Router + Query | [`phase/04-frontend-skeleton/02-router-query`](phase/04-frontend-skeleton/02-router-query/PLAN.md) | Done |
 | 4.3 API client | [`phase/04-frontend-skeleton/03-api-client`](phase/04-frontend-skeleton/03-api-client/PLAN.md) | Not started |
 | 4.4 Login flow | [`phase/04-frontend-skeleton/04-login-flow`](phase/04-frontend-skeleton/04-login-flow/PLAN.md) | Not started |
 | 4.5 Branding | [`phase/04-frontend-skeleton/05-branding`](phase/04-frontend-skeleton/05-branding/PLAN.md) | Not started |

@@ -1,0 +1,81 @@
+import { QueryClientProvider } from '@tanstack/react-query';
+import { createMemoryHistory, RouterProvider } from '@tanstack/react-router';
+import { render, screen, within } from '@testing-library/react';
+import { userEvent } from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { createQueryClient } from './query-client.ts';
+import { createAppRouter } from './router.tsx';
+
+/** The real router and shell, on a memory history starting at `path`. */
+const renderAt = (path: string) => {
+  const history = createMemoryHistory({ initialEntries: [path] });
+  const queryClient = createQueryClient();
+  const router = createAppRouter({ queryClient, history });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+  return { router, history };
+};
+
+const mainNav = () => screen.getByRole('navigation', { name: 'Main' });
+const breadcrumb = () => screen.getByRole('navigation', { name: 'Breadcrumb' });
+const currentNavItem = () =>
+  within(mainNav())
+    .getAllByRole('link')
+    .filter((link) => link.getAttribute('aria-current') === 'page')
+    .map((link) => link.textContent);
+
+const expectPage = async (title: string) => {
+  expect(await screen.findByRole('heading', { level: 1, name: title })).toBeVisible();
+  expect(within(breadcrumb()).getByText(title)).toHaveAttribute('aria-current', 'page');
+};
+
+describe('navigation', () => {
+  it('redirects / to Batches and marks it active', async () => {
+    const { router } = renderAt('/');
+
+    await expectPage('Batches');
+    expect(router.state.location.pathname).toBe('/batches');
+    expect(currentNavItem()).toEqual(['Batches']);
+  });
+
+  it('moves between pages from the sidebar, and back', async () => {
+    const user = userEvent.setup();
+    const { router, history } = renderAt('/batches');
+    await expectPage('Batches');
+
+    await user.click(within(mainNav()).getByRole('link', { name: 'Users and roles' }));
+
+    await expectPage('Users and roles');
+    expect(router.state.location.pathname).toBe('/users');
+    expect(currentNavItem()).toEqual(['Users and roles']);
+
+    history.back();
+    await expectPage('Batches');
+    expect(currentNavItem()).toEqual(['Batches']);
+  });
+
+  it('shows not found inside the shell, with a way back', async () => {
+    const user = userEvent.setup();
+    const { router } = renderAt('/nope');
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
+    expect(mainNav()).toBeVisible();
+    expect(currentNavItem()).toEqual([]);
+
+    await user.click(screen.getByRole('link', { name: 'Go to batches' }));
+    await expectPage('Batches');
+    expect(router.state.location.pathname).toBe('/batches');
+  });
+
+  it('has one main landmark holding the page', async () => {
+    renderAt('/users');
+    await expectPage('Users and roles');
+
+    const main = screen.getByRole('main');
+    expect(within(main).getByRole('heading', { level: 1 })).toHaveTextContent('Users and roles');
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+  });
+});
