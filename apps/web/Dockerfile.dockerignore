@@ -1,0 +1,21 @@
+# Allow-list for apps/web/Dockerfile (BuildKit reads this instead of the root .dockerignore).
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!.npmrc
+!packages/*/package.json
+!packages/tsconfig/*.json
+!packages/contracts/src
+!apps/web/package.json
+!apps/web/index.html
+!apps/web/vite.config.ts
+!apps/web/tsconfig.json
+!apps/web/nginx.conf
+!apps/web/src
+
+# Tests and test helpers never reach the image.
+**/*.test.ts
+**/*.test.tsx
+apps/web/src/test
+apps/web/src/test-setup.ts

@@ -75,7 +75,7 @@ Update the status in both `PLAN.md` and the board below whenever it changes.
 | 4.3 API client | [`phase/04-frontend-skeleton/03-api-client`](phase/04-frontend-skeleton/03-api-client/PLAN.md) | Done |
 | 4.4 Login flow | [`phase/04-frontend-skeleton/04-login-flow`](phase/04-frontend-skeleton/04-login-flow/PLAN.md) | Done |
 | 4.5 Branding | [`phase/04-frontend-skeleton/05-branding`](phase/04-frontend-skeleton/05-branding/PLAN.md) | Done |
-| 4.6 Web in Compose + OTel web | [`phase/04-frontend-skeleton/06-web-in-compose-otel-web`](phase/04-frontend-skeleton/06-web-in-compose-otel-web/PLAN.md) | Not started |
+| 4.6 Web in Compose + OTel web | [`phase/04-frontend-skeleton/06-web-in-compose-otel-web`](phase/04-frontend-skeleton/06-web-in-compose-otel-web/PLAN.md) | Done |
 
 ### Phase 5 — Admin: users
 

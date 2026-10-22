@@ -1,4 +1,4 @@
-# Local stack: postgres, one-shot migrate and seed jobs, the api, and Grafana LGTM. A later task adds web.
+# Local stack: postgres, one-shot migrate and seed jobs, the api, the web app (nginx), and Grafana LGTM.
 # Branding (PROGRAM_NAME, ORG_NAME) comes from apps/api/.env — copy it from .env.example first.
 name: feedback-portal
 
@@ -76,6 +76,26 @@ services:
       interval: 10s
       timeout: 3s
       start_period: 10s
+      retries: 3
+
+  # The production build behind nginx, which forwards /api to the api and /otlp to the collector.
+  web:
+    image: feedback-portal-web
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_OTEL_TRACES_URL: /otlp/v1/traces
+    ports:
+      - '5173:8080' # the api's default WEB_APP_URL; same port as `pnpm dev:web`, run one or the other
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1']
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
       retries: 3
 
   # OTel Collector + Tempo (traces) + Loki (logs) + Mimir (metrics) + Grafana in one container.

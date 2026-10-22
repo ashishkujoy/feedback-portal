@@ -22,7 +22,8 @@ const defaults: Record<string, Reply> = { '/settings': { status: 200, body: test
 export const stubApi = (replies: Record<string, Reply>) => {
   const fetchMock = vi.fn<typeof fetch>((input, init) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    const path = url.replace(/^\/api/, '');
+    // A `Request` (as the fetch instrumentation passes on) carries an absolute URL.
+    const path = new URL(url, location.href).pathname.replace(/^\/api/, '');
     const reply =
       replies[`${init?.method ?? 'GET'} ${path}`] ??
       replies[path] ??

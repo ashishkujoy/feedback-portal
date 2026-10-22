@@ -73,7 +73,7 @@ apps/api/src/
 | API client | Typed fetch wrapper that validates responses against the shared contracts _(chosen)_. Same origin only: the browser calls `/api/*`, which Vite (dev) and nginx (production) forward to the API with the prefix stripped, so the session cookie belongs to the web origin. Failures become `ApiError` (the problem `code`, or `internal` / `unavailable`); a success that breaks its contract is an `ApiContractError`. Query never retries a 4xx |
 | Markdown | Editor: textarea with a live preview tab. Render: `react-markdown` + `remark-gfm` + `rehype-sanitize` _(chosen)_ |
 | Testing | Vitest + Testing Library. Playwright for end-to-end tests _(chosen)_ |
-| Telemetry | OTel web SDK (fetch instrumentation) so traces run from the browser to the API to the DB |
+| Telemetry | OTel web SDK (fetch instrumentation) so traces run from the browser to the API to the DB. Spans go to `/otlp/v1/traces` on the web origin, which nginx (or Vite) forwards to the collector. On only when the build sets `VITE_OTEL_TRACES_URL` (the Compose build does) |
 
 ## 4. Repository layout
 
@@ -97,7 +97,7 @@ feedback-portal/
 |---|---|---|
 | `postgres` | Postgres 18.6 | 5433 on the host (avoids a local Postgres on 5432) → 5432 in the container |
 | `api` | Hono API | 3000 |
-| `web` | Vite dev server locally; static build served by nginx in production | 5173 |
+| `web` | The production build served by nginx, which forwards `/api` to the API and `/otlp` to the collector (`pnpm dev:web` for development) | 5173 |
 | `otel-lgtm` | OTel Collector + Grafana UI | 4317/4318 (OTLP), 3001 (Grafana) |
 
 ## 6. Configuration

@@ -26,6 +26,7 @@ pnpm build:web   # static build in apps/web/dist
 ```
 - **The web app calls the API only through `/api` on its own origin.** `pnpm dev:web` and `vite preview` proxy `/api/*` to http://localhost:3000, without the `/api` prefix. Run the API too (`pnpm --filter @feedback-portal/api dev`) for the full app; the API in Docker uses the same port, so run one or the other.
 - **Signed out, every page goes to `/login`**, the only page outside the shell. Navigation follows your roles: "Users and roles" is for admins, and mentors see "My batches". The sign-out button sits at the foot of the sidebar.
+- **Browser tracing is off in `pnpm dev:web`.** To turn it on, put `VITE_OTEL_TRACES_URL=/otlp/v1/traces` in `apps/web/.env.local` and run Grafana LGTM (`docker compose up -d otel-lgtm`); Vite forwards `/otlp` to it.
 - **The program and organisation names come from the API** (`GET /settings`, from `PROGRAM_NAME` and `ORG_NAME`). The program name shows in the sidebar, on the sign-in card and in the tab title, and the organisation name in the sign-in hint. If `/settings` fails, the app works without them.
 
 ### The first admin
@@ -64,7 +65,8 @@ Without credentials, the API runs normally, and **Sign in with Google** returns 
 
 ```sh
 cp apps/api/.env.example apps/api/.env   # PROGRAM_NAME / ORG_NAME are read from here
-docker compose up -d --build --wait      # postgres, otel-lgtm → migrate → seed (one-shot) → api
+docker compose up -d --build --wait      # postgres, otel-lgtm → migrate → seed (one-shot) → api → web
+open http://localhost:5173               # the app (nginx: static build, /api → api, /otlp → collector)
 curl localhost:3000/health/ready
 open http://localhost:3001               # Grafana: traces, logs, metrics
 docker compose down                      # add -v to also delete the database volume
@@ -72,8 +74,10 @@ docker compose down                      # add -v to also delete the database vo
 
 - `migrate` applies pending migrations and exits, then `seed` makes sure the first admin exists (see above). The `api` service starts only after both succeed.
 - Inside Docker the api always uses `NODE_ENV=production`, JSON logs and the `postgres` service. Those values override `apps/api/.env`.
-- The api in Docker and `pnpm dev` both use port 3000, so run one or the other.
-- To build the image alone, run `docker build -f apps/api/Dockerfile -t feedback-portal-api .` from the repo root.
+- The api in Docker and `pnpm dev` both use port 3000, and the `web` container and `pnpm dev:web` both use 5173, so run one or the other of each.
+- **Signing in through Docker needs Chrome or Firefox.** The api runs in production mode, so the session cookie is `__Host-session` with `Secure`. Chrome and Firefox accept that on `http://localhost`; Safari doesn't. `pnpm dev` has no such limit.
+- The `web` image is the production build behind nginx: hashed `/assets/*` are cached for a year and `index.html` is always revalidated. Rebuild it (`--build`) to see UI changes; use `pnpm dev:web` for day-to-day UI work.
+- To build an image alone, run `docker build -f apps/api/Dockerfile -t feedback-portal-api .` or `docker build -f apps/web/Dockerfile -t feedback-portal-web .` from the repo root.
 
 ### Observability (Grafana LGTM)
 - **Grafana** is at http://localhost:3001 (local only, no login). The data is throwaway and is reset by `docker compose down`.
@@ -86,6 +90,7 @@ docker compose down                      # add -v to also delete the database vo
   - Every log line written in a request carries `trace_id`. Its **Trace** link opens the trace, and in Tempo, **Logs for this span** goes back to the logs.
 - **Metrics:** Explore → **Prometheus**, for example `http_server_request_duration_seconds_count`, by `http_route`.
 - **`/health` is the liveness probe.** It is neither logged nor traced, so Docker's 10 s healthcheck stays silent. `/health/ready` (which checks the DB) is logged and traced like any other request.
+- **Browser traces:** the web app in Docker traces every `fetch` (service `feedback-portal-web`) and sends the spans to `/otlp/v1/traces` on its own origin. Same-origin requests carry `traceparent`, so one trace runs browser → api → `pg`: search Tempo for service `feedback-portal-web`.
 - **Using it with `pnpm dev`:** set `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` in `apps/api/.env` to send local runs to the same Grafana.
 
 ## Running tests

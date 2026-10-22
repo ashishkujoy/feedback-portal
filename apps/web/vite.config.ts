@@ -12,6 +12,11 @@ const apiProxy: Record<string, ProxyOptions> = {
     changeOrigin: false,
     rewrite: (path) => path.replace(/^\/api/, ''),
   },
+  // Browser traces (when VITE_OTEL_TRACES_URL is set) go to the collector Compose exposes.
+  '/otlp': {
+    target: 'http://localhost:4318',
+    rewrite: (path) => path.replace(/^\/otlp/, ''),
+  },
 };
 
 export default defineConfig({
