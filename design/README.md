@@ -76,6 +76,12 @@ The UI is designed in Claude Design. **All UI work follows these screens** (see 
 - **Icons:** Lucide, with a 2px stroke. No emoji.
 - **Copy:** sentence case everywhere. Buttons start with a specific verb ("Create batch", "Submit feedback").
 
+## Screens the design doesn't have (built in 4.4)
+Built from Kuat's own guidance with the design's tokens. A designer can replace them.
+- **Sign-in (`/login`):** a centred, flat card (max 400px, 32px padding) on `--muted`. It holds "Mentor portal", a "Sign in" heading (24px/600), "Use the Google account an admin added for you.", and a full-width outline **Sign in with Google** button with Google's "G" mark. After a failure there's an `issue` Callout ("We couldn't sign you in"), and when Google isn't configured a `warning` Callout. This follows Kuat's `scenarios/authentication.md`; the 6px card radius suggested there is replaced by the design's flat cards.
+- **Sign out:** a `log-out` icon button (18px, `tech-blue-100`, 32px hit area, `--radius-md`, 8% white hover) at the right end of the sidebar's user block.
+- **Not found:** the page-title style ("Page not found") inside the shell, with a link to Batches (4.2).
+
 ## Differences from PRODUCT.md
 Decided 2026-10-16. PRODUCT.md, DATA_MODEL.md, TECH_STACK.md, ROADMAP.md and contracts are updated to match.
 

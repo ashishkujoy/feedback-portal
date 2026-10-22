@@ -32,6 +32,12 @@
         "react/jsx-key": "error",
         "react/react-in-jsx-scope": "off",
         "react-perf/jsx-no-new-function-as-prop": "off",
+        "typescript/only-throw-error": [
+          "error",
+          {
+            "allow": [{ "from": "package", "name": "Redirect", "package": "@tanstack/router-core" }]
+          }
+        ],
         "import/no-unassigned-import": [
           "error",
           { "allow": ["**/*.css", "@testing-library/jest-dom/vitest"] }

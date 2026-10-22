@@ -1,11 +1,21 @@
-import { Link, useMatches } from '@tanstack/react-router';
+import type { MeResponse } from '@feedback-portal/contracts';
+import { Link, useMatches, type StaticDataRouteOption } from '@tanstack/react-router';
 import { ChevronRight } from 'lucide-react';
+import { useMe } from '../shell/use-me.ts';
+
+const labelOf = (
+  crumb: NonNullable<StaticDataRouteOption['crumb']>,
+  me: MeResponse | null | undefined,
+) => (typeof crumb === 'string' ? crumb : me ? crumb(me) : undefined);
 
 /** Kuat Breadcrumb, built from the matched routes' `staticData.crumb`; the last is the page. */
 export const Breadcrumb = () => {
-  const crumbs = useMatches()
-    .filter((match) => match.staticData.crumb !== undefined)
-    .map((match) => ({ id: match.id, label: match.staticData.crumb, to: match.pathname }));
+  const me = useMe();
+  const crumbs = useMatches().flatMap((match) => {
+    const crumb = match.staticData.crumb;
+    const label = crumb === undefined ? undefined : labelOf(crumb, me);
+    return label === undefined ? [] : [{ id: match.id, label, to: match.pathname }];
+  });
 
   return (
     <nav aria-label="Breadcrumb">

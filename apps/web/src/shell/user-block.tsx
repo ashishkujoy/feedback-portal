@@ -1,8 +1,9 @@
 import { roleLabels, primaryRole } from '../identity/roles.ts';
 import { Avatar } from '../ui/avatar.tsx';
+import { SignOutButton } from './sign-out-button.tsx';
 import { useMe } from './use-me.ts';
 
-/** The foot of the sidebar: who is signed in. Rendered only once `/me` says so. */
+/** The foot of the sidebar: who is signed in, and how to sign out. */
 export const UserBlock = () => {
   const me = useMe();
   if (!me) return null;
@@ -14,6 +15,7 @@ export const UserBlock = () => {
         <span className="truncate text-[13px] font-medium text-white">{me.name}</span>
         {role ? <span className="text-xs text-tech-blue-100">{roleLabels[role]}</span> : null}
       </div>
+      <SignOutButton />
     </div>
   );
 };

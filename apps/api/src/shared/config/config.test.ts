@@ -223,7 +223,7 @@ describe('loadConfig', () => {
       expect(loadConfig({ ...validEnv, ...google }).auth.google).toEqual({
         clientId: 'client-id',
         clientSecret: 'client-secret',
-        redirectUri: 'http://localhost:3000/auth/google/callback',
+        redirectUri: 'http://localhost:5173/api/auth/google/callback',
       });
     });
 

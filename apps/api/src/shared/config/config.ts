@@ -59,13 +59,14 @@ const EnvSchema = z.object({
     .min(1000, { error: metricIntervalError })
     .max(3_600_000, { error: metricIntervalError })
     .default(60_000),
-  // Google sign-in. Off (routes answer 503) unless both the ID and the secret are set.
+  // Google sign-in. Off (the routes redirect to /login?error=unavailable) unless both are set.
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_REDIRECT_URI: z
     .string()
     .refine(isHttpUrl, { error: httpUrlError })
-    .default('http://localhost:3000/auth/google/callback'),
+    // Through the web app's /api proxy, so the session cookie lands on the web origin.
+    .default('http://localhost:5173/api/auth/google/callback'),
   // Where the browser goes after sign-in (and `/login` on failure).
   WEB_APP_URL: z
     .string()

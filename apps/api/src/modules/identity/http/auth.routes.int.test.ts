@@ -219,12 +219,13 @@ describe('GET /auth/google/callback', () => {
 
 describe('when Google sign-in is not configured', () => {
   it.each(['/auth/google', '/auth/google/callback?code=x&state=y'])(
-    '%s answers 503',
+    '%s sends the browser to /login?error=unavailable',
     async (path) => {
       const response = await appWith(null).request(path);
 
-      expect(response.status).toBe(503);
-      expect(await response.json()).toMatchObject({ code: 'unavailable' });
+      expect(response.status).toBe(302);
+      expect(response.headers.get('location')).toBe(`${webAppUrl}/login?error=unavailable`);
+      expect(setCookies(response)).toEqual([]);
     },
   );
 });

@@ -2,7 +2,7 @@ import type { MeResponse } from '@feedback-portal/contracts';
 import { screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderApp } from '../test/render-app.tsx';
-import { signedOut, stubApi } from '../test/stub-api.ts';
+import { stubApi } from '../test/stub-api.ts';
 
 const me = (overrides: Partial<MeResponse> = {}): MeResponse => ({
   id: '01890a5d-ac96-774b-bcce-b302099a8057',
@@ -53,18 +53,5 @@ describe('the signed-in user in the shell', () => {
     expect(await userIn('Programme manager')).toBeVisible();
     expect(within(sidebar()).getByText('G')).toBeVisible();
     expect(within(topBar()).getByText('Viewing as')).toHaveTextContent('Programme manager');
-  });
-
-  it('shows neither block when signed out, and the page still renders', async () => {
-    const fetchMock = stubApi(signedOut);
-    renderApp('/batches');
-
-    expect(await screen.findByRole('heading', { level: 1, name: 'Batches' })).toBeVisible();
-    await vi.waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/me', expect.anything());
-    });
-    expect(within(topBar()).queryByText('Viewing as')).toBeNull();
-    expect(sidebar().querySelector('img, .rounded-full')).toBeNull();
-    expect(fetchMock).toHaveBeenCalledTimes(1); // a 401 is not retried
   });
 });

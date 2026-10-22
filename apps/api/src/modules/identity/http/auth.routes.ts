@@ -1,7 +1,6 @@
 import { getLogger } from '@logtape/logtape';
 import { type Context, Hono } from 'hono';
 import { deleteCookie, setCookie } from 'hono/cookie';
-import { unavailable } from '../../../shared/errors/app-error.ts';
 import type { AppEnv } from '../../../shared/http/app-env.ts';
 import { clientIp } from '../../../shared/http/client-ip.ts';
 import { rootCategory } from '../../../shared/logging/logging.ts';
@@ -20,7 +19,7 @@ import {
 export type AuthRoutesDeps = Readonly<{
   users: UserRepository;
   sessions: Sessions;
-  /** `null` when Google sign-in isn't configured: the routes answer 503. */
+  /** `null` when Google sign-in isn't configured: the routes send the browser to `/login?error=unavailable`. */
   googleAuth: GoogleAuth | null;
   webAppUrl: string;
   secureCookies: boolean;
@@ -52,10 +51,8 @@ export const authRoutes = ({
   const attributes = cookieAttributes(cookieOptions);
   const failureUrl = `${webAppUrl}/login?error=sign_in_failed`;
 
-  const requireGoogle = (): GoogleAuth => {
-    if (!googleAuth) throw unavailable('Google sign-in is not configured');
-    return googleAuth;
-  };
+  // The browser navigates here, so even "not configured" is a redirect, never raw JSON.
+  const unavailableUrl = `${webAppUrl}/login?error=unavailable`;
 
   const reject = (c: Context<AppEnv>, reason: string, userId?: string) => {
     logger.info('google sign-in rejected: {reason}', { reason, ...(userId ? { userId } : {}) });
@@ -64,13 +61,14 @@ export const authRoutes = ({
 
   return new Hono<AppEnv>()
     .get('/google', (c) => {
-      const { url, state, codeVerifier } = requireGoogle().start();
+      if (!googleAuth) return c.redirect(unavailableUrl, 302);
+      const { url, state, codeVerifier } = googleAuth.start();
       setCookie(c, stateCookie, state, { ...attributes, maxAge: oauthCookieMaxAge });
       setCookie(c, verifierCookie, codeVerifier, { ...attributes, maxAge: oauthCookieMaxAge });
       return c.redirect(url.toString(), 302);
     })
     .get('/google/callback', async (c) => {
-      const google = requireGoogle();
+      if (!googleAuth) return c.redirect(unavailableUrl, 302);
       const storedState = readCookie(c, stateCookie, cookieOptions);
       const codeVerifier = readCookie(c, verifierCookie, cookieOptions);
       // One attempt per flow, whatever the outcome.
@@ -83,7 +81,7 @@ export const authRoutes = ({
       if (state !== storedState) return reject(c, 'state_mismatch');
 
       try {
-        const exchanged = await google.exchange(code, codeVerifier);
+        const exchanged = await googleAuth.exchange(code, codeVerifier);
         if (!exchanged.ok) return reject(c, exchanged.reason);
 
         const result = await signInWithGoogle(

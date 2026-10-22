@@ -25,7 +25,7 @@ pnpm dev:web     # http://localhost:5173 (fixed port: it's the API's default WEB
 pnpm build:web   # static build in apps/web/dist
 ```
 - **The web app calls the API only through `/api` on its own origin.** `pnpm dev:web` and `vite preview` proxy `/api/*` to http://localhost:3000, without the `/api` prefix. Run the API too (`pnpm --filter @feedback-portal/api dev`) for the full app; the API in Docker uses the same port, so run one or the other.
-- **Without a session** the shell shows no signed-in user. Sign-in arrives in 4.4.
+- **Signed out, every page goes to `/login`**, the only page outside the shell. Navigation follows your roles: "Users and roles" is for admins, and mentors see "My batches". The sign-out button sits at the foot of the sidebar.
 
 ### The first admin
 - Set `BOOTSTRAP_ADMIN_EMAIL` (and optionally `BOOTSTRAP_ADMIN_NAME`) in `apps/api/.env`, then run `pnpm db:seed`. Compose runs it for you as the `seed` job.
@@ -36,15 +36,15 @@ pnpm build:web   # static build in apps/web/dist
 On macOS with Colima, run `colima start` first.
 
 ### Google sign-in (optional locally)
-Without credentials, the API runs normally and `/auth/google` answers 503. To try a real sign-in:
+Without credentials, the API runs normally, and **Sign in with Google** returns to `/login` with a "Google sign-in isn't set up" notice. To try a real sign-in:
 
 1. In Google Cloud Console, open **APIs & Services → Credentials → Create credentials → OAuth client ID**. Choose type **Web application**.
-2. Add the authorised redirect URI `http://localhost:3000/auth/google/callback`.
+2. Add the authorised redirect URI `http://localhost:5173/api/auth/google/callback`. Sign-in goes through the web app's `/api` proxy, so the session cookie belongs to the web app's origin.
 3. Put the client ID and secret in `apps/api/.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 4. Make sure your email exists as an active user: set `BOOTSTRAP_ADMIN_EMAIL` and run `pnpm db:seed`.
-5. Open http://localhost:3000/auth/google.
+5. Run the API and the web app (see "Web app"), open http://localhost:5173 and choose **Sign in with Google**.
 
-- **After signing in**, the browser goes to `WEB_APP_URL` (the web app, from phase 4) with the session cookie set.
+- **After signing in**, the browser goes to `WEB_APP_URL` with the session cookie set, which is the web app's Batches page.
 - **Every failure** (unknown or inactive user, cancelled, expired flow) goes to `<WEB_APP_URL>/login?error=sign_in_failed`. The API log says why, without the email.
 
 ### API endpoints (identity)

@@ -185,8 +185,10 @@ describe('telemetry (real process)', () => {
       headers: { 'x-request-id': 'trace-test-1' },
     });
     expect(res.status).toBe(200);
-    // Google isn't configured here (503), but the span is still recorded.
-    await fetch(`${api.baseUrl}/auth/google/callback?code=secret-code&state=secret-state&x=1`);
+    // Google isn't configured here (a redirect to the web app), but the span is still recorded.
+    await fetch(`${api.baseUrl}/auth/google/callback?code=secret-code&state=secret-state&x=1`, {
+      redirect: 'manual',
+    });
     expect(await stopApi(api.child)).toBe(0); // shutdown flushes spans, metrics and logs
 
     const spans = spansOf(otlp.received);
