@@ -26,6 +26,7 @@ pnpm build:web   # static build in apps/web/dist
 ```
 - **The web app calls the API only through `/api` on its own origin.** `pnpm dev:web` and `vite preview` proxy `/api/*` to http://localhost:3000, without the `/api` prefix. Run the API too (`pnpm --filter @feedback-portal/api dev`) for the full app; the API in Docker uses the same port, so run one or the other.
 - **Signed out, every page goes to `/login`**, the only page outside the shell. Navigation follows your roles: "Users and roles" is for admins, and mentors see "My batches". The sign-out button sits at the foot of the sidebar.
+- **The program and organisation names come from the API** (`GET /settings`, from `PROGRAM_NAME` and `ORG_NAME`). The program name shows in the sidebar, on the sign-in card and in the tab title, and the organisation name in the sign-in hint. If `/settings` fails, the app works without them.
 
 ### The first admin
 - Set `BOOTSTRAP_ADMIN_EMAIL` (and optionally `BOOTSTRAP_ADMIN_NAME`) in `apps/api/.env`, then run `pnpm db:seed`. Compose runs it for you as the `seed` job.
@@ -48,6 +49,7 @@ Without credentials, the API runs normally, and **Sign in with Google** returns 
 - **Every failure** (unknown or inactive user, cancelled, expired flow) goes to `<WEB_APP_URL>/login?error=sign_in_failed`. The API log says why, without the email.
 
 ### API endpoints (identity)
+- **`GET /settings`** (public) returns `{ programName, orgName }` from config, cacheable for 5 minutes.
 - **`GET /me`** returns the signed-in user (`id`, `email`, `name`, `avatarUrl`, `roles`). Without a valid session it answers **401**, and clears a bad cookie. The web app treats a 401 as "go to sign-in".
 - **`POST /auth/logout`** ends the current session and clears the cookie. It always answers **204**.
 - **`/users`** (admins only; everyone else gets 403):

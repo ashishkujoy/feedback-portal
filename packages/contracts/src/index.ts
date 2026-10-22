@@ -7,3 +7,4 @@ export { InternStatus, finalInternStatuses, isFinalStatus } from './intern-statu
 export { MeResponse } from './me.ts';
 export { ErrorCode, FieldIssue, ProblemDetails } from './problem.ts';
 export { Role, roles } from './role.ts';
+export { SettingsResponse } from './settings.ts';

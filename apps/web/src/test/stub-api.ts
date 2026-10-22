@@ -9,16 +9,25 @@ export const problem = (status: number, code: string): Reply => ({
   body: { type: 'about:blank', title: 'Error', status, code, requestId: 'req-1' },
 });
 
+/** Neutral names; the real ones only ever come from the API's config. */
+export const testSettings = { programName: 'Test Programme', orgName: 'Test Org' };
+
+/** Answers every test gets unless it gives its own. */
+const defaults: Record<string, Reply> = { '/settings': { status: 200, body: testSettings } };
+
 /**
  * Canned answers keyed by `"METHOD /path"` or just `"/path"` (any method). Anything else is a 404
- * problem. Tests may change `replies` mid-test (e.g. after signing out).
+ * problem. `/settings` answers with `testSettings` by default. Tests may change `replies` mid-test (e.g. after signing out).
  */
 export const stubApi = (replies: Record<string, Reply>) => {
   const fetchMock = vi.fn<typeof fetch>((input, init) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const path = url.replace(/^\/api/, '');
     const reply =
-      replies[`${init?.method ?? 'GET'} ${path}`] ?? replies[path] ?? problem(404, 'not_found');
+      replies[`${init?.method ?? 'GET'} ${path}`] ??
+      replies[path] ??
+      defaults[path] ??
+      problem(404, 'not_found');
     return Promise.resolve(
       new Response(reply.body === undefined ? null : JSON.stringify(reply.body), {
         status: reply.status,

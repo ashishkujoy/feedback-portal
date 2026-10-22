@@ -1,8 +1,10 @@
 import type { MeResponse } from '@feedback-portal/contracts';
 import type { QueryClient } from '@tanstack/react-query';
-import { createRootRouteWithContext, createRoute, Outlet, redirect } from '@tanstack/react-router';
+import { createRootRouteWithContext, createRoute, redirect } from '@tanstack/react-router';
 import { z } from 'zod';
 import { meQuery } from '../api/me.ts';
+import { settingsQuery } from '../api/settings.ts';
+import { RootLayout } from '../branding/root-layout.tsx';
 import { batchesLabel, isAdmin } from '../identity/roles.ts';
 import { BatchesPage } from '../pages/batches-page.tsx';
 import { LoginPage } from '../pages/login-page.tsx';
@@ -19,7 +21,14 @@ declare module '@tanstack/react-router' {
   }
 }
 
-const rootRoute = createRootRouteWithContext<RouterContext>()({ component: Outlet });
+const rootRoute = createRootRouteWithContext<RouterContext>()({
+  // Load the names before the first page renders, so they don't pop in. If `/settings` fails,
+  // the app still works and the names stay hidden.
+  beforeLoad: async ({ context }) => {
+    await context.queryClient.ensureQueryData(settingsQuery).catch(() => undefined);
+  },
+  component: RootLayout,
+});
 
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,

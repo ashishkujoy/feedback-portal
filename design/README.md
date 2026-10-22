@@ -30,6 +30,7 @@ The UI is designed in Claude Design. **All UI work follows these screens** (see 
 - **Top bar:** 56px, `--background`, a 1px bottom `--border`, padding 0 28px.
 - **Content:** a `--muted` background, padding 28px, gap 24px. The page title is 28/36, weight 600, tracking -0.6px.
 - **The logo mark is left out** (decision in 4.2): no organisation's brand is hard-coded. A configurable logo can come with `GET /settings`.
+- **The program name** in the brand block comes from `GET /settings` (4.5). The design shows no organisation name; it appears in the sign-in hint (decision in 4.5).
 
 | ID (Admin / PM / Mentor) | Screen | Props | Contents |
 |---|---|---|---|
@@ -76,9 +77,9 @@ The UI is designed in Claude Design. **All UI work follows these screens** (see 
 - **Icons:** Lucide, with a 2px stroke. No emoji.
 - **Copy:** sentence case everywhere. Buttons start with a specific verb ("Create batch", "Submit feedback").
 
-## Screens the design doesn't have (built in 4.4)
+## Screens the design doesn't have (built in 4.4, branded in 4.5)
 Built from Kuat's own guidance with the design's tokens. A designer can replace them.
-- **Sign-in (`/login`):** a centred, flat card (max 400px, 32px padding) on `--muted`. It holds "Mentor portal", a "Sign in" heading (24px/600), "Use the Google account an admin added for you.", and a full-width outline **Sign in with Google** button with Google's "G" mark. After a failure there's an `issue` Callout ("We couldn't sign you in"), and when Google isn't configured a `warning` Callout. This follows Kuat's `scenarios/authentication.md`; the 6px card radius suggested there is replaced by the design's flat cards.
+- **Sign-in (`/login`):** a centred, flat card (max 400px, 32px padding) on `--muted`. It holds the sidebar's brand pair recoloured for a light card (the program name at 16px/600 above "Mentor portal" at 12px muted), a "Sign in" heading (24px/600), "Use the \<Org\> Google account an admin added for you." (without the name if `/settings` fails), and a full-width outline **Sign in with Google** button with Google's "G" mark. After a failure there's an `issue` Callout ("We couldn't sign you in"), and when Google isn't configured a `warning` Callout. This follows Kuat's `scenarios/authentication.md`; the 6px card radius suggested there is replaced by the design's flat cards.
 - **Sign out:** a `log-out` icon button (18px, `tech-blue-100`, 32px hit area, `--radius-md`, 8% white hover) at the right end of the sidebar's user block.
 - **Not found:** the page-title style ("Page not found") inside the shell, with a link to Batches (4.2).
 

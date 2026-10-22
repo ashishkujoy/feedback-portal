@@ -31,8 +31,12 @@ export const unusedAuthDeps: AuthRoutesDeps = {
   now: () => new Date(),
 };
 
+/** Neutral names for tests; real ones only ever come from config. */
+export const testBranding = { programName: 'Test Programme', orgName: 'Test Org' };
+
 export const appDeps = (ping: AppDeps['ping']): AppDeps => ({
   ping,
+  branding: testBranding,
   auth: unusedAuthDeps,
   userAdmin: unused,
 });
@@ -94,6 +98,7 @@ export const realApp = (
   const sessions = createSessions({ sessions: createSessionRepository(db), now });
   const app = createApp({
     ping: () => Promise.resolve(),
+    branding: testBranding,
     auth: { users, sessions, googleAuth, webAppUrl: 'http://web.test', secureCookies, now },
     userAdmin: createUserAdminTransaction(db, now),
   });

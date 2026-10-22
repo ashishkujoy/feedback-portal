@@ -55,7 +55,9 @@ describe('the sign-in page', () => {
     renderApp('/login');
 
     expect(await signInHeading()).toBeVisible();
-    expect(screen.getByText('Use the Google account an admin added for you.')).toBeVisible();
+    expect(
+      screen.getByText('Use the Test Org Google account an admin added for you.'),
+    ).toBeVisible();
     expect(screen.getByRole('link', { name: 'Sign in with Google' })).toHaveAttribute(
       'href',
       '/api/auth/google',
@@ -138,12 +140,14 @@ describe('signing out', () => {
       expect.objectContaining({ method: 'POST' }),
     );
     expect(queryClient.getQueryData(meQuery.queryKey)).toBeNull();
+    // Nothing of the previous user's is left; the names are reloaded for the sign-in page.
     expect(
       queryClient
         .getQueryCache()
         .getAll()
         .map((query) => query.queryKey),
-    ).toEqual([['me']]);
+    ).toEqual(expect.arrayContaining([['me'], ['settings']]));
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(2);
   });
 
   it('still signs the browser out when the API cannot be reached', async () => {

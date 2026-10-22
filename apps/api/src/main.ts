@@ -51,6 +51,7 @@ const server = serve(
   {
     fetch: createApp({
       ping: database.ping,
+      branding: config.branding,
       auth,
       userAdmin: createUserAdminTransaction(database.db, now),
     }).fetch,
