@@ -1,4 +1,5 @@
 import type { BatchQueries } from './batch-queries.ts';
+import type { BatchScope } from './batch-scope.ts';
 import type { BatchRepository } from './batch-repository.ts';
 import type { Candidates } from './candidates.ts';
 
@@ -7,6 +8,7 @@ export type BatchAdminScope = Readonly<{
   batches: BatchRepository;
   candidates: Candidates;
   queries: BatchQueries;
+  scope: BatchScope;
 }>;
 
 /**

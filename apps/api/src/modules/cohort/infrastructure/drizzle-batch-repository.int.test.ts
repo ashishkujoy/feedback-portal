@@ -22,6 +22,8 @@ import { createRoleAssignments } from './drizzle-role-assignments.ts';
 const testDb = useTestDb();
 const db = () => testDb.handle.db;
 const repo = () => createBatchRepository(db());
+/** These tests are about the data; scoping has its own tests (batch-visibility). */
+const asAdmin = { id: newUserId(), isAdmin: true };
 
 const t0 = new Date('2027-01-11T09:00:00.000Z');
 const t1 = new Date('2027-02-01T09:00:00.000Z');
@@ -116,7 +118,7 @@ describe('BatchQueries', () => {
     const archived = archiveBatch(newBatch('Archived', pm, admin.id, '2027-06-01'), { now: t1 });
     await Promise.all([older, newer, archived].map((batch) => repo().save(batch)));
 
-    const summaries = await createBatchQueries(db()).listSummaries();
+    const summaries = await createBatchQueries(db()).listSummaries(asAdmin);
 
     expect(summaries.map((batch) => [batch.name, batch.isArchived, batch.mentorCount])).toEqual([
       ['Newer', false, 1],
@@ -149,7 +151,7 @@ describe('BatchQueries', () => {
     });
     await repo().save(batch);
 
-    const detail = await createBatchQueries(db()).detail(batch.id);
+    const detail = await createBatchQueries(db()).detail(batch.id, asAdmin);
 
     expect(
       detail?.members.map((member) => [
@@ -163,7 +165,7 @@ describe('BatchQueries', () => {
       ['Mo Mentor', 'mentor', false, t2],
     ]);
     expect(detail?.mentorCount).toBe(0);
-    expect(await createBatchQueries(db()).detail(newBatchId())).toBeNull();
+    expect(await createBatchQueries(db()).detail(newBatchId(), asAdmin)).toBeNull();
   });
 });
 

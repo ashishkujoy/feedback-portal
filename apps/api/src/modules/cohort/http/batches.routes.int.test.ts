@@ -98,7 +98,11 @@ describe('/batches access', () => {
     );
   });
 
-  it.each(routes)('%s %s: 403 for a mentor', async (method, path, body) => {
+  // Reads are open to everyone signed in (scoped; see "visibility"); every change is not.
+  const changes = routes.filter(([method]) => method !== 'GET');
+  const adminOnly = changes.slice(0, 3);
+
+  it.each(changes)('%s %s: 403 for a mentor', async (method, path, body) => {
     const { setup, mentor } = await setUp();
 
     expect((await problemOf(await call(setup, mentor.cookie, method, path, body), 403)).code).toBe(
@@ -106,7 +110,7 @@ describe('/batches access', () => {
     );
   });
 
-  it.each(routes.slice(0, 5))('%s %s: 403 for a PM', async (method, path, body) => {
+  it.each(adminOnly)('%s %s: 403 for a PM', async (method, path, body) => {
     const { setup, pm } = await setUp();
 
     expect((await problemOf(await call(setup, pm.cookie, method, path, body), 403)).code).toBe(
@@ -270,7 +274,7 @@ describe('mentors', () => {
     ).toEqual(removed);
   });
 
-  it("can be changed by the batch's current PM, but not another PM's batch", async () => {
+  it("can be changed by the batch's current PM; another PM's batch is a 404", async () => {
     const { as, pm, mentor, create, person } = await setUp();
     const mine = await create();
     const otherPm = await person('Other PM', ['program_manager']);
@@ -286,14 +290,15 @@ describe('mentors', () => {
     const elsewhere = await as(pm).post(`/batches/${theirs.id}/mentors`, {
       userId: mentor.user.id,
     });
-    expect((await problemOf(elsewhere, 403)).code).toBe('forbidden');
+    // Not on that batch, so it doesn't exist for them (6.4).
+    expect((await problemOf(elsewhere, 404)).detail).toBe('Batch not found');
     expect(
-      (await problemOf(await as(pm).del(`/batches/${theirs.id}/mentors/${mentor.user.id}`), 403))
-        .code,
-    ).toBe('forbidden');
+      (await problemOf(await as(pm).del(`/batches/${theirs.id}/mentors/${mentor.user.id}`), 404))
+        .detail,
+    ).toBe('Batch not found');
   });
 
-  it('stops working for a PM once they are replaced', async () => {
+  it('stops working for a PM once they are replaced: the batch is gone for them', async () => {
     const { as, admin, pm, mentor, create, person } = await setUp();
     const batch = await create();
     const next = await person('Nia Next', ['program_manager']);
@@ -301,7 +306,8 @@ describe('mentors', () => {
 
     const response = await as(pm).post(`/batches/${batch.id}/mentors`, { userId: mentor.user.id });
 
-    expect((await problemOf(response, 403)).code).toBe('forbidden');
+    // No longer on the batch at all, so it's a 404 (6.4).
+    expect((await problemOf(response, 404)).detail).toBe('Batch not found');
   });
 
   it('needs the Mentor role', async () => {
@@ -342,6 +348,90 @@ describe('mentors', () => {
         )
       ).detail,
     ).toBe('User not found');
+  });
+});
+
+/** The names in a 200 batch list. */
+const names = async (response: Response) => {
+  expect(response.status).toBe(200);
+  return z
+    .array(BatchSummary)
+    .parse(await response.json())
+    .map((batch) => batch.name);
+};
+
+describe('visibility', () => {
+  it("a mentor sees only the batch they're on, and gets 404 for another", async () => {
+    const { as, admin, mentor, create } = await setUp();
+    const mine = await create({ name: 'Mine' });
+    const other = await create({ name: 'Other' });
+    await as(admin).post(`/batches/${mine.id}/mentors`, { userId: mentor.user.id });
+
+    expect(await names(await as(mentor).get('/batches'))).toEqual(['Mine']);
+    expect((await detailOf(await as(mentor).get(`/batches/${mine.id}`))).name).toBe('Mine');
+    expect((await problemOf(await as(mentor).get(`/batches/${other.id}`), 404)).detail).toBe(
+      'Batch not found',
+    );
+  });
+
+  it('a PM sees the batches they run; an admin sees all', async () => {
+    const { as, admin, pm, create, person } = await setUp();
+    const otherPm = await person('Other PM', ['program_manager']);
+    await create({ name: 'Run by Pat', startDate: '2027-01-11' });
+    await create({
+      name: 'Run by other',
+      startDate: '2026-01-12',
+      programManagerId: otherPm.user.id,
+    });
+
+    expect(await names(await as(pm).get('/batches'))).toEqual(['Run by Pat']);
+    expect(await names(await as(admin).get('/batches'))).toEqual(['Run by Pat', 'Run by other']);
+  });
+
+  it('is lost when unassigned or replaced, and comes back when re-assigned', async () => {
+    const { as, admin, pm, mentor, create, person } = await setUp();
+    const batch = await create();
+    await as(admin).post(`/batches/${batch.id}/mentors`, { userId: mentor.user.id });
+    await as(admin).del(`/batches/${batch.id}/mentors/${mentor.user.id}`);
+    const next = await person('Nia Next', ['program_manager']);
+    await as(admin).put(`/batches/${batch.id}/program-manager`, { userId: next.user.id });
+
+    expect(await names(await as(mentor).get('/batches'))).toEqual([]);
+    expect((await problemOf(await as(mentor).get(`/batches/${batch.id}`), 404)).code).toBe(
+      'not_found',
+    );
+    expect(await names(await as(pm).get('/batches'))).toEqual([]);
+
+    await as(admin).post(`/batches/${batch.id}/mentors`, { userId: mentor.user.id });
+    expect(await names(await as(mentor).get('/batches'))).toEqual(['Batch 1']);
+  });
+
+  it('keeps an archived batch visible to its members', async () => {
+    const { as, admin, mentor, create } = await setUp();
+    const batch = await create();
+    await as(admin).post(`/batches/${batch.id}/mentors`, { userId: mentor.user.id });
+    await as(admin).post(`/batches/${batch.id}/archive`);
+
+    expect(await names(await as(mentor).get('/batches'))).toEqual(['Batch 1']);
+    expect((await detailOf(await as(mentor).get(`/batches/${batch.id}`))).isArchived).toBe(true);
+  });
+
+  it("lets a batch's mentors see it but not change its mentors (403)", async () => {
+    const { as, admin, create, person } = await setUp();
+    const batch = await create();
+    const both = await person('Bo Both', ['mentor', 'program_manager']);
+    await as(admin).post(`/batches/${batch.id}/mentors`, { userId: both.user.id });
+
+    const response = await as(both).post(`/batches/${batch.id}/mentors`, { userId: both.user.id });
+
+    expect((await problemOf(response, 403)).code).toBe('forbidden');
+  });
+
+  it('gives someone with no assignments an empty list', async () => {
+    const { as, mentor, create } = await setUp();
+    await create();
+
+    expect(await names(await as(mentor).get('/batches'))).toEqual([]);
   });
 });
 

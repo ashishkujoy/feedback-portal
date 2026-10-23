@@ -1,4 +1,4 @@
-import { asc, desc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
 import type { DbExecutor } from '../../../shared/db/client.ts';
 import { UserId } from '../../identity/domain/user-id.ts';
 import { users } from '../../identity/infrastructure/schema.ts';
@@ -10,6 +10,7 @@ import type {
 } from '../application/batch-queries.ts';
 import { BatchId } from '../domain/batch-id.ts';
 import { BatchMemberId } from '../domain/batch-member-id.ts';
+import { visibleBatchCondition } from './batch-visibility.ts';
 import { batches, batchMembers } from './schema.ts';
 
 type BatchRow = typeof batches.$inferSelect;
@@ -71,15 +72,25 @@ export const createBatchQueries = (db: DbExecutor): BatchQueries => {
     db.select(memberColumns).from(batchMembers).innerJoin(users, eq(users.id, batchMembers.userId));
 
   return {
-    listSummaries: async () => {
+    listSummaries: async (viewer) => {
       const rows = await db
         .select()
         .from(batches)
+        .where(visibleBatchCondition(viewer, batches.id))
         .orderBy(asc(batches.isArchived), desc(batches.startDate), asc(batches.name));
-      // Current members of every batch in one query; batches number in the tens.
-      const current = (await membersWithUsers().where(isNull(batchMembers.unassignedAt))).map(
-        (member) => ({ batchId: member.batchId, view: toMemberView(member) }),
-      );
+      if (rows.length === 0) return [];
+      // Current members of the listed batches in one query; batches number in the tens.
+      const current = (
+        await membersWithUsers().where(
+          and(
+            isNull(batchMembers.unassignedAt),
+            inArray(
+              batchMembers.batchId,
+              rows.map((row) => row.id),
+            ),
+          ),
+        )
+      ).map((member) => ({ batchId: member.batchId, view: toMemberView(member) }));
       return rows.map((row) =>
         toSummary(
           row,
@@ -88,8 +99,11 @@ export const createBatchQueries = (db: DbExecutor): BatchQueries => {
       );
     },
 
-    detail: async (id): Promise<BatchDetailView | null> => {
-      const [row] = await db.select().from(batches).where(eq(batches.id, id));
+    detail: async (id, viewer): Promise<BatchDetailView | null> => {
+      const [row] = await db
+        .select()
+        .from(batches)
+        .where(and(eq(batches.id, id), visibleBatchCondition(viewer, batches.id)));
       if (!row) return null;
       const members = (
         await membersWithUsers()

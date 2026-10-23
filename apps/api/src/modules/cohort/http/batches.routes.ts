@@ -38,9 +38,10 @@ const actorOf = (c: Context<AuthEnv>): Actor => {
 };
 
 /**
- * Batches and their membership. Admins can do everything; a batch's current PM can change its
- * mentors (checked by the use case). Reads are admin-only until the visibility scope (6.4).
- * Changes are idempotent. Logs carry ids, never names.
+ * Batches and their membership. Anyone signed in can read the batches they can see (admins: all;
+ * others: those they're currently on); a batch they can't see is a 404. Admins can change
+ * everything; a batch's current PM can change its mentors (checked by the use case). Changes are
+ * idempotent. Logs carry ids, never names.
  */
 export const batchesRoutes = ({ manageBatches, ...auth }: BatchesRoutesDeps) => {
   const admin = requireRole('admin');
@@ -48,7 +49,9 @@ export const batchesRoutes = ({ manageBatches, ...auth }: BatchesRoutesDeps) => 
 
   return new Hono<AuthEnv>()
     .use(authenticate(auth))
-    .get('/', admin, async (c) => c.json((await listBatches(manageBatches)).map(toBatchSummary)))
+    .get('/', async (c) =>
+      c.json((await listBatches(manageBatches, actorOf(c))).map(toBatchSummary)),
+    )
     .post('/', admin, validate('json', CreateBody), async (c) => {
       const actor = actorOf(c);
       const batch = await createBatch(manageBatches, { actor, ...c.req.valid('json') });
@@ -60,8 +63,12 @@ export const batchesRoutes = ({ manageBatches, ...auth }: BatchesRoutesDeps) => 
       c.header('Location', `/batches/${batch.id}`);
       return c.json(toBatchDetail(batch), 201);
     })
-    .get('/:id', admin, validate('param', BatchParams), async (c) =>
-      c.json(toBatchDetail(await getBatch(manageBatches, c.req.valid('param').id))),
+    .get('/:id', validate('param', BatchParams), async (c) =>
+      c.json(
+        toBatchDetail(
+          await getBatch(manageBatches, { viewer: actorOf(c), id: c.req.valid('param').id }),
+        ),
+      ),
     )
     .post('/:id/archive', admin, validate('param', BatchParams), async (c) => {
       const actor = actorOf(c);
