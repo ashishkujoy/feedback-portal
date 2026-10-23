@@ -93,9 +93,9 @@ Color codes have a fixed **severity order**, used for sorting and trend charts. 
 | Column | Type | Notes |
 |---|---|---|
 | id | uuid PK | |
-| name | text | Unique |
+| name | citext | Unique, ignoring case |
 | start_date | date | |
-| end_date | date | Expected graduation date (about start + 18 months) |
+| end_date | date | Expected graduation date (about start + 18 months). Must be after `start_date` (check constraint). |
 | is_archived | boolean | Default `false`. An archived batch is read-only. |
 | created_by | uuid FK → users | |
 | created_at / updated_at | timestamptz | |
@@ -116,6 +116,9 @@ Constraints:
 - Partial unique (`batch_id`) where `role = 'program_manager' AND unassigned_at IS NULL`. This enforces **one PM per batch**.
 - Partial unique (`batch_id`, `user_id`, `role`) where `unassigned_at IS NULL`. This prevents duplicate current assignments.
 - There is no limit on how many batches a user belongs to, so **one PM can run many batches**.
+- Checks: `unassigned_at` and `unassigned_by` are both null or both set, and `unassigned_at >= assigned_at`.
+- Partial index on (`user_id`) where `unassigned_at IS NULL`, for the viewer's current batches (visibility scope).
+- No foreign key cascades on `batches` or `batch_members`: batches are archived and users deactivated, never deleted, so a delete fails instead of erasing history.
 
 ### intern
 

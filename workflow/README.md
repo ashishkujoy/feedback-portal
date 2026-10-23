@@ -89,7 +89,7 @@ Update the status in both `PLAN.md` and the board below whenever it changes.
 
 | Task | Folder | Status |
 |---|---|---|
-| 6.1 Schema | [`phase/06-batches-cohort/01-schema`](phase/06-batches-cohort/01-schema/PLAN.md) | Not started |
+| 6.1 Schema | [`phase/06-batches-cohort/01-schema`](phase/06-batches-cohort/01-schema/PLAN.md) | Done |
 | 6.2 Batch domain | [`phase/06-batches-cohort/02-batch-domain`](phase/06-batches-cohort/02-batch-domain/PLAN.md) | Not started |
 | 6.3 Batch API | [`phase/06-batches-cohort/03-batch-api`](phase/06-batches-cohort/03-batch-api/PLAN.md) | Not started |
 | 6.4 Visibility scope | [`phase/06-batches-cohort/04-visibility-scope`](phase/06-batches-cohort/04-visibility-scope/PLAN.md) | Not started |

@@ -21,6 +21,7 @@ export const pgErrorCodes = {
   uniqueViolation: '23505',
   foreignKeyViolation: '23503',
   invalidTextRepresentation: '22P02',
+  checkViolation: '23514',
 } as const;
 
 export const isUniqueViolation = (error: unknown, constraint: string): boolean => {
