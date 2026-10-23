@@ -8,3 +8,9 @@ import type { DbExecutor } from './client.ts';
 export const lockForTransaction = async (tx: DbExecutor, name: string): Promise<void> => {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${name}, 0))`);
 };
+
+/**
+ * Held by every change to who is who: user roles and status (identity) and batch membership
+ * (cohort), so a rule that spans both, like "a batch mentor holds the Mentor role", can't race.
+ */
+export const peopleAdminLock = 'feedback-portal:people-admin';

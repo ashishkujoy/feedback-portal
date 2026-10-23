@@ -59,7 +59,17 @@ Without credentials, the API runs normally, and **Sign in with Google** returns 
   - `PUT /users/:id/roles` with `{ roles }` replaces their roles.
   - `POST /users/:id/deactivate` signs them out everywhere. `POST /users/:id/reactivate` lets them sign in again.
   - You can't deactivate yourself or remove your own `admin` role, and the last active admin can't be removed (409 `last_admin`).
+  - A role someone uses in a batch (a current batch mentor or PM) can't be removed until they're unassigned or replaced there (409 `role_in_use`).
 - **Writes must come from the web app.** A form-style or bodyless `POST`/`PUT`/`PATCH`/`DELETE` whose `Origin` isn't `WEB_APP_URL` gets **403** (CSRF check).
+
+### API endpoints (batches)
+- **`/batches`**: admins can do everything; a batch's current PM can change its mentors. Reads are admin-only until the visibility scope (6.4).
+  - `GET /batches` lists batches (active first, newest first) with their PM and mentor count. `GET /batches/:id` adds every member, current and past.
+  - `POST /batches` with `{ name, startDate, endDate, programManagerId }` creates a batch run by that PM. Names are unique ignoring case (409 `batch_name_taken`).
+  - `PUT /batches/:id/program-manager` with `{ userId }` replaces the PM. A batch always has exactly one.
+  - `POST /batches/:id/mentors` with `{ userId }` assigns a mentor; `DELETE /batches/:id/mentors/:userId` unassigns one. Assignments are kept as history.
+  - `POST /batches/:id/archive` makes the batch read-only (409 `batch_archived` afterwards). There's no unarchiving.
+  - Members must be active and hold the matching role (409 `member_inactive`, `member_role_mismatch`).
 
 ## Running everything in Docker
 

@@ -18,6 +18,8 @@ export const ErrorCode = z.enum([
   'member_role_mismatch',
   'member_inactive',
   'batch_requires_pm',
+  'batch_name_taken',
+  'role_in_use',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

@@ -1,5 +1,9 @@
 import type { Role } from '@feedback-portal/contracts';
 import { type AppDeps, createApp } from '../src/app.ts';
+import type { ManageBatchesDeps } from '../src/modules/cohort/application/manage-batches.ts';
+import { createBatchAdminTransaction } from '../src/modules/cohort/infrastructure/drizzle-batch-admin.ts';
+import { createBatchQueries } from '../src/modules/cohort/infrastructure/drizzle-batch-queries.ts';
+import { createRoleAssignments } from '../src/modules/cohort/infrastructure/drizzle-role-assignments.ts';
 import type { GoogleAuth } from '../src/modules/identity/application/google-auth.ts';
 import { createSessions, type Sessions } from '../src/modules/identity/application/sessions.ts';
 import type { UserRepository } from '../src/modules/identity/application/user-repository.ts';
@@ -34,11 +38,18 @@ export const unusedAuthDeps: AuthRoutesDeps = {
 /** Neutral names for tests; real ones only ever come from config. */
 export const testBranding = { programName: 'Test Programme', orgName: 'Test Org' };
 
+const unusedManageBatches: ManageBatchesDeps = {
+  transaction: unused,
+  queries: { listSummaries: unused, detail: unused },
+  now: () => new Date(),
+};
+
 export const appDeps = (ping: AppDeps['ping']): AppDeps => ({
   ping,
   branding: testBranding,
   auth: unusedAuthDeps,
   userAdmin: unused,
+  manageBatches: unusedManageBatches,
 });
 
 type SignInAsOptions = Readonly<{
@@ -100,7 +111,12 @@ export const realApp = (
     ping: () => Promise.resolve(),
     branding: testBranding,
     auth: { users, sessions, googleAuth, webAppUrl: 'http://web.test', secureCookies, now },
-    userAdmin: createUserAdminTransaction(db, now),
+    userAdmin: createUserAdminTransaction(db, now, createRoleAssignments),
+    manageBatches: {
+      transaction: createBatchAdminTransaction(db),
+      queries: createBatchQueries(db),
+      now,
+    },
   });
   return {
     app,

@@ -2,12 +2,13 @@ import { AdminUser, type Role, ProblemDetails } from '@feedback-portal/contracts
 import { setTimeout as sleep } from 'node:timers/promises';
 import { Client } from 'pg';
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import { realApp } from '../../../../test/app-deps.ts';
 import { useTestDb } from '../../../../test/test-db.ts';
+import { peopleAdminLock } from '../../../shared/db/advisory-lock.ts';
 import type { GoogleAuth } from '../application/google-auth.ts';
 import { parseEmail } from '../domain/email.ts';
 import { newUserId } from '../domain/user-id.ts';
-import { userAdminLock } from '../infrastructure/drizzle-user-admin.ts';
 import { sessions as sessionsTable } from '../infrastructure/schema.ts';
 
 const testDb = useTestDb();
@@ -267,6 +268,86 @@ describe('PUT /users/:id/roles', () => {
   });
 });
 
+/** An admin, a PM and a mentor, with "Batch 1" run by the PM and mentored by the mentor. */
+const withBatch = async () => {
+  const setup = await asAdmin();
+  const pm = await setup.signedInUser({
+    name: 'Pat Manager',
+    roles: ['program_manager', 'mentor'],
+  });
+  const mentor = await setup.signedInUser({
+    name: 'Mo Mentor',
+    roles: ['mentor', 'program_manager'],
+  });
+  const created = await call(setup, setup.admin.cookie, 'POST', '/batches', {
+    name: 'Batch 1',
+    startDate: '2027-01-11',
+    endDate: '2028-06-25',
+    programManagerId: pm.user.id,
+  });
+  const { id } = z.object({ id: z.string() }).parse(await created.json());
+  await call(setup, setup.admin.cookie, 'POST', `/batches/${id}/mentors`, {
+    userId: mentor.user.id,
+  });
+  return { setup, pm, mentor, batchId: id };
+};
+
+describe('a role in use in a batch', () => {
+  it("can't be removed from a current mentor until they're unassigned", async () => {
+    const { setup, mentor, batchId } = await withBatch();
+
+    const refused = await putRoles(setup, setup.admin.cookie, mentor.user.id, ['program_manager']);
+
+    expect(await problemOf(refused, 409)).toMatchObject({
+      code: 'role_in_use',
+      detail: 'Mo Mentor is a mentor of Batch 1. Unassign them there first.',
+    });
+    expect((await setup.users.findById(mentor.user.id))?.roles.map((g) => g.role)).toEqual([
+      'mentor',
+      'program_manager',
+    ]);
+
+    await call(
+      setup,
+      setup.admin.cookie,
+      'DELETE',
+      `/batches/${batchId}/mentors/${mentor.user.id}`,
+    );
+    const allowed = await putRoles(setup, setup.admin.cookie, mentor.user.id, ['program_manager']);
+    expect((await adminUserOf(allowed)).roles).toEqual(['program_manager']);
+  });
+
+  it("can't be removed from a batch's current PM", async () => {
+    const { setup, pm } = await withBatch();
+
+    const refused = await putRoles(setup, setup.admin.cookie, pm.user.id, ['mentor']);
+
+    expect(await problemOf(refused, 409)).toMatchObject({
+      code: 'role_in_use',
+      detail:
+        'Pat Manager is the programme manager of Batch 1. Assign another programme manager there first.',
+    });
+  });
+
+  it('leaves other role changes, and deactivating, alone', async () => {
+    const { setup, mentor } = await withBatch();
+
+    const kept = await putRoles(setup, setup.admin.cookie, mentor.user.id, [
+      'mentor',
+      'program_manager',
+      'admin',
+    ]);
+    expect((await adminUserOf(kept)).roles).toEqual(['admin', 'mentor', 'program_manager']);
+    const deactivated = await call(
+      setup,
+      setup.admin.cookie,
+      'POST',
+      `/users/${mentor.user.id}/deactivate`,
+    );
+    expect((await adminUserOf(deactivated)).isActive).toBe(false);
+  });
+});
+
 describe('POST /users/:id/deactivate and /reactivate', () => {
   it('deactivates a user and signs them out everywhere', async () => {
     const setup = await asAdmin();
@@ -353,7 +434,7 @@ const waitForLockWaiters = async (
 };
 
 /**
- * Two admins act on each other while another connection holds the user-admin lock, so both
+ * Two admins act on each other while another connection holds the people-admin lock, so both
  * changes are in flight together. Returns the outcome codes (sorted) and the active admin count.
  */
 const raceBetweenAdmins = async (
@@ -366,7 +447,7 @@ const raceBetweenAdmins = async (
   await holder.connect();
   try {
     await holder.query('begin');
-    await holder.query('select pg_advisory_xact_lock(hashtextextended($1, 0))', [userAdminLock]);
+    await holder.query('select pg_advisory_xact_lock(hashtextextended($1, 0))', [peopleAdminLock]);
     const responses = Promise.all([
       action(setup, setup.admin.cookie, other.user.id),
       action(setup, other.cookie, setup.admin.user.id),

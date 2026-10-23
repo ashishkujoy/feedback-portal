@@ -47,6 +47,9 @@ const NewBatch = z
   .refine((batch) => batch.endDate > batch.startDate, {
     error: 'End date must be after the start date',
     path: ['endDate'],
+    // Only once both dates are valid; an invalid one already has its own message.
+    when: ({ issues }) =>
+      !issues.some((issue) => issue.path?.[0] === 'startDate' || issue.path?.[0] === 'endDate'),
   });
 
 /** The global role a batch role needs: a batch mentor must be a Mentor, a batch PM a PM. */

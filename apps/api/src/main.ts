@@ -1,6 +1,9 @@
 import { serve } from '@hono/node-server';
 import { dispose, getLogger } from '@logtape/logtape';
 import { createApp } from './app.ts';
+import { createBatchAdminTransaction } from './modules/cohort/infrastructure/drizzle-batch-admin.ts';
+import { createBatchQueries } from './modules/cohort/infrastructure/drizzle-batch-queries.ts';
+import { createRoleAssignments } from './modules/cohort/infrastructure/drizzle-role-assignments.ts';
 import { createSessions } from './modules/identity/application/sessions.ts';
 import { createGoogleAuth } from './modules/identity/infrastructure/google-oauth.ts';
 import { createUserAdminTransaction } from './modules/identity/infrastructure/drizzle-user-admin.ts';
@@ -53,7 +56,12 @@ const server = serve(
       ping: database.ping,
       branding: config.branding,
       auth,
-      userAdmin: createUserAdminTransaction(database.db, now),
+      userAdmin: createUserAdminTransaction(database.db, now, createRoleAssignments),
+      manageBatches: {
+        transaction: createBatchAdminTransaction(database.db),
+        queries: createBatchQueries(database.db),
+        now,
+      },
     }).fetch,
     hostname: config.server.host,
     port: config.server.port,

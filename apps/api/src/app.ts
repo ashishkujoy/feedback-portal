@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import { csrf } from 'hono/csrf';
+import type { ManageBatchesDeps } from './modules/cohort/application/manage-batches.ts';
+import { batchesRoutes } from './modules/cohort/http/batches.routes.ts';
 import { type AuthRoutesDeps, authRoutes } from './modules/identity/http/auth.routes.ts';
 import type { UserAdminTransaction } from './modules/identity/application/user-admin.ts';
 import { meRoutes } from './modules/identity/http/me.routes.ts';
@@ -14,7 +16,11 @@ import { traceRoute } from './shared/http/trace-route.ts';
 /** Everything the routes need from the outside world; built in `main.ts`, faked in tests. */
 export type AppDeps = HealthDeps &
   SettingsDeps &
-  Readonly<{ auth: AuthRoutesDeps; userAdmin: UserAdminTransaction }>;
+  Readonly<{
+    auth: AuthRoutesDeps;
+    userAdmin: UserAdminTransaction;
+    manageBatches: ManageBatchesDeps;
+  }>;
 
 /** Shared middleware and error handling; routes are mounted by `createApp` (and tests). */
 export const createBaseApp = (): Hono<AppEnv> =>
@@ -32,4 +38,5 @@ export const createApp = (deps: AppDeps): Hono<AppEnv> =>
     .route('/settings', settingsRoutes(deps))
     .route('/auth', authRoutes(deps.auth))
     .route('/me', meRoutes(deps.auth))
-    .route('/users', usersRoutes({ ...deps.auth, userAdmin: deps.userAdmin }));
+    .route('/users', usersRoutes({ ...deps.auth, userAdmin: deps.userAdmin }))
+    .route('/batches', batchesRoutes({ ...deps.auth, manageBatches: deps.manageBatches }));

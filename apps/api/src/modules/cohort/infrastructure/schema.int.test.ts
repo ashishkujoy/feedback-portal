@@ -69,7 +69,8 @@ const unassign = async (id: string) => {
   const by = await insertUser();
   await db()
     .update(batchMembers)
-    .set({ unassignedAt: new Date(), unassignedBy: by })
+    // The database's clock, like assigned_at's default, so the order can't depend on clock skew.
+    .set({ unassignedAt: sql`now()`, unassignedBy: by })
     .where(eq(batchMembers.id, id));
 };
 
@@ -221,7 +222,9 @@ describe('unassignment checks', () => {
           batchId: batch.id,
           userId: await insertUser(),
           role: 'mentor',
-          unassignedAt: new Date(),
+          // Both fixed, so only this check can fail: the database's now() may run ahead of ours.
+          assignedAt: new Date('2027-01-11T09:00:00Z'),
+          unassignedAt: new Date('2027-02-01T09:00:00Z'),
         }),
       ),
     ).toEqual(constraint);

@@ -1,5 +1,5 @@
 import type { Role } from '@feedback-portal/contracts';
-import { notFound } from '../../../shared/errors/app-error.ts';
+import { conflict, notFound } from '../../../shared/errors/app-error.ts';
 import {
   createUser,
   deactivate,
@@ -41,6 +41,33 @@ const commit = async (scope: UserAdminScope, user: User, next: User): Promise<Us
   return next;
 };
 
+const roleInUseMessages = {
+  mentor: (name: string, batches: string) =>
+    `${name} is a mentor of ${batches}. Unassign them there first.`,
+  program_manager: (name: string, batches: string) =>
+    `${name} is the programme manager of ${batches}. Assign another programme manager there first.`,
+} as const;
+
+/**
+ * A batch member must hold the matching role (cohort), so a role in use in a batch can't be
+ * removed. Checked inside the locked transaction, so a concurrent assignment can't slip past.
+ */
+const ensureRolesNotInUse = async (scope: UserAdminScope, user: User, next: User) => {
+  const removed = (['mentor', 'program_manager'] as const).filter(
+    (role) => hasRole(user, role) && !hasRole(next, role),
+  );
+  const uses = await Promise.all(
+    removed.map(async (role) => ({ role, batches: await scope.roleAssignments(user.id, role) })),
+  );
+  const inUse = uses.find(({ batches }) => batches.length > 0);
+  if (inUse) {
+    throw conflict(
+      roleInUseMessages[inUse.role](user.name, inUse.batches.join(', ')),
+      'role_in_use',
+    );
+  }
+};
+
 export const listUsers = ({ users }: ManageUsersDeps): Promise<readonly User[]> => users.list();
 
 /** No invite is sent: the user signs in with Google using this email. */
@@ -60,7 +87,9 @@ export const setUserRoles = (
 ): Promise<User> =>
   transaction(async (scope) => {
     const user = await load(scope, userId);
-    return commit(scope, user, setRoles(user, roles, { by: actor, now: now() }));
+    const next = setRoles(user, roles, { by: actor, now: now() });
+    await ensureRolesNotInUse(scope, user, next);
+    return commit(scope, user, next);
   });
 
 /** Also signs them out everywhere, in the same transaction. */

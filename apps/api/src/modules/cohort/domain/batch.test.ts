@@ -96,6 +96,15 @@ describe('createBatch', () => {
     expect(error.issues?.map((issue) => issue.path)).toEqual(['name', 'startDate', 'endDate']);
   });
 
+  it("doesn't compare dates when one is invalid", () => {
+    expect(
+      errorOf(() => createBatch(input({ startDate: '2027-02-30', endDate: '' }))).issues,
+    ).toEqual([
+      { path: 'startDate', message: 'Start date must be a valid date' },
+      { path: 'endDate', message: 'End date must be a valid date' },
+    ]);
+  });
+
   it('rejects a name over 100 characters', () => {
     expect(errorOf(() => createBatch(input({ name: 'x'.repeat(101) }))).issues).toEqual([
       { path: 'name', message: 'Name must be at most 100 characters' },
