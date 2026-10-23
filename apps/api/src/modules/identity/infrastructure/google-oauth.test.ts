@@ -1,5 +1,6 @@
+import { createHash } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createArcticGoogleAuth } from './arctic-google-auth.ts';
+import { createGoogleAuth, GoogleUnreachableError } from './google-oauth.ts';
 
 const config = {
   clientId: 'client-id.apps.example',
@@ -24,7 +25,7 @@ const base64url = (value: unknown) => Buffer.from(JSON.stringify(value)).toStrin
 const idToken = (claims: object) =>
   `${base64url({ alg: 'RS256', typ: 'JWT' })}.${base64url(claims)}.signature`;
 
-/** Answers Google's token endpoint; records what Arctic sent. */
+/** Answers Google's token endpoint; records what the adapter sent. */
 const stubTokenEndpoint = (response: Response) => {
   const requests: Request[] = [];
   vi.stubGlobal('fetch', (request: Request) => {
@@ -42,13 +43,13 @@ const tokenResponse = (claims: object) =>
     id_token: idToken(claims),
   });
 
-const google = () => createArcticGoogleAuth(config, () => now);
+const google = () => createGoogleAuth(config, () => now);
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('createArcticGoogleAuth', () => {
+describe('createGoogleAuth', () => {
   it('starts with PKCE, state, the scopes and account selection', () => {
     const { url, state, codeVerifier } = google().start();
 
@@ -122,6 +123,51 @@ describe('createArcticGoogleAuth', () => {
   it('throws when Google is unreachable', async () => {
     vi.stubGlobal('fetch', () => Promise.reject(new TypeError('fetch failed')));
 
-    await expect(google().exchange('c', 'v')).rejects.toThrow('Failed to send request');
+    await expect(google().exchange('c', 'v')).rejects.toThrow(GoogleUnreachableError);
+  });
+
+  it('sends Basic client credentials and asks for JSON', async () => {
+    const requests = stubTokenEndpoint(tokenResponse(validClaims));
+
+    await google().exchange('c', 'v');
+
+    const [request] = requests;
+    const [scheme, encoded] = request?.headers.get('authorization')?.split(' ') ?? [];
+    expect(scheme).toBe('Basic');
+    expect(Buffer.from(encoded ?? '', 'base64').toString()).toBe(
+      `${config.clientId}:${config.clientSecret}`,
+    );
+    expect(request?.headers.get('accept')).toBe('application/json');
+    expect(request?.headers.get('content-type')).toBe('application/x-www-form-urlencoded');
+  });
+
+  it('derives the S256 code challenge from the verifier it returns', () => {
+    const { url, state, codeVerifier } = google().start();
+
+    expect(url.searchParams.get('code_challenge')).toBe(
+      createHash('sha256').update(codeVerifier).digest('base64url'),
+    );
+    expect(state).toMatch(/^[\w-]{43}$/);
+    expect(codeVerifier).toMatch(/^[\w-]{43}$/);
+  });
+
+  it.each([
+    ['a 500 from Google', new Response('oops', { status: 500 })],
+    ['a 200 without an ID token', Response.json({ access_token: 'a', token_type: 'Bearer' })],
+    ['a 200 that is not JSON', new Response('<html>', { status: 200 })],
+    ['a 400 without an OAuth error', Response.json({ message: 'nope' }, { status: 400 })],
+  ])('throws on %s (not a rejected code)', async (_, response) => {
+    stubTokenEndpoint(response);
+
+    await expect(google().exchange('c', 'v')).rejects.toThrow(/Google's token endpoint/);
+  });
+
+  it.each([
+    ['no dots', 'not-a-jwt'],
+    ['a payload that is not JSON', `x.${Buffer.from('nope').toString('base64url')}.sig`],
+  ])('rejects an ID token with %s as invalid_id_token', async (_, token) => {
+    stubTokenEndpoint(Response.json({ access_token: 'a', token_type: 'Bearer', id_token: token }));
+
+    expect(await google().exchange('c', 'v')).toEqual({ ok: false, reason: 'invalid_id_token' });
   });
 });

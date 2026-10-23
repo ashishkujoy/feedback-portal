@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server';
 import { dispose, getLogger } from '@logtape/logtape';
 import { createApp } from './app.ts';
 import { createSessions } from './modules/identity/application/sessions.ts';
-import { createArcticGoogleAuth } from './modules/identity/infrastructure/arctic-google-auth.ts';
+import { createGoogleAuth } from './modules/identity/infrastructure/google-oauth.ts';
 import { createUserAdminTransaction } from './modules/identity/infrastructure/drizzle-user-admin.ts';
 import { createSessionRepository } from './modules/identity/infrastructure/drizzle-session-repository.ts';
 import { createUserRepository } from './modules/identity/infrastructure/drizzle-user-repository.ts';
@@ -36,7 +36,7 @@ const now = (): Date => new Date();
 const auth = {
   users: createUserRepository(database.db),
   sessions: createSessions({ sessions: createSessionRepository(database.db), now }),
-  googleAuth: config.auth.google ? createArcticGoogleAuth(config.auth.google) : null,
+  googleAuth: config.auth.google ? createGoogleAuth(config.auth.google) : null,
   webAppUrl: config.auth.webAppUrl,
   secureCookies: config.auth.secureCookies,
   now,
