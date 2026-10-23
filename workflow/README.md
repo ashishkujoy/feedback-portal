@@ -82,7 +82,7 @@ Update the status in both `PLAN.md` and the board below whenever it changes.
 | Task | Folder | Status |
 |---|---|---|
 | 5.1 Users list page | [`phase/05-admin-users/01-users-list-page`](phase/05-admin-users/01-users-list-page/PLAN.md) | Done |
-| 5.2 Add user form | [`phase/05-admin-users/02-add-user-form`](phase/05-admin-users/02-add-user-form/PLAN.md) | Not started |
+| 5.2 Add user form | [`phase/05-admin-users/02-add-user-form`](phase/05-admin-users/02-add-user-form/PLAN.md) | Done |
 | 5.3 Edit roles and deactivate | [`phase/05-admin-users/03-edit-roles-and-deactivate`](phase/05-admin-users/03-edit-roles-and-deactivate/PLAN.md) | Not started |
 
 ### Phase 6 — Batches (cohort)

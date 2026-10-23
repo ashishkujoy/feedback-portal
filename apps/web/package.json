@@ -15,6 +15,7 @@
     "@feedback-portal/contracts": "workspace:*",
     "@fontsource-variable/jetbrains-mono": "5.3.0",
     "@fontsource-variable/lexend": "5.3.0",
+    "@hookform/resolvers": "5.9.2",
     "@opentelemetry/api": "1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "0.223.0",
     "@opentelemetry/instrumentation": "0.223.0",
@@ -27,6 +28,7 @@
     "lucide-react": "1.60.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
+    "react-hook-form": "7.90.0",
     "zod": "4.6.5"
   },
   "devDependencies": {

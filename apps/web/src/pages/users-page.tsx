@@ -1,15 +1,19 @@
 import type { AdminUser, Role } from '@feedback-portal/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
+import { Plus } from 'lucide-react';
+import { useState } from 'react';
 import { usersQuery } from '../api/users.ts';
 import { isApiError } from '../api/errors.ts';
 import { roleLabels, rolesByPrivilege } from '../identity/roles.ts';
 import { Avatar } from '../ui/avatar.tsx';
+import { Button } from '../ui/button.tsx';
 import { Callout } from '../ui/callout.tsx';
 import { PageTitle } from '../ui/page-title.tsx';
 import { SearchInput } from '../ui/search-input.tsx';
 import { StatusBadge } from '../ui/status-badge.tsx';
 import { type TabItem, tabId, Tabs } from '../ui/tabs.tsx';
+import { AddUserDialog } from '../users/add-user-dialog.tsx';
 import { byName, byRole, matches, tabCounts } from '../users/filter-users.ts';
 
 const route = getRouteApi('/app/users');
@@ -53,11 +57,12 @@ const UserRow = ({ user }: Readonly<{ user: AdminUser }>) => (
   </tr>
 );
 
-/** A12 · Users and roles (admins only). Read-only until 5.2 (add) and 5.3 (roles, deactivate). */
+/** A12 · Users and roles (admins only), with A13 · Add user. Roles and deactivating come in 5.3. */
 export const UsersPage = () => {
   const { role, q = '' } = route.useSearch();
   const navigate = route.useNavigate();
   const { data: users, error } = useQuery(usersQuery);
+  const [adding, setAdding] = useState(false);
   const tab: Tab = role ?? 'all';
   const shown = users ? byName(byRole(users, role).filter((user) => matches(user, q))) : undefined;
 
@@ -71,7 +76,12 @@ export const UsersPage = () => {
             Mentors give feedback and comment.
           </p>
         </div>
+        <Button onClick={() => setAdding(true)}>
+          <Plus aria-hidden size={16} strokeWidth={2} />
+          Add user
+        </Button>
       </div>
+      <AddUserDialog open={adding} onClose={() => setAdding(false)} />
       <Tabs
         label="Roles"
         items={tabItems(users)}

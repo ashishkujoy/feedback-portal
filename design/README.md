@@ -86,10 +86,16 @@ Built from Kuat's own guidance with the design's tokens. A designer can replace 
 ## Users and roles (A12) as built in 5.1
 - **Role column:** the roles as text, most privileged first ("Admin, Mentor"), instead of the design's single-role Select. Editing roles (as several roles, decision 3) comes in 5.3.
 - **Inactive users:** a neutral StatusBadge "Inactive" after the name, and the name in `--muted-foreground`. They stay in their role tabs and counts. The design shows no inactive users.
-- **Left out until their tasks:** the Batches column (Phase 6), **Add user** (5.2), and **Remove** and the action column (5.3).
+- **Left out until their tasks:** the Batches column (Phase 6), and **Remove** and the action column (5.3). **Add user** came in 5.2 (below).
 - **Description:** "Admins manage the portal. Programme managers run their batches and record conversations. Mentors give feedback and comment." The design's "record and delete feedback" contradicts decision 6.
 - **States the design doesn't draw:** while loading, the table is empty; an error shows an `issue` Callout, "We couldn't load users"; when nothing matches, a single row reads "No users match your search."
 - **The tab and search are in the URL** (`?role=mentor&q=…`), and the list is sorted by name, ignoring case and accents.
+
+## Add user (A13) as built in 5.2
+- **Roles are three Kuat Checkboxes** (Admin, Programme manager, Mentor; Mentor checked by default) under the label "Roles", instead of the design's single Role select (decision 3). The design's help text stays under them.
+- **Copy (decision 5):** the description is "They sign in with their \<Org\> Google account, using this email." (the org name from `GET /settings`), and the primary button is **Add user** ("Adding…" while saving), not "Send invite".
+- **Errors the design doesn't draw** use Kuat Field's error state: the Input border turns `--destructive` and the message (12px, `--destructive`) replaces the help text. Messages come from the shared contract. A taken email shows under Email ("A user with this email already exists."); any other failure shows an `issue` Callout, "We couldn't add this user", above the footer.
+- **A native `<dialog>`** (`showModal()`), styled to Kuat's Dialog: focus is trapped, Escape and an overlay click close it, and focus returns to the Add user button. No toast on success: the dialog closes once the new user is in the list.
 
 ## Differences from PRODUCT.md
 Decided 2026-10-16. PRODUCT.md, DATA_MODEL.md, TECH_STACK.md, ROADMAP.md and contracts are updated to match.

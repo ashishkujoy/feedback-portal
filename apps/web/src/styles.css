@@ -1,8 +1,9 @@
-/* Self-hosted fonts (no third-party requests), then Tailwind, then Kuat's tokens and @theme. */
+/* Self-hosted fonts (no third-party requests), then Tailwind, then Kuat's tokens, @theme and button colours. */
 @import '@fontsource-variable/lexend';
 @import '@fontsource-variable/jetbrains-mono';
 @import 'tailwindcss';
 @import '@equal-experts/kuat-core/variables.css';
+@import '@equal-experts/kuat-core/button-variables.css';
 
 /*
  * Kuat names its families `Lexend` and `JetBrains Mono`; the variable builds register them as

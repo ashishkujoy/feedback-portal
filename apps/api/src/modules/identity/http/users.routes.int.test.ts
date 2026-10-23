@@ -154,6 +154,16 @@ describe('POST /users', () => {
     expect(response.headers.get('location')).toBe(`${setup.webAppUrl}/`);
     const stored = await setup.users.findByEmail(parseEmail('new.mentor@example.com'));
     expect(stored?.googleSub).toBe('google-sub-new');
+
+    // The session works, with the name and roles the admin gave.
+    const session = response.headers.getSetCookie().find((c) => c.startsWith('session='));
+    const me = await call(setup, session?.split(';')[0] ?? '', 'GET', '/me');
+    expect(me.status).toBe(200);
+    expect(await me.json()).toMatchObject({
+      email: 'new.mentor@example.com',
+      name: 'New Mentor',
+      roles: ['mentor'],
+    });
   });
 
   it('rejects an email that is already taken, in any case', async () => {

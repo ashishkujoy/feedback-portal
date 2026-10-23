@@ -69,7 +69,7 @@ apps/api/src/
 | Server state | TanStack Query |
 | Client state | Zustand, for UI state only (filters, drafts, panels) and never for server data |
 | Styling | Tailwind CSS v4. Design tokens from **`@equal-experts/kuat-core`** _(chosen)_: its `variables.css` brings the Kuat tokens and a Tailwind `@theme`, so utilities like `bg-primary` and `rounded-md` match the design. Fonts (Lexend, JetBrains Mono) are **self-hosted** from `@fontsource-variable/*`, with no Google Fonts requests |
-| Forms | React Hook Form + `@hookform/resolvers/zod` using the shared contracts _(chosen)_ |
+| Forms | React Hook Form 7.90 + `@hookform/resolvers/zod` 5.9 using the shared contracts _(chosen; first used in 5.2)_ |
 | API client | Typed fetch wrapper that validates responses against the shared contracts _(chosen)_. Same origin only: the browser calls `/api/*`, which Vite (dev) and nginx (production) forward to the API with the prefix stripped, so the session cookie belongs to the web origin. Failures become `ApiError` (the problem `code`, or `internal` / `unavailable`); a success that breaks its contract is an `ApiContractError`. Query never retries a 4xx |
 | Markdown | Editor: textarea with a live preview tab. Render: `react-markdown` + `remark-gfm` + `rehype-sanitize` _(chosen)_ |
 | Testing | Vitest + Testing Library. Playwright for end-to-end tests _(chosen)_ |
