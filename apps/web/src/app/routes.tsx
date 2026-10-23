@@ -1,4 +1,4 @@
-import type { MeResponse } from '@feedback-portal/contracts';
+import { type MeResponse, Role } from '@feedback-portal/contracts';
 import type { QueryClient } from '@tanstack/react-query';
 import { createRootRouteWithContext, createRoute, redirect } from '@tanstack/react-router';
 import { z } from 'zod';
@@ -75,6 +75,11 @@ const usersRoute = createRoute({
   beforeLoad: ({ context }) => {
     if (!isAdmin(context.me)) throw redirect({ to: '/batches' });
   },
+  // The role tab and search, so Back and shared links keep the view; bad values are dropped.
+  validateSearch: z.object({
+    role: Role.optional().catch(undefined),
+    q: z.string().optional().catch(undefined),
+  }),
   staticData: { crumb: 'Users and roles' },
   component: UsersPage,
 });

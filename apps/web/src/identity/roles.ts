@@ -9,6 +9,10 @@ export const roleLabels: Readonly<Record<Role, string>> = {
 
 const byPrivilege: readonly Role[] = ['admin', 'program_manager', 'mentor'];
 
+/** Most privileged first: Admin, Programme manager, Mentor. */
+export const rolesByPrivilege = (roles: readonly Role[]): Role[] =>
+  byPrivilege.filter((role) => roles.includes(role));
+
 /** The design shows one role per user; someone holding several is shown as the most privileged. */
 export const primaryRole = (roles: readonly Role[]): Role | undefined =>
   byPrivilege.find((role) => roles.includes(role));

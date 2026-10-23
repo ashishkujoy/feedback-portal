@@ -83,6 +83,14 @@ Built from Kuat's own guidance with the design's tokens. A designer can replace 
 - **Sign out:** a `log-out` icon button (18px, `tech-blue-100`, 32px hit area, `--radius-md`, 8% white hover) at the right end of the sidebar's user block.
 - **Not found:** the page-title style ("Page not found") inside the shell, with a link to Batches (4.2).
 
+## Users and roles (A12) as built in 5.1
+- **Role column:** the roles as text, most privileged first ("Admin, Mentor"), instead of the design's single-role Select. Editing roles (as several roles, decision 3) comes in 5.3.
+- **Inactive users:** a neutral StatusBadge "Inactive" after the name, and the name in `--muted-foreground`. They stay in their role tabs and counts. The design shows no inactive users.
+- **Left out until their tasks:** the Batches column (Phase 6), **Add user** (5.2), and **Remove** and the action column (5.3).
+- **Description:** "Admins manage the portal. Programme managers run their batches and record conversations. Mentors give feedback and comment." The design's "record and delete feedback" contradicts decision 6.
+- **States the design doesn't draw:** while loading, the table is empty; an error shows an `issue` Callout, "We couldn't load users"; when nothing matches, a single row reads "No users match your search."
+- **The tab and search are in the URL** (`?role=mentor&q=…`), and the list is sorted by name, ignoring case and accents.
+
 ## Differences from PRODUCT.md
 Decided 2026-10-16. PRODUCT.md, DATA_MODEL.md, TECH_STACK.md, ROADMAP.md and contracts are updated to match.
 
