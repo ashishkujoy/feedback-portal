@@ -44,6 +44,10 @@ describe('ProblemDetails', () => {
       'email_taken',
       'cannot_remove_own_admin',
       'last_admin',
+      'batch_archived',
+      'member_role_mismatch',
+      'member_inactive',
+      'batch_requires_pm',
     ]);
   });
 });
