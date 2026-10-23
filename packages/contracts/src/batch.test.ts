@@ -61,10 +61,11 @@ describe('BatchDetail', () => {
       isArchived: false,
       programManager: person,
       mentorCount: 0,
+      mentors: [],
       members: [
         {
           id: '01890a5d-ac96-774b-bcce-b30209000002',
-          user: { ...person, isActive: true },
+          user: { ...person, email: 'pm@example.com', isActive: true },
           role: 'program_manager',
           assignedAt: '2027-01-11T09:00:00.000Z',
           unassignedAt: null,

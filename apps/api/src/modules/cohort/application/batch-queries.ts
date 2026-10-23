@@ -15,11 +15,13 @@ export type BatchSummaryView = Readonly<{
   programManager: PersonRef;
   /** Current mentors. */
   mentorCount: number;
+  /** Current mentors, in the order they were assigned. */
+  mentors: readonly PersonRef[];
 }>;
 
 export type BatchMemberView = Readonly<{
   id: BatchMemberId;
-  user: PersonRef & Readonly<{ isActive: boolean }>;
+  user: PersonRef & Readonly<{ email: string; isActive: boolean }>;
   role: BatchMemberRole;
   assignedAt: Date;
   unassignedAt: Date | null;

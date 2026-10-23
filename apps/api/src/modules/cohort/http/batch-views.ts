@@ -9,6 +9,7 @@ export const toBatchSummary = (batch: BatchSummaryView): BatchSummary => ({
   isArchived: batch.isArchived,
   programManager: batch.programManager,
   mentorCount: batch.mentorCount,
+  mentors: [...batch.mentors],
 });
 
 export const toBatchDetail = (batch: BatchDetailView): BatchDetail => ({

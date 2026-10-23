@@ -23,6 +23,7 @@ const memberColumns = {
   unassignedAt: batchMembers.unassignedAt,
   userId: users.id,
   name: users.name,
+  email: users.email,
   avatarUrl: users.avatarUrl,
   isActive: users.isActive,
 };
@@ -35,6 +36,7 @@ type MemberRow = Readonly<{
   unassignedAt: Date | null;
   userId: string;
   name: string;
+  email: string;
   avatarUrl: string | null;
   isActive: boolean;
 }>;
@@ -44,6 +46,7 @@ const toMemberView = (row: MemberRow): BatchMemberView => ({
   user: {
     id: UserId.parse(row.userId),
     name: row.name,
+    email: row.email,
     avatarUrl: row.avatarUrl,
     isActive: row.isActive,
   },
@@ -56,6 +59,7 @@ const toMemberView = (row: MemberRow): BatchMemberView => ({
 const toSummary = (row: BatchRow, current: readonly BatchMemberView[]): BatchSummaryView => {
   const pm = current.find((member) => member.role === 'program_manager');
   if (!pm) throw new Error(`batch ${row.id} has no current programme manager`);
+  const mentors = current.filter((member) => member.role === 'mentor');
   return {
     id: BatchId.parse(row.id),
     name: row.name,
@@ -63,7 +67,12 @@ const toSummary = (row: BatchRow, current: readonly BatchMemberView[]): BatchSum
     endDate: row.endDate,
     isArchived: row.isArchived,
     programManager: { id: pm.user.id, name: pm.user.name, avatarUrl: pm.user.avatarUrl },
-    mentorCount: current.filter((member) => member.role === 'mentor').length,
+    mentorCount: mentors.length,
+    mentors: mentors.map(({ user }) => ({
+      id: user.id,
+      name: user.name,
+      avatarUrl: user.avatarUrl,
+    })),
   };
 };
 
@@ -81,15 +90,17 @@ export const createBatchQueries = (db: DbExecutor): BatchQueries => {
       if (rows.length === 0) return [];
       // Current members of the listed batches in one query; batches number in the tens.
       const current = (
-        await membersWithUsers().where(
-          and(
-            isNull(batchMembers.unassignedAt),
-            inArray(
-              batchMembers.batchId,
-              rows.map((row) => row.id),
+        await membersWithUsers()
+          .where(
+            and(
+              isNull(batchMembers.unassignedAt),
+              inArray(
+                batchMembers.batchId,
+                rows.map((row) => row.id),
+              ),
             ),
-          ),
-        )
+          )
+          .orderBy(asc(batchMembers.assignedAt), asc(batchMembers.id))
       ).map((member) => ({ batchId: member.batchId, view: toMemberView(member) }));
       return rows.map((row) =>
         toSummary(

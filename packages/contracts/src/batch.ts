@@ -41,13 +41,15 @@ export const BatchSummary = z.object({
   programManager: Person,
   /** Current mentors. */
   mentorCount: z.int().nonnegative(),
+  /** Current mentors, in the order they were assigned (for the card's avatars). */
+  mentors: z.array(Person),
 });
 export type BatchSummary = z.infer<typeof BatchSummary>;
 
 /** One assignment; `unassignedAt: null` means current. */
 export const BatchMemberView = z.object({
   id: z.uuid(),
-  user: Person.extend({ isActive: z.boolean() }),
+  user: Person.extend({ email: z.email(), isActive: z.boolean() }),
   role: BatchMemberRole,
   assignedAt: z.iso.datetime(),
   unassignedAt: z.iso.datetime().nullable(),

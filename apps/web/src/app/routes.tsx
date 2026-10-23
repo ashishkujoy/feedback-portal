@@ -1,11 +1,19 @@
 import { type MeResponse, Role } from '@feedback-portal/contracts';
 import type { QueryClient } from '@tanstack/react-query';
-import { createRootRouteWithContext, createRoute, redirect } from '@tanstack/react-router';
+import {
+  createRootRouteWithContext,
+  createRoute,
+  notFound,
+  redirect,
+} from '@tanstack/react-router';
 import { z } from 'zod';
+import { batchQuery } from '../api/batches.ts';
+import { isApiError } from '../api/errors.ts';
 import { meQuery } from '../api/me.ts';
 import { settingsQuery } from '../api/settings.ts';
 import { RootLayout } from '../branding/root-layout.tsx';
 import { batchesLabel, isAdmin } from '../identity/roles.ts';
+import { BatchPage } from '../pages/batch-page.tsx';
 import { BatchesPage } from '../pages/batches-page.tsx';
 import { LoginPage } from '../pages/login-page.tsx';
 import { NotFoundPage } from '../pages/not-found-page.tsx';
@@ -16,8 +24,13 @@ export type RouterContext = Readonly<{ queryClient: QueryClient }>;
 
 declare module '@tanstack/react-router' {
   interface StaticDataRouteOption {
-    /** This route's breadcrumb label (or one that depends on the user); none adds no crumb. */
-    crumb?: string | ((me: MeResponse) => string);
+    /**
+     * This route's breadcrumb label, or one worked out from the user and the route's loader
+     * data; none (or `undefined`) adds no crumb.
+     */
+    crumb?:
+      | string
+      | ((context: Readonly<{ me: MeResponse; loaderData: unknown }>) => string | undefined);
   }
 }
 
@@ -62,11 +75,42 @@ const indexRoute = createRoute({
   },
 });
 
+/** `/batches` and the pages under it; the crumb is "Batches" (or "My batches"). */
 const batchesRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/batches',
-  staticData: { crumb: batchesLabel },
+  staticData: { crumb: ({ me }) => batchesLabel(me) },
+});
+
+const batchesIndexRoute = createRoute({
+  getParentRoute: () => batchesRoute,
+  path: '/',
   component: BatchesPage,
+});
+
+const BatchCrumb = z.object({ name: z.string() });
+
+/**
+ * One batch. Loaded before it renders, so its name is in the breadcrumb straight away. One that
+ * doesn't exist, or that the user can't see (6.4: the API's 404), is "Page not found".
+ */
+const batchRoute = createRoute({
+  getParentRoute: () => batchesRoute,
+  path: '$batchId',
+  loader: async ({ context, params }) => {
+    if (!z.uuid().safeParse(params.batchId).success) throw notFound();
+    try {
+      const batch = await context.queryClient.ensureQueryData(batchQuery(params.batchId));
+      return { name: batch.name };
+    } catch (error) {
+      if (isApiError(error, 'not_found')) throw notFound();
+      // Anything else: the page shows its own error.
+      return { name: undefined };
+    }
+  },
+  staticData: { crumb: ({ loaderData }) => BatchCrumb.safeParse(loaderData).data?.name },
+  component: BatchPage,
+  notFoundComponent: NotFoundPage,
 });
 
 const usersRoute = createRoute({
@@ -93,5 +137,10 @@ const notFoundRoute = createRoute({
 
 export const routeTree = rootRoute.addChildren([
   loginRoute,
-  appRoute.addChildren([indexRoute, batchesRoute, usersRoute, notFoundRoute]),
+  appRoute.addChildren([
+    indexRoute,
+    batchesRoute.addChildren([batchesIndexRoute, batchRoute]),
+    usersRoute,
+    notFoundRoute,
+  ]),
 ]);

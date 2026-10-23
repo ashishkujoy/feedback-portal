@@ -103,6 +103,16 @@ Built from Kuat's own guidance with the design's tokens. A designer can replace 
 - **Remove** (ghost-muted, `sm`) asks first, in a Kuat Dialog: "Remove \<Name\>?", "They're signed out and can't sign in. Their feedback and comments stay, and you can add them back.", with Cancel and a `destructive` **Remove**. An inactive user's button is **Reactivate**, which works at once. **Your own row has no button.**
 - **Changes show immediately** from the API's answer (no reload); the row is blocked while saving. A refusal shows an `issue` Callout above the table, "We couldn't update \<Name\>", with the API's reason; it clears after the next successful change.
 
+## Batches (A1, A2, A9) as built in 6.5
+Interns arrive in Phase 7 and feedback in Phase 8, so this is the "before interns" version of screens the design draws with interns.
+- **Batch card (A1):** status badge, dates, name, a stats row with **Mentors** only, and the footer (mentor AvatarStack, View batch). Interns, On notice, Terminated, the colour bar and "No interns yet. Import them from Airtable…" come with Phase 7.
+- **Order:** active, then upcoming, completed and archived (as the design lists them), newest start first within each.
+- **Status from the dates:** Upcoming (`neutral`) before the start, Active (`info`) through the end date, Completed (`success`) after it. **Archived** (`neutral`) isn't in the design; there's no archive button yet, as no screen has a place for one.
+- **Subtitle:** "N batches · X active, Y upcoming", or for mentors "N batches assigned to you".
+- **Batch page (A2):** the header (name, badge, "dates · Programme manager: Name") without its buttons (Import: Phase 7; Assign mentors: 6.6). No summary strip and no tabs yet: Phase 7 adds them with Interns as the first tab. Then **"Mentors"** (A4's table: Mentor, Email, Assigned; the feedback columns come in Phase 8, Remove in 6.6) and **"Past members"** (not in the design: Member, Role, Assigned, Unassigned, in A4's style; hidden when empty).
+- **Create batch (A9):** **admins only** (PRODUCT: an admin creates batches); the design also shows the button to PMs. The dates are native date inputs and the programme manager a native select, both styled as Kuat's Input and Select trigger. The list has active users with the Programme manager role. Picking a start fills an empty end date with start + 18 months. After creating, the new batch's page opens.
+- **Empty states:** "No batches yet." (admin) and "You aren't assigned to any batches yet." (others). A batch that doesn't exist, or that you can't see, is "Page not found".
+
 ## Differences from PRODUCT.md
 Decided 2026-10-16. PRODUCT.md, DATA_MODEL.md, TECH_STACK.md, ROADMAP.md and contracts are updated to match.
 

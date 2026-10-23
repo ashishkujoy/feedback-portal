@@ -125,6 +125,7 @@ describe('BatchQueries', () => {
       ['Older', false, 0],
       ['Archived', true, 0],
     ]);
+    expect(summaries[0]?.mentors).toEqual([{ id: mentor.id, name: 'Mo Mentor', avatarUrl: null }]);
     expect(summaries[0]?.programManager).toEqual({
       id: pm.id,
       name: 'Pat Manager',
@@ -153,6 +154,7 @@ describe('BatchQueries', () => {
 
     const detail = await createBatchQueries(db()).detail(batch.id, asAdmin);
 
+    expect(detail?.members[0]?.user.email).toMatch(/^pat\.\w+@example\.com$/);
     expect(
       detail?.members.map((member) => [
         member.user.name,

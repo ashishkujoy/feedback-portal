@@ -6,14 +6,15 @@ import { useMe } from '../shell/use-me.ts';
 const labelOf = (
   crumb: NonNullable<StaticDataRouteOption['crumb']>,
   me: MeResponse | null | undefined,
-) => (typeof crumb === 'string' ? crumb : me ? crumb(me) : undefined);
+  loaderData: unknown,
+) => (typeof crumb === 'string' ? crumb : me ? crumb({ me, loaderData }) : undefined);
 
 /** Kuat Breadcrumb, built from the matched routes' `staticData.crumb`; the last is the page. */
 export const Breadcrumb = () => {
   const me = useMe();
   const crumbs = useMatches().flatMap((match) => {
     const crumb = match.staticData.crumb;
-    const label = crumb === undefined ? undefined : labelOf(crumb, me);
+    const label = crumb === undefined ? undefined : labelOf(crumb, me, match.loaderData);
     return label === undefined ? [] : [{ id: match.id, label, to: match.pathname }];
   });
 
