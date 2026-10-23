@@ -84,9 +84,9 @@ Built from Kuat's own guidance with the design's tokens. A designer can replace 
 - **Not found:** the page-title style ("Page not found") inside the shell, with a link to Batches (4.2).
 
 ## Users and roles (A12) as built in 5.1
-- **Role column:** the roles as text, most privileged first ("Admin, Mentor"), instead of the design's single-role Select. Editing roles (as several roles, decision 3) comes in 5.3.
+- **Role column:** in 5.1, the roles as text, most privileged first ("Admin, Mentor"). Since 5.3 it's editable (below).
 - **Inactive users:** a neutral StatusBadge "Inactive" after the name, and the name in `--muted-foreground`. They stay in their role tabs and counts. The design shows no inactive users.
-- **Left out until their tasks:** the Batches column (Phase 6), and **Remove** and the action column (5.3). **Add user** came in 5.2 (below).
+- **Left out until its task:** the Batches column (Phase 6). **Add user** came in 5.2, and **Remove** and the action column in 5.3 (below).
 - **Description:** "Admins manage the portal. Programme managers run their batches and record conversations. Mentors give feedback and comment." The design's "record and delete feedback" contradicts decision 6.
 - **States the design doesn't draw:** while loading, the table is empty; an error shows an `issue` Callout, "We couldn't load users"; when nothing matches, a single row reads "No users match your search."
 - **The tab and search are in the URL** (`?role=mentor&q=…`), and the list is sorted by name, ignoring case and accents.
@@ -96,6 +96,12 @@ Built from Kuat's own guidance with the design's tokens. A designer can replace 
 - **Copy (decision 5):** the description is "They sign in with their \<Org\> Google account, using this email." (the org name from `GET /settings`), and the primary button is **Add user** ("Adding…" while saving), not "Send invite".
 - **Errors the design doesn't draw** use Kuat Field's error state: the Input border turns `--destructive` and the message (12px, `--destructive`) replaces the help text. Messages come from the shared contract. A taken email shows under Email ("A user with this email already exists."); any other failure shows an `issue` Callout, "We couldn't add this user", above the footer.
 - **A native `<dialog>`** (`showModal()`), styled to Kuat's Dialog: focus is trapped, Escape and an overlay click close it, and focus returns to the Add user button. No toast on success: the dialog closes once the new user is in the list.
+
+## Editing roles and removing users (A12) as built in 5.3
+- **The Role cell is the design's Select (`sm`, 180px), choosing several roles** (decision 3). The trigger shows them, most privileged first, cut off with "…" when they don't fit (the full list is its accessible name and tooltip). The list keeps Kuat's options (`--accent` and a `--primary` check when chosen), but each is a real checkbox: **ticking one saves at once** and the list stays open. The column header is "Roles".
+- **Disabled options say why:** your own Admin ("You can't remove your own admin role") and a user's only role ("A user needs at least one role; remove them instead"), as a 12px muted line under the label.
+- **Remove** (ghost-muted, `sm`) asks first, in a Kuat Dialog: "Remove \<Name\>?", "They're signed out and can't sign in. Their feedback and comments stay, and you can add them back.", with Cancel and a `destructive` **Remove**. An inactive user's button is **Reactivate**, which works at once. **Your own row has no button.**
+- **Changes show immediately** from the API's answer (no reload); the row is blocked while saving. A refusal shows an `issue` Callout above the table, "We couldn't update \<Name\>", with the API's reason; it clears after the next successful change.
 
 ## Differences from PRODUCT.md
 Decided 2026-10-16. PRODUCT.md, DATA_MODEL.md, TECH_STACK.md, ROADMAP.md and contracts are updated to match.

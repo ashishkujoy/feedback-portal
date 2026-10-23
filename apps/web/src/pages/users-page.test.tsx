@@ -61,10 +61,10 @@ describe('the users page', () => {
 
     await loaded();
     expect(rows()).toEqual([
-      ['Ada Lovelace', 'ada@example.com', 'Admin, Mentor'],
-      ['Alan TuringInactive', 'alan@example.com', 'Mentor'],
-      ['Grace Hopper', 'grace@example.com', 'Programme manager, Mentor'],
-      ['Linus Pauling', 'linus@example.com', 'Mentor'],
+      ['Ada Lovelace', 'ada@example.com', 'Admin, Mentor', 'Remove'],
+      ['Alan TuringInactive', 'alan@example.com', 'Mentor', 'Reactivate'],
+      ['Grace Hopper', 'grace@example.com', 'Programme manager, Mentor', 'Remove'],
+      ['Linus Pauling', 'linus@example.com', 'Mentor', 'Remove'],
     ]);
   });
 

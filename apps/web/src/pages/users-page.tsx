@@ -1,20 +1,19 @@
 import type { AdminUser, Role } from '@feedback-portal/contracts';
 import { useQuery } from '@tanstack/react-query';
+import { meQuery } from '../api/me.ts';
 import { getRouteApi } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { usersQuery } from '../api/users.ts';
 import { isApiError } from '../api/errors.ts';
-import { roleLabels, rolesByPrivilege } from '../identity/roles.ts';
-import { Avatar } from '../ui/avatar.tsx';
 import { Button } from '../ui/button.tsx';
 import { Callout } from '../ui/callout.tsx';
 import { PageTitle } from '../ui/page-title.tsx';
 import { SearchInput } from '../ui/search-input.tsx';
-import { StatusBadge } from '../ui/status-badge.tsx';
 import { type TabItem, tabId, Tabs } from '../ui/tabs.tsx';
 import { AddUserDialog } from '../users/add-user-dialog.tsx';
 import { byName, byRole, matches, tabCounts } from '../users/filter-users.ts';
+import { cells, UserRow } from '../users/user-row.tsx';
 
 const route = getRouteApi('/app/users');
 
@@ -32,37 +31,16 @@ const tabItems = (users: readonly AdminUser[] | undefined): TabItem<Tab>[] => {
   ];
 };
 
-// The design's grid (2fr 2fr 200px, 16px gaps and side padding) as table cells.
-const nameCell = 'py-2.5 pr-2 pl-4';
-const emailCell = 'px-2 py-2.5';
-const roleCell = 'py-2.5 pr-4 pl-2';
+type Failure = Readonly<{ name: string; error: Error }>;
 
-const UserRow = ({ user }: Readonly<{ user: AdminUser }>) => (
-  <tr className="border-b border-border text-sm">
-    <td className={nameCell}>
-      <div className="flex items-center gap-2.5">
-        <Avatar name={user.name} src={user.avatarUrl} size="sm" />
-        <span className={`truncate font-medium ${user.isActive ? '' : 'text-muted-foreground'}`}>
-          {user.name}
-        </span>
-        {user.isActive ? null : <StatusBadge>Inactive</StatusBadge>}
-      </div>
-    </td>
-    <td className={`${emailCell} truncate text-muted-foreground`}>{user.email}</td>
-    <td className={roleCell}>
-      {rolesByPrivilege(user.roles)
-        .map((role) => roleLabels[role])
-        .join(', ')}
-    </td>
-  </tr>
-);
-
-/** A12 · Users and roles (admins only), with A13 · Add user. Roles and deactivating come in 5.3. */
+/** A12 · Users and roles (admins only): roles edited in place, Remove/Reactivate, and A13 · Add user. */
 export const UsersPage = () => {
   const { role, q = '' } = route.useSearch();
   const navigate = route.useNavigate();
   const { data: users, error } = useQuery(usersQuery);
+  const me = useQuery(meQuery).data;
   const [adding, setAdding] = useState(false);
+  const [failure, setFailure] = useState<Failure | null>(null);
   const tab: Tab = role ?? 'all';
   const shown = users ? byName(byRole(users, role).filter((user) => matches(user, q))) : undefined;
 
@@ -110,6 +88,13 @@ export const UsersPage = () => {
             });
           }}
         />
+        {failure ? (
+          <div role="alert">
+            <Callout type="issue" title={`We couldn't update ${failure.name}`}>
+              {isApiError(failure.error) ? failure.error.detail : undefined}
+            </Callout>
+          </div>
+        ) : null}
         {error ? (
           <Callout type="issue" title="We couldn't load users">
             {isApiError(error) ? error.detail : undefined}
@@ -120,28 +105,38 @@ export const UsersPage = () => {
             <colgroup>
               <col />
               <col />
-              <col className="w-[224px]" />
+              <col className="w-[216px]" />
+              <col className="w-[124px]" />
             </colgroup>
             <thead>
               <tr className="border-b border-border bg-(--slate-50) text-left text-xs text-muted-foreground [&>th]:font-medium">
-                <th scope="col" className={nameCell}>
+                <th scope="col" className={cells.name}>
                   Name
                 </th>
-                <th scope="col" className={emailCell}>
+                <th scope="col" className={cells.email}>
                   Email
                 </th>
-                <th scope="col" className={roleCell}>
-                  Role
+                <th scope="col" className={cells.roles}>
+                  Roles
+                </th>
+                <th scope="col" className={cells.action}>
+                  <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
             <tbody>
               {shown?.map((user) => (
-                <UserRow key={user.id} user={user} />
+                <UserRow
+                  key={user.id}
+                  user={user}
+                  isSelf={user.id === me?.id}
+                  onFailed={(failed, reason) => setFailure({ name: failed.name, error: reason })}
+                  onChanged={() => setFailure(null)}
+                />
               ))}
               {shown?.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-2.5 text-sm text-muted-foreground">
+                  <td colSpan={4} className="px-4 py-2.5 text-sm text-muted-foreground">
                     No users match your search.
                   </td>
                 </tr>
