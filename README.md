@@ -57,6 +57,21 @@ Photos are stored in Cloudinary; the database keeps only each photo's `public_id
 
 The browser uploads straight to Cloudinary with a signature from the API, and the API checks Cloudinary's signed answer before saving. Without `CLOUDINARY_URL`, photos are off and initials are shown everywhere.
 
+### Airtable columns (import, Phase 8)
+The import reads these columns from your recruitment table. Names match ignoring case, spaces and apostrophes; to use other names, edit `columns` in `apps/api/src/modules/intern/application/airtable-mapping.ts`.
+
+| Intern field | Columns accepted |
+|---|---|
+| Username (required) | `Username` |
+| Name (required) | `Full name`, `Name` |
+| Email (required) | `Email` |
+| Phone | `Phone`, `Phone number` |
+| Diploma branch | `Diploma branch` |
+| Parents' names | `Parents' names`, `Parent names`, `Parents names` |
+| Interview notes | `Interview notes` |
+
+Every other column is kept as it is in the intern's raw Airtable record. On a re-import, these columns overwrite the portal's values (an empty cell clears the field); status, colour code, photo and history are never touched.
+
 ### API endpoints (identity)
 - **`GET /settings`** (public) returns `{ programName, orgName }` from config, cacheable for 5 minutes.
 - **`GET /me`** returns the signed-in user (`id`, `email`, `name`, `avatarUrl`, `roles`). Without a valid session it answers **401**, and clears a bad cookie. The web app treats a 401 as "go to sign-in".
