@@ -27,7 +27,7 @@ export {
   statusActions,
   UpdateInternDetailsRequest,
 } from './intern.ts';
-export { ImportPreview, ImportSourceRequest } from './intern-import.ts';
+export { ImportPreview, ImportResult, ImportSourceRequest } from './intern-import.ts';
 export {
   InternStatus,
   finalInternStatuses,

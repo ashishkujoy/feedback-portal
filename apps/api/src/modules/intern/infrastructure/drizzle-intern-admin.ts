@@ -1,6 +1,8 @@
+import { lockForTransaction } from '../../../shared/db/advisory-lock.ts';
 import type { Database, DbExecutor } from '../../../shared/db/client.ts';
 import type { BatchAccess } from '../application/batch-access.ts';
 import type { InternAdminTransaction } from '../application/intern-admin.ts';
+import { createImportRuns } from './drizzle-import-runs.ts';
 import { createInternQueries } from './drizzle-intern-queries.ts';
 import { createInternRepository } from './drizzle-intern-repository.ts';
 
@@ -16,5 +18,8 @@ export const createInternAdminTransaction =
         interns: createInternRepository(tx),
         queries: createInternQueries(tx),
         batchAccess: batchAccess(tx),
+        importRuns: createImportRuns(tx),
+        lockImports: (batchId) =>
+          lockForTransaction(tx, `feedback-portal:airtable-import:${batchId}`),
       }),
     );

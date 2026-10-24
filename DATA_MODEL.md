@@ -163,18 +163,22 @@ Index on (`intern_id`, `created_at`). **A trigger rejects `UPDATE` and `DELETE`*
 
 Checks: `from_status` differs from `to_status`; `from_status` is `NULL` only for `to_status = 'active'` (onboarding); a non-blank `reason` unless onboarding; both notice dates, with the end after the start, exactly when `to_status = 'on_notice'`.
 
-**`airtable_imports`**: one row per import run. A batch can be imported many times.
+**`airtable_imports`**: one row per import run. A batch can be imported many times. The Airtable token is never stored.
 | Column | Type | Notes |
 |---|---|---|
 | id | uuid PK | |
-| batch_id | uuid FK → batches | |
-| base_id / table_id / view_id | text | Airtable source (`view_id` is nullable) |
-| status | `import_status` | |
-| record_count | int | |
-| created_count / updated_count | int | Interns added and interns updated (matched by username) |
-| errors | jsonb null | Per-record validation errors |
+| batch_id | uuid FK → batches | Index on (`batch_id`, `created_at`) |
+| base_id / table_id | text | Airtable source |
+| view | text | What was typed: the view's name or its `viw…` id (8.4 decision 6) |
+| status | `import_status` | `pending` while it runs |
+| record_count | int | Records read from the view |
+| created_count / updated_count / skipped_count | int | Interns added, interns updated (matched by username), invalid rows skipped |
+| errors | jsonb null | The invalid rows: row, username and reasons. Never field values |
+| failure_reason | text null | Why a run failed, as the person saw it (8.4 decision 5) |
 | imported_by | uuid FK → users | |
-| created_at / completed_at | timestamptz | |
+| created_at / completed_at | timestamptz | `completed_at` is set once the run is no longer pending |
+
+Checks: counts ≥ 0; `completed_at` set exactly when not `pending`; `failure_reason` set exactly when `failed`. A run is all or nothing: a failed run changes no intern.
 
 ### feedback
 

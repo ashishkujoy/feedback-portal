@@ -16,15 +16,24 @@ import {
   liftNotice,
   isReadOnly,
   onboardIntern,
+  refreshFromAirtable,
   setPhoto as withPhoto,
   terminate,
   updateDetails,
   withdraw,
 } from '../domain/intern.ts';
-import { type InternId, newInternId } from '../domain/intern-id.ts';
+import { InternId, newInternId } from '../domain/intern-id.ts';
+import { newId } from '../../../shared/ids.ts';
+import { AppError } from '../../../shared/errors/app-error.ts';
 import { newStatusEventId } from '../domain/status-event-id.ts';
-import { mapRecords } from './airtable-mapping.ts';
-import type { AirtableSource, AirtableSourceInput } from './airtable-source.ts';
+import { type MappedRow, mapRecords } from './airtable-mapping.ts';
+import {
+  AirtableError,
+  type AirtableSource,
+  type AirtableSourceInput,
+  describeAirtableError,
+} from './airtable-source.ts';
+import type { ImportError, ImportRuns } from './import-runs.ts';
 import { type ImportPreviewView, previewImport } from './import-preview.ts';
 import type { InternAdminScope, InternAdminTransaction } from './intern-admin.ts';
 import type { InternDetailView, InternSummaryView } from './intern-queries.ts';
@@ -34,6 +43,8 @@ export type ManageInternsDeps = Readonly<{
   transaction: InternAdminTransaction;
   /** Reads an import's source (8.1); the token comes with each request and is never kept. */
   airtable: AirtableSource;
+  /** Records runs outside any transaction, so a failed run is still recorded (8.4). */
+  importRuns: ImportRuns;
   /** `null` when photos are off (no Cloudinary configured). */
   photos: PhotoStorage | null;
   now: () => Date;
@@ -268,4 +279,120 @@ export const previewInternImport = async (
   });
   const records = await airtable.fetchRecords(source);
   return previewImport(mapRecords(records), existing, records.length);
+};
+
+export type ImportResultView = Readonly<{
+  importId: string;
+  counts: Readonly<{ created: number; updated: number; skipped: number }>;
+  invalid: readonly ImportError[];
+}>;
+
+/** The sentence a failed run keeps: Airtable's, the API's own, or a general one. */
+const failureReasonOf = (error: unknown): string => {
+  if (error instanceof AirtableError) return describeAirtableError(error);
+  if (error instanceof AppError) return error.message;
+  return "The import couldn't be saved.";
+};
+
+/** Runs `step` for each item, one after another (they share one transaction's connection). */
+const inTurn = async <T>(items: readonly T[], step: (item: T) => Promise<void>): Promise<void> =>
+  items.reduce<Promise<void>>(
+    (previous, item) => previous.then(() => step(item)),
+    Promise.resolve(),
+  );
+
+/**
+ * Imports an Airtable view into the batch (8.4): reads it again (decision 1), then, all or
+ * nothing under the batch's import lock (decisions 2 and 4), adds the new interns and refreshes
+ * the matched ones. Invalid rows are skipped. The run is recorded as pending first, then
+ * completed or failed; a failed run changes no intern.
+ */
+export const importInterns = async (
+  { transaction, airtable, importRuns, now }: ManageInternsDeps,
+  {
+    actor,
+    batchId,
+    source,
+  }: Readonly<{ actor: Actor; batchId: BatchId; source: AirtableSourceInput }>,
+): Promise<ImportResultView> => {
+  await transaction((scope) => ensureCanManage(scope, actor, batchId));
+  const importId = newId();
+  await importRuns.start({
+    id: importId,
+    batchId,
+    baseId: source.baseId,
+    tableId: source.tableId,
+    view: source.view,
+    importedBy: actor.id,
+    createdAt: now(),
+  });
+  try {
+    const records = await airtable.fetchRecords(source);
+    const mapped = mapRecords(records);
+    const rowsByNumber = new Map(mapped.valid.map((row) => [row.row, row]));
+    const mappedRow = (row: number): MappedRow => {
+      const found = rowsByNumber.get(row);
+      if (!found) throw new Error(`row ${row} vanished between mapping and comparing`);
+      return found;
+    };
+    return await transaction(async (scope) => {
+      await scope.lockImports(batchId);
+      // Again inside the lock: the batch may have been archived, or its PM changed, meanwhile.
+      await ensureCanManage(scope, actor, batchId);
+      const plan = previewImport(
+        mapped,
+        await scope.queries.usernamesForBatch(batchId),
+        records.length,
+      );
+      const at = now();
+      await inTurn(plan.new, async ({ row }) => {
+        const { recordId, details, airtableFields } = mappedRow(row);
+        await scope.interns.save(
+          onboardIntern({
+            id: newInternId(),
+            eventId: newStatusEventId(),
+            batchId,
+            details,
+            airtableRecordId: recordId,
+            airtableFields,
+            actor: actor.id,
+            now: at,
+          }),
+        );
+      });
+      await inTurn(plan.updated, async ({ row, internId }) => {
+        const { recordId, details, airtableFields } = mappedRow(row);
+        const intern = await scope.interns.findByIdForUpdate(InternId.parse(internId));
+        if (!intern) throw new Error(`intern ${internId} vanished inside the import`);
+        await scope.interns.save(
+          refreshFromAirtable(intern, {
+            details,
+            airtableRecordId: recordId,
+            airtableFields,
+            now: at,
+          }),
+        );
+      });
+      await scope.importRuns.complete(importId, {
+        recordCount: records.length,
+        createdCount: plan.new.length,
+        updatedCount: plan.updated.length,
+        skippedCount: plan.invalid.length,
+        errors: plan.invalid,
+        completedAt: now(),
+      });
+      return {
+        importId,
+        counts: {
+          created: plan.new.length,
+          updated: plan.updated.length,
+          skipped: plan.invalid.length,
+        },
+        invalid: plan.invalid,
+      };
+    });
+  } catch (error) {
+    await importRuns.fail(importId, { reason: failureReasonOf(error), completedAt: now() });
+    throw error;
+  }
 };

@@ -43,3 +43,21 @@ export const ImportPreview = z.object({
   ),
 });
 export type ImportPreview = z.infer<typeof ImportPreview>;
+
+/** `POST /batches/:batchId/imports`: what the run did (v2 A10-result). */
+export const ImportResult = z.object({
+  importId: z.uuid(),
+  counts: z.object({
+    created: z.int().nonnegative(),
+    updated: z.int().nonnegative(),
+    skipped: z.int().nonnegative(),
+  }),
+  invalid: z.array(
+    z.object({
+      row: z.int().positive(),
+      username: z.string().nullable(),
+      reasons: z.array(z.string()).min(1),
+    }),
+  ),
+});
+export type ImportResult = z.infer<typeof ImportResult>;

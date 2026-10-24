@@ -1,11 +1,14 @@
 import {
   BatchDetail,
   ImportPreview,
+  ImportResult,
+  InternDetail,
   InternSummary,
   ProblemDetails,
   type Role,
 } from '@feedback-portal/contracts';
 import { type LogRecord, reset } from '@logtape/logtape';
+import { eq } from 'drizzle-orm';
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { realApp } from '../../../../test/app-deps.ts';
@@ -19,6 +22,7 @@ import {
 } from '../application/airtable-source.ts';
 import { InternId } from '../domain/intern-id.ts';
 import { createInternRepository } from '../infrastructure/drizzle-intern-repository.ts';
+import { airtableImports, interns } from '../infrastructure/schema.ts';
 
 const testDb = useTestDb();
 const db = () => testDb.handle.db;
@@ -238,6 +242,200 @@ describe('POST /batches/:batchId/imports/preview', () => {
     expect(records.map((record) => record.properties)).toContainEqual(
       expect.objectContaining({ new: 2, updated: 1, invalid: 0 }),
     );
+    expect(
+      JSON.stringify(records.map((record) => [record.message, record.properties])),
+    ).not.toContain(token);
+  });
+});
+
+const runsOf = async (batchId: string) =>
+  db().select().from(airtableImports).where(eq(airtableImports.batchId, batchId));
+
+const internsOf = async (batchId: string) =>
+  db()
+    .select({ username: interns.username, name: interns.name, status: interns.status })
+    .from(interns)
+    .where(eq(interns.batchId, batchId))
+    .orderBy(interns.username);
+
+describe('POST /batches/:batchId/imports', () => {
+  it('adds the new interns and refreshes the matched one, recording the run', async () => {
+    const { setup, pm, batch, ishitaId } = await setUp(recordedSource());
+
+    const response = await post(setup, pm.cookie, `/batches/${batch.id}/imports`, source);
+
+    expect(response.status).toBe(201);
+    const result = ImportResult.parse(await response.json());
+    expect(result.counts).toEqual({ created: 2, updated: 1, skipped: 0 });
+    expect(response.headers.get('location')).toBe(
+      `/batches/${batch.id}/imports/${result.importId}`,
+    );
+    const ishita = await createInternRepository(db()).findById(ishitaId);
+    expect(ishita).toMatchObject({
+      username: 'ishita.rao',
+      email: 'ishita.rao@example.com',
+      phone: '+91 98450 12345',
+      status: 'active',
+      airtableRecordId: 'recA1b2C3d4E5f6G7',
+      airtableFields: expect.objectContaining({ 'Interview score': 8 }),
+    });
+    expect(ishita?.statusEvents).toHaveLength(1);
+    expect((await internsOf(batch.id)).map((intern) => intern.username)).toEqual([
+      'ishita.rao',
+      'kabir.nair',
+      'zoya.ansari',
+    ]);
+    const [run] = await runsOf(batch.id);
+    expect(run).toMatchObject({
+      status: 'completed',
+      recordCount: 3,
+      createdCount: 2,
+      updatedCount: 1,
+      skippedCount: 0,
+      importedBy: pm.user.id,
+      baseId: source.baseId,
+      view: source.view,
+    });
+    // The new interns' history starts with an import by the PM.
+    const zoya = await db()
+      .select({ id: interns.id })
+      .from(interns)
+      .where(eq(interns.username, 'zoya.ansari'));
+    const zoyaDetail = InternDetail.parse(
+      await (
+        await setup.app.request(`/batches/${batch.id}/interns/${zoya[0]?.id ?? ''}`, {
+          headers: { cookie: pm.cookie },
+        })
+      ).json(),
+    );
+    expect(zoyaDetail).toMatchObject({ source: 'airtable', addedBy: { id: pm.user.id } });
+  });
+
+  it('is repeatable: the same import again adds no one', async () => {
+    const { setup, pm, batch } = await setUp(recordedSource());
+    await post(setup, pm.cookie, `/batches/${batch.id}/imports`, source);
+
+    const again = ImportResult.parse(
+      await (await post(setup, pm.cookie, `/batches/${batch.id}/imports`, source)).json(),
+    );
+
+    expect(again.counts).toEqual({ created: 0, updated: 3, skipped: 0 });
+    expect(await internsOf(batch.id)).toHaveLength(3);
+    expect((await runsOf(batch.id)).map((run) => run.status)).toEqual(['completed', 'completed']);
+  });
+
+  it('skips invalid rows, keeping their reasons but no field values', async () => {
+    const records = [
+      ...recorded(),
+      {
+        id: 'recD4e5F6g7H8i9J0',
+        createdTime: '2026-06-04T09:00:00.000Z',
+        fields: { 'Full name': 'Secret Person', Email: 'nope' },
+      },
+    ];
+    const { setup, pm, batch } = await setUp({ fetchRecords: () => Promise.resolve(records) });
+
+    const result = ImportResult.parse(
+      await (await post(setup, pm.cookie, `/batches/${batch.id}/imports`, source)).json(),
+    );
+
+    expect(result.counts).toEqual({ created: 2, updated: 1, skipped: 1 });
+    expect(result.invalid).toEqual([
+      { row: 4, username: null, reasons: ['Username is required.', 'Invalid email address.'] },
+    ]);
+    const [run] = await runsOf(batch.id);
+    expect(run?.errors).toEqual(result.invalid);
+    expect(JSON.stringify(run)).not.toContain('Secret Person');
+  });
+
+  it('writes nothing when Airtable fails, and records why', async () => {
+    const failing = {
+      fetchRecords: () =>
+        Promise.reject(new AirtableError('rate_limited', 'busy', { type: 'RATE_LIMIT_REACHED' })),
+    };
+    const { setup, pm, batch } = await setUp(failing);
+
+    const problem = await problemOf(
+      await post(setup, pm.cookie, `/batches/${batch.id}/imports`, source),
+      502,
+    );
+
+    expect(problem.code).toBe('airtable_unavailable');
+    expect(await internsOf(batch.id)).toHaveLength(1);
+    const [run] = await runsOf(batch.id);
+    expect(run).toMatchObject({
+      status: 'failed',
+      failureReason:
+        'Airtable said: RATE_LIMIT_REACHED. Airtable is busy; try again in 30 seconds.',
+      completedAt: expect.any(Date),
+    });
+  });
+
+  it('is all or nothing when saving fails part-way', async () => {
+    // Postgres can't store a NUL character in jsonb, so the third row's snapshot fails to save
+    // after the first two were written.
+    const [first, second, third] = recorded();
+    if (!first || !second || !third) throw new Error('expected three recorded rows');
+    const poisoned = { ...third, fields: { ...third.fields, Notes: 'bad\u0000cell' } };
+    const { setup, pm, batch, ishitaId } = await setUp({
+      fetchRecords: () => Promise.resolve([first, second, poisoned]),
+    });
+    const before = await createInternRepository(db()).findById(ishitaId);
+
+    const response = await post(setup, pm.cookie, `/batches/${batch.id}/imports`, source);
+
+    expect(response.status).toBe(500);
+    expect((await internsOf(batch.id)).map((intern) => intern.username)).toEqual(['ishita.rao']);
+    expect(await createInternRepository(db()).findById(ishitaId)).toEqual(before);
+    const [run] = await runsOf(batch.id);
+    expect(run).toMatchObject({ status: 'failed', failureReason: "The import couldn't be saved." });
+  });
+
+  it('runs two imports of the same batch one after the other, with no duplicates', async () => {
+    const { setup, pm, admin, batch } = await setUp(recordedSource());
+
+    const responses = await Promise.all(
+      [pm, admin].map(async (who) =>
+        post(setup, who.cookie, `/batches/${batch.id}/imports`, source),
+      ),
+    );
+
+    expect(responses.map((response) => response.status)).toEqual([201, 201]);
+    const counts = await Promise.all(
+      responses.map(async (response) => ImportResult.parse(await response.json()).counts),
+    );
+    expect(counts.map((count) => count.created).toSorted((a, b) => a - b)).toEqual([0, 2]);
+    expect(await internsOf(batch.id)).toHaveLength(3);
+  });
+
+  it("is for the batch's managers, while it isn't archived, and checks the source first", async () => {
+    const airtable = recordedSource();
+    const { setup, admin, pm, mentor, person, batch } = await setUp(airtable);
+    const otherPm = await person('Oli Other', ['program_manager']);
+    const commit = (who: { cookie: string }, body: unknown = source) =>
+      post(setup, who.cookie, `/batches/${batch.id}/imports`, body);
+
+    const statuses = await Promise.all(
+      [mentor, otherPm, { cookie: '' }].map(async (who) => (await commit(who)).status),
+    );
+    expect(statuses).toEqual([403, 404, 401]);
+    expect((await commit(pm, { ...source, baseId: 'nope' })).status).toBe(400);
+    await post(setup, admin.cookie, `/batches/${batch.id}/archive`, {});
+    expect((await problemOf(await commit(pm), 409)).code).toBe('batch_archived');
+    expect(airtable.fetchRecords).not.toHaveBeenCalled();
+    expect(await runsOf(batch.id)).toEqual([]);
+  });
+
+  it('keeps the token out of the logs, the run and the answer', async () => {
+    const records: LogRecord[] = [];
+    await configureLogging({ level: 'trace', format: 'json' }, (record) => records.push(record));
+    const { setup, pm, batch } = await setUp(recordedSource());
+
+    const response = await post(setup, pm.cookie, `/batches/${batch.id}/imports`, source);
+    const body = await response.text();
+
+    expect(body).not.toContain(token);
+    expect(JSON.stringify(await runsOf(batch.id))).not.toContain(token);
     expect(
       JSON.stringify(records.map((record) => [record.message, record.properties])),
     ).not.toContain(token);

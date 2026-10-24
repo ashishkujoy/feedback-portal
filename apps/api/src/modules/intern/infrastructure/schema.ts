@@ -4,6 +4,7 @@ import {
   check,
   date,
   index,
+  integer,
   jsonb,
   pgEnum,
   pgTable,
@@ -124,6 +125,56 @@ export const internStatusEvents = pgTable(
         then ${table.noticeStartsOn} is not null and ${table.noticeEndsOn} is not null
           and ${table.noticeEndsOn} > ${table.noticeStartsOn}
         else ${table.noticeStartsOn} is null and ${table.noticeEndsOn} is null end`,
+    ),
+  ],
+);
+
+/** How an Airtable import run ended; `pending` while it runs. */
+export const importStatusEnum = pgEnum('import_status', ['pending', 'completed', 'failed']);
+
+/**
+ * One row per Airtable import run (8.4). The token is never stored. `errors` holds the invalid
+ * rows (row, username, reasons), never field values; `failure_reason` says why a run failed.
+ */
+export const airtableImports = pgTable(
+  'airtable_imports',
+  {
+    id: uuid()
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    batchId: uuid()
+      .notNull()
+      .references(() => batches.id),
+    baseId: text().notNull(),
+    tableId: text().notNull(),
+    // What was typed: the view's name or its `viw…` id.
+    view: text().notNull(),
+    status: importStatusEnum().notNull().default('pending'),
+    recordCount: integer().notNull().default(0),
+    createdCount: integer().notNull().default(0),
+    updatedCount: integer().notNull().default(0),
+    skippedCount: integer().notNull().default(0),
+    errors: jsonb(),
+    failureReason: text(),
+    importedBy: uuid()
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp({ withTimezone: true }),
+  },
+  (table) => [
+    index('airtable_imports_batch_index').on(table.batchId, table.createdAt),
+    check(
+      'airtable_imports_counts_check',
+      sql`${table.recordCount} >= 0 and ${table.createdCount} >= 0 and ${table.updatedCount} >= 0 and ${table.skippedCount} >= 0`,
+    ),
+    check(
+      'airtable_imports_completed_check',
+      sql`(${table.status} = 'pending') = (${table.completedAt} is null)`,
+    ),
+    check(
+      'airtable_imports_failure_check',
+      sql`(${table.status} = 'failed') = (${table.failureReason} is not null)`,
     ),
   ],
 );

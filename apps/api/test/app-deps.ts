@@ -18,6 +18,7 @@ import { createInternCounts } from '../src/modules/intern/infrastructure/drizzle
 import type { ManageInternsDeps } from '../src/modules/intern/application/manage-interns.ts';
 import type { AirtableSource } from '../src/modules/intern/application/airtable-source.ts';
 import type { PhotoStorage } from '../src/modules/intern/application/photo-storage.ts';
+import { createImportRuns } from '../src/modules/intern/infrastructure/drizzle-import-runs.ts';
 import { createInternAdminTransaction } from '../src/modules/intern/infrastructure/drizzle-intern-admin.ts';
 import type { Database } from '../src/shared/db/client.ts';
 
@@ -55,6 +56,7 @@ const unusedAirtable: AirtableSource = { fetchRecords: unused };
 const unusedManageInterns: ManageInternsDeps = {
   transaction: unused,
   airtable: unusedAirtable,
+  importRuns: { start: unused, complete: unused, fail: unused },
   photos: null,
   now: () => new Date(),
 };
@@ -145,6 +147,7 @@ export const realApp = (
     manageInterns: {
       transaction: createInternAdminTransaction(db, createBatchAccess),
       airtable,
+      importRuns: createImportRuns(db),
       photos,
       now,
     },

@@ -13,6 +13,7 @@ import {
   isReadOnly,
   liftNotice,
   onboardIntern,
+  refreshFromAirtable,
   terminate,
   updateDetails,
   withdraw,
@@ -328,5 +329,54 @@ describe('history', () => {
     expect(lifted.statusEvents[0]).toBe(active.statusEvents[0]);
     expect(lifted.statusEvents[1]).toBe(onNotice.statusEvents[1]);
     expect(lifted.statusEvents[1]?.actorId).toBe(mentor);
+  });
+});
+
+describe('refreshFromAirtable', () => {
+  it("replaces the mapped fields, keeps the username, status and history, and sets Airtable's", () => {
+    const onNotice = notice(
+      updateDetails(onboard(), {
+        details: { ...details, phone: '+91 1', diplomaBranch: 'Mechanical' },
+        now: t1,
+      }),
+    );
+
+    const refreshed = refreshFromAirtable(onNotice, {
+      details: {
+        username: 'someone.else',
+        name: 'Ishita R.',
+        email: 'IR@example.com',
+        phone: null,
+      },
+      airtableRecordId: 'recA1b2C3d4E5f6G7',
+      airtableFields: { Username: 'ishita.rao', Extra: 1 },
+      now: t2,
+    });
+
+    expect(refreshed).toMatchObject({
+      username: 'ishita.rao',
+      name: 'Ishita R.',
+      email: 'ir@example.com',
+      phone: null,
+      diplomaBranch: null,
+      status: 'on_notice',
+      airtableRecordId: 'recA1b2C3d4E5f6G7',
+      airtableFields: { Username: 'ishita.rao', Extra: 1 },
+      updatedAt: t2,
+    });
+    expect(refreshed.statusEvents).toBe(onNotice.statusEvents);
+  });
+
+  it('refuses a read-only intern', () => {
+    expect(
+      errorOf(() =>
+        refreshFromAirtable(internIn('graduated'), {
+          details,
+          airtableRecordId: 'recA1b2C3d4E5f6G7',
+          airtableFields: {},
+          now: t2,
+        }),
+      ).code,
+    ).toBe('intern_read_only');
   });
 });

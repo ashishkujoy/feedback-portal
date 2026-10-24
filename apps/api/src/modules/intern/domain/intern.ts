@@ -302,3 +302,32 @@ export const setPhoto = (
   ensureEditable(intern);
   return { ...intern, photoPublicId: publicId, updatedAt: now };
 };
+
+/**
+ * A re-import (8.4): the mapped fields replaced by Airtable's (an empty one cleared), the record
+ * id and raw snapshot refreshed. The username stays (it's how they matched); status, colour,
+ * photo and history are untouched. Refused once the intern is read-only.
+ */
+export const refreshFromAirtable = (
+  intern: Intern,
+  {
+    details,
+    airtableRecordId,
+    airtableFields,
+    now,
+  }: Readonly<{
+    details: DetailsInput;
+    airtableRecordId: string;
+    airtableFields: Readonly<Record<string, unknown>>;
+    now: Date;
+  }>,
+): Intern => {
+  ensureEditable(intern);
+  return {
+    ...intern,
+    ...parseDetails({ ...details, username: intern.username }),
+    airtableRecordId,
+    airtableFields,
+    updatedAt: now,
+  };
+};

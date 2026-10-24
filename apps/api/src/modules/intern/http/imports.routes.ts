@@ -1,4 +1,4 @@
-import { ImportPreview, ImportSourceRequest } from '@feedback-portal/contracts';
+import { ImportPreview, ImportResult, ImportSourceRequest } from '@feedback-portal/contracts';
 import { getLogger } from '@logtape/logtape';
 import { type Context, Hono } from 'hono';
 import { z } from 'zod';
@@ -11,6 +11,7 @@ import { type AuthenticateDeps, authenticate } from '../../identity/http/authent
 import { requireRole } from '../../identity/http/require-role.ts';
 import {
   type Actor,
+  importInterns,
   type ManageInternsDeps,
   previewInternImport,
 } from '../application/manage-interns.ts';
@@ -52,5 +53,30 @@ export const importsRoutes = ({ manageInterns, ...auth }: ImportsRoutesDeps) =>
         });
         logger.info('import previewed', { actorId: actor.id, batchId, ...preview.counts });
         return c.json(ImportPreview.parse(preview));
+      },
+    )
+    .post(
+      '/',
+      requireRole('admin', 'program_manager'),
+      validate('param', BatchParams),
+      validate('json', ImportSourceRequest),
+      async (c) => {
+        const actor = actorOf(c);
+        const { batchId } = c.req.valid('param');
+        const result = await importInterns(manageInterns, {
+          actor,
+          batchId,
+          source: c.req.valid('json'),
+        }).catch((error: unknown) => {
+          throw asProblem(error);
+        });
+        logger.info('import completed', {
+          actorId: actor.id,
+          batchId,
+          importId: result.importId,
+          ...result.counts,
+        });
+        c.header('Location', `/batches/${batchId}/imports/${result.importId}`);
+        return c.json(ImportResult.parse(result), 201);
       },
     );
