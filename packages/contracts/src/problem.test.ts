@@ -50,6 +50,8 @@ describe('ProblemDetails', () => {
       'batch_requires_pm',
       'batch_name_taken',
       'role_in_use',
+      'invalid_status_transition',
+      'intern_read_only',
     ]);
   });
 });

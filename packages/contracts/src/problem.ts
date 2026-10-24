@@ -20,6 +20,8 @@ export const ErrorCode = z.enum([
   'batch_requires_pm',
   'batch_name_taken',
   'role_in_use',
+  'invalid_status_transition',
+  'intern_read_only',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 
