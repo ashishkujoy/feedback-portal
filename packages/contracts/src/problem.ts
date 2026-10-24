@@ -22,6 +22,7 @@ export const ErrorCode = z.enum([
   'role_in_use',
   'invalid_status_transition',
   'intern_read_only',
+  'intern_username_taken',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

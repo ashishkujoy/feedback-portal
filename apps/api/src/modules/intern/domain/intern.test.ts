@@ -185,7 +185,7 @@ describe('onboardIntern', () => {
     });
 
     expect(intern).toMatchObject({
-      username: 'Ishita.Rao',
+      username: 'ishita.rao',
       name: 'Ishita Rao',
       email: 'ishita@example.com',
       phone: null,

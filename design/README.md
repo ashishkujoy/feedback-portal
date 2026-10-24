@@ -11,12 +11,42 @@ The UI is designed in Claude Design. **All UI work follows these screens** (see 
 ## Files in the project
 | File | What it is |
 |---|---|
-| `* Mentor Portal.dc.html` | **Canvas.** Lays out every screen by role (IDs below). Each tile embeds the screen file with props. |
-| `* Screen.dc.html` | **All screens.** A single parameterised component, with props `role`, `screen`, `tab`, `view`, `dialog`, `device`, `mscreen` and `height`. Its logic script holds the sample data and the colour-code → token map. |
+| **`Mentor Portal v2.dc.html`** | **The current canvas (v2, added 2026-10-24).** It formalises the screens built so far and draws the rest of the roadmap. Each artboard names the props that render it. Index below. |
+| **`Portal Screen.dc.html`** | **v2's screens.** One parameterised component: `role`, `screen`, `batch`, `intern`, `tab`, `view`, `state`, `device` and `mscreen`. A `state` prop draws loading, empty, error and other states. |
+| **`Portal Dialog.dc.html`** | **v2's dialogs**, rendered alone: `dialog` and `state` (for example `dialog="addIntern" state="errors"`). |
+| `* Mentor Portal.dc.html` | **The v1 canvas,** kept for reference. Lays out every screen by role (IDs below). Each tile embeds the screen file with props. |
+| `* Screen.dc.html` | **v1's screens.** A single parameterised component, with props `role`, `screen`, `tab`, `view`, `dialog`, `device`, `mscreen` and `height`. Its logic script holds the sample data and the colour-code → token map. |
 | `_ds/ee-design-system-kuat-…/` | The **Kuat** design system (Equal Experts). It contains `styles.css` (the entry point), `tokens/*.css`, the Lexend fonts, `_ds_bundle.js` (React primitives) and `readme.md` (visual and content rules). |
 | `support.js` | The design tool's canvas runtime. It isn't needed for the app. |
 
-## Screens
+## v2 screens
+**v2 decides wherever it and v1 differ.** IDs: A (admin), P (programme manager), M (mentor), MM (mentor mobile); a suffix such as `-errors` marks a state. The sample "today" is 24 Oct 2026.
+
+| Section | Artboards |
+|---|---|
+| Reference | **REF-1** the six colour codes plus No colour, in severity order; **REF-2** intern statuses and the actions between them |
+| Batches | **A1** / **M1** (with `-empty`, `-loading`, `-error`); **A9** Create batch (`-errors`); **A16** Change programme manager (`-error`); **A17** Archive batch (`-error`, `-archived`: the archived batch page) |
+| Batch page | **A2** interns as cards, **A3** as a table, **M2** the mentor's view; `A2-completed`, `A2-asbuilt` (before interns), `A2-empty`, `A2-noresults`, `A2-loading`, `A2-error`; **A4** Mentors tab (`-empty`); **P5** Notice tracker (`A5-empty`); **P24** Overview (batch dashboard); **A25** Imports history; **A14** Add intern (`-errors`, `-success`); **A10** Import from Airtable (`-sourceerrors`, `-preview`, `-importing`, `-result`, `-failed`); **A11** Assign mentors (`-unchanged`, `-nomatch`, `-nomentors`, `-error`) |
+| Intern profile | **P6** / **M6** timeline; `A6-nofeedback`, `A6-readonly`, `A6-banners`, `A6-photo`; **P22** Details tab; **P23** Status history tab; **P7** / **A7** Give feedback (`-preview`, `-notice`, `-readonly`, `-errors`, `-servererror`); **P8** Record conversation (`-errors`, `-empty`, `-servererror`); **A15** Edit details (`-errors`); **P18** Lift notice (`-errors`), **P19** Terminate, **P20** Graduate, **P21** Withdraw |
+| Users and roles | **A12** (`-menuself`, `-menusingle`, `-refusal`, `-empty`, `-remove`); **A13** Add user (`-errors`) |
+| My pending | **M26** Needs feedback (`-drafts`, `-empty`, `-discard`); **P26** To deliver |
+| Global | **A27** Page not found; **A28** Page load error; **A29** Sign in (`-notsetup`, `-removed`, `-domain`, `-failed`) |
+| Mentor mobile | **MM1**–**MM5** as in v1, **MM4** states (`-notice`, `-disabled`), **MM6** My pending (`-drafts`) |
+
+### Built before v2
+These screens were built from v1 or improvised, and v2 now draws them. **Compare each with v2 when its area is next touched** (follow-ups, not done yet):
+- the shell, and Sign in (4.4 → **A29**), Page not found (→ **A27**);
+- Users and roles and Add user (5.1–5.3 → **A12**, **A13**);
+- the batch list, the batch page and Create batch (6.5 → **A1**, **A2-asbuilt**, **A9**);
+- Assign mentors and the Mentors table (6.6 → **A11**, **A4**).
+
+### Add intern (A14) as built in 7.3
+- **Add intern** (outline, `plus`) sits in the batch header before Assign mentors, for the batch's managers. A2's **Archive batch** and **Import from Airtable** come with their tasks.
+- **Email is required** (7.3 decision 1): the dialog marks it, unlike A14, because every intern has an email (DATA_MODEL).
+- **Usernames are stored lower-cased** (decision 2), as A14's help text says.
+- **The success sentence is "\<Name\> is on the roster as Active, with no colour code."** (decision 3): no pronoun, and nothing about features not built yet.
+
+## Screens (v1)
 **Desktop is 1440 wide; mobile is 390×844.** Every desktop screen has the same shell:
 - A 240px **Tech Blue sidebar**: logo mark, program name and "Mentor portal", a "Workspace" section, **Batches** (shown as "My batches" for mentors) and **Users and roles** (admin only).
 - A top bar with a breadcrumb and a "Viewing as \<role\>" tag. The signed-in user's avatar, name and role label sit at the **foot of the sidebar**.

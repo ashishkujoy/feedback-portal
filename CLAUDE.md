@@ -4,8 +4,8 @@
 Every UI task (pages, components, layout, styling) must follow the screens in the Claude Design project below. Do not invent layouts or styles that the design doesn't show. If a screen you need is missing, say so and ask before improvising.
 
 - **Design project:** https://claude.ai/design/p/937031fc-fdf0-4c3a-9742-02d65fb499f5
-- **Start with `design/README.md`.** It indexes every screen (IDs A1–A13, P1–P11, M1–M7, MM1–MM5), lists the design-system rules, and records where the design differs from PRODUCT.md.
-- **Main file:** `* Mentor Portal.dc.html` (the canvas). The screens themselves live in `* Screen.dc.html`.
+- **Start with `design/README.md`.** It indexes every screen (v2's IDs A1–A29, P5–P26, M1–M26, MM1–MM6 with their states), lists the design-system rules, and records where the design differs from PRODUCT.md.
+- **Main file:** `Mentor Portal v2.dc.html` (the canvas, v2). The screens live in `Portal Screen.dc.html` and the dialogs in `Portal Dialog.dc.html`. The v1 files (`* Mentor Portal.dc.html`, `* Screen.dc.html`) are kept for reference; where they differ, v2 decides.
 - **Also read** the files that the main file imports:
   - `_ds/ee-design-system-kuat-…/_ds_bundle.js`
   - `_ds/ee-design-system-kuat-…/styles.css`

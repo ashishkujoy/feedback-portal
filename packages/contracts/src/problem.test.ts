@@ -52,6 +52,7 @@ describe('ProblemDetails', () => {
       'role_in_use',
       'invalid_status_transition',
       'intern_read_only',
+      'intern_username_taken',
     ]);
   });
 });

@@ -1,6 +1,7 @@
 import { serve } from '@hono/node-server';
 import { dispose, getLogger } from '@logtape/logtape';
 import { createApp } from './app.ts';
+import { createBatchAccess } from './modules/cohort/infrastructure/drizzle-batch-access.ts';
 import { createBatchAdminTransaction } from './modules/cohort/infrastructure/drizzle-batch-admin.ts';
 import { createBatchQueries } from './modules/cohort/infrastructure/drizzle-batch-queries.ts';
 import { createRoleAssignments } from './modules/cohort/infrastructure/drizzle-role-assignments.ts';
@@ -9,6 +10,7 @@ import { createGoogleAuth } from './modules/identity/infrastructure/google-oauth
 import { createUserAdminTransaction } from './modules/identity/infrastructure/drizzle-user-admin.ts';
 import { createSessionRepository } from './modules/identity/infrastructure/drizzle-session-repository.ts';
 import { createUserRepository } from './modules/identity/infrastructure/drizzle-user-repository.ts';
+import { createInternAdminTransaction } from './modules/intern/infrastructure/drizzle-intern-admin.ts';
 import { loadConfigOrExit } from './shared/config/load-config-or-exit.ts';
 import { createDb } from './shared/db/client.ts';
 import { configureLogging, rootCategory } from './shared/logging/logging.ts';
@@ -60,6 +62,10 @@ const server = serve(
       manageBatches: {
         transaction: createBatchAdminTransaction(database.db),
         queries: createBatchQueries(database.db),
+        now,
+      },
+      manageInterns: {
+        transaction: createInternAdminTransaction(database.db, createBatchAccess),
         now,
       },
     }).fetch,

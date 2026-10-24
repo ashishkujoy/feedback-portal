@@ -66,13 +66,13 @@ const Details = z.object({
   username: z
     .string()
     .trim()
-    .transform((value) => value.replace(/^@/, ''))
+    .transform((value) => value.replace(/^@/, '').toLowerCase())
     .pipe(
       z
         .string()
-        .min(1, { error: 'Username is required' })
+        .min(1, { error: 'Username is required', abort: true })
         .max(50, { error: 'Username must be at most 50 characters' })
-        .regex(/^[A-Za-z0-9._-]+$/, {
+        .regex(/^[a-z0-9._-]+$/, {
           error: 'Username can only contain letters, digits, ".", "_" and "-"',
         }),
     ),

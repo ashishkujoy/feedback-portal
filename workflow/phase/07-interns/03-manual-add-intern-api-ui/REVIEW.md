@@ -1,11 +1,49 @@
 # 7.3 Manual add intern API + UI — Review
 
-_Written after implementation, for the reviewer._
-
 ## What changed
+| File | Notes |
+|---|---|
+| `design/README.md`, `CLAUDE.md` | **v2 is now the design source.** The files table lists `Mentor Portal v2.dc.html`, `Portal Screen.dc.html` and `Portal Dialog.dc.html` (v1 kept for reference). A **v2 screens** index by section and ID (with states). A **Built before v2** list: screens to compare with v2 when their area is next touched. An **Add intern (A14) as built in 7.3** section with this task's three decisions. |
+| `packages/contracts/src/intern.ts` (+ test), `problem.ts` | **`CreateInternRequest`** (the same rules as the domain: username without `@`, lower-cased, `[a-z0-9._-]`, 1–50; name; email lower-cased; optional fields with blank → `null`). **`InternSummary`** `{ id, batchId, username, name, email, status, colorCode, noticeEndsOn }`. Error code **`intern_username_taken`**. |
+| `apps/api/src/modules/intern/domain/intern.ts` (+ test) | **Usernames are lower-cased** (decision 2). An empty username now reports only "Username is required", not also the character rule (`abort: true`; the contract does the same). |
+| `intern/application/intern-repository.ts`, `infrastructure/drizzle-intern-repository.ts` (+ int test) | **`save`** upserts the intern's columns and **inserts the status events with `on conflict do nothing`**, so saved events are never touched (7.1's trigger forbids updates). It maps `interns_batch_username_unique` → **409 `intern_username_taken`**. **`findById`** loads the intern with its history, oldest first. |
+| `intern/application/batch-access.ts`, `cohort/infrastructure/drizzle-batch-access.ts` | **The `BatchAccess` port:** for a viewer and batch, `null` (not visible, or doesn't exist) or `{ canManage, isArchived }`. **Cohort implements it** with 6.4's `visibleBatchCondition`, plus a check for the current PM. It locks the batch row **`for share`**: every batch change rewrites that row, so an archive or PM change waits for the add to finish. |
+| `intern/application/intern-admin.ts`, `manage-interns.ts`, `infrastructure/drizzle-intern-admin.ts` | **`addIntern`** runs in one transaction: **not visible → 404, not a manager → 403, archived → 409 `batch_archived`**; then `onboardIntern` (the actor on the onboarding event) and save. |
+| `intern/http/interns.routes.ts`, `intern-views.ts`; `app.ts`, `main.ts`, `test/app-deps.ts` | **`POST /batches/:batchId/interns`** → **201** `InternSummary` with `Location: /batches/:batchId/interns/:id`. Only admins and PMs pass the role check. Logs carry ids only. **It's mounted before `/batches`,** so a request it answers never runs that router's middleware and the session is checked once (checked with Hono: mounting it after would have authenticated twice). |
+| `apps/web/src/ui/textarea.tsx`; `text-input.tsx`, `field.tsx` | **Kuat Textarea** (padding 10px 12px, `--radius-sm`, vertical resize, the Input's border and focus ring), with a **`mono`** option (JetBrains Mono 13/20). **`TextInput` gains `mono`.** **`Field` gains `required`:** Kuat Label's red `*`, `aria-hidden`; the control carries `aria-required`. |
+| `apps/web/src/api/interns.ts`, `interns/add-intern-dialog.tsx` | **A14:** a 560px dialog with Username (`@` icon, mono, "Lowercase, as in Airtable."), then a 2-column grid (Full name, Email, Phone `tel`, Diploma branch), Parents' names, and Interview notes (5 rows, mono, "Markdown supported."). Required: Username, Full name, **Email** (decision 1). A taken username shows **"This username is already in the batch."** under Username, which gets focus; any other failure shows an `issue` Callout. **A14-success:** the form gives way to a `positive` Callout **"\<Name\> added to \<Batch\>" / "\<Name\> is on the roster as Active, with no colour code."** (decision 3), with **Add another** (an empty form, focus on Username) and **Done**. |
+| `apps/web/src/pages/batch-page.tsx`, `batches/can-manage.ts` | **Add intern** (outline, `plus` 16px) before Assign mentors, 8px apart, for the batch's managers. **`canManageMentors` → `canManageBatch`** (the same rule). |
+| `README.md`, `DATA_MODEL.md` | The interns endpoint; usernames stored lower-cased. |
 
 ## How to verify
+```sh
+pnpm check     # contracts 63 + web 144 + api 469
+```
+
+| Check | Result |
+|---|---|
+| `pnpm check` | **Exit 0.** 63 (+4) + 144 (+11) + **469** (+14). Format and lint clean, with no suppressions. |
+| Repository (5, Testcontainers) | Round-trips an intern with its onboarding event. **Saving onboarded → on notice → lifted adds exactly the new events** (3 rows) and loads back equal. A username in another case in the same batch → `intern_username_taken`; the same username in another batch is saved. Unknown id → `null`. |
+| Routes (9) | **201:** `" @Ishita.Rao "` → `ishita.rao`, the email lower-cased, a blank phone → `null`, `Location` set, and one onboarding event by the PM. **400** lists `username`, `name`, `email` and `phone` together. **409** `intern_username_taken` for `ISHITA.rao`. **Access:** 401 signed out; **403** for a mentor-only user on the batch *and* for a PM who mentors this batch (so the use case's check is tested, not just the role check); **404** for a PM not on the batch; **201** for the batch's PM and for an admin; **409** `batch_archived`; **404** for an unknown batch. |
+| Web (11) | Add intern before Assign mentors for the PM; shown to an admin; hidden from a mentor and on an archived batch. A14's fields, help texts, `tel`, 5 rows, required markers (`aria-required` on exactly Username, Full name and Email) and focus on Username. Invalid fields show the contract's messages and nothing is sent. **Success:** the normalised body is sent, the form gives way to the confirmation, and Done has focus, described by the confirmation. **Add another** gives an empty form focused on Username; **Done** closes and returns focus to Add intern. The duplicate message under a focused Username, keeping what was typed. A 500 in a Callout. Cancel sends nothing. |
+| **Mutations** (on copies, restored with `cp`, checked with `cmp`) | **7, all caught:** the manager check removed (route 403); the archived check removed (route 409); events upserted on every save (repository; the trigger rejects it); the unique violation not mapped (repository and route); the domain not lower-casing (domain test); the contract not lower-casing (contract and web tests); `BatchAccess` granting everyone (route 403). |
+| **Browser** (Compose, headless Chrome at 1440, as the batch's PM and one of its mentors) | **Mentor:** no Add intern. **PM:** header buttons `Add intern`, `Assign mentors`, 8px apart; Add intern 36px, padding 0 16px, gap 8, 16px icon, outline colours. **Dialog:** 560px; the title and description as A14; focus on Username. Labels with a red `*` (`--destructive`) on Username, Full name and Email. The username box 36px, padding 0 12px, gap 8, `--radius-sm`, an `@` in muted mono, the input in JetBrains Mono 13px. The help texts. The grid's columns are 251px each with a 12px gap, Name/Email and Phone/Branch on the same rows. Notes: 5 rows (122px), padding 10px 12px, mono 13/20, vertical resize. Fields 16px apart; the footer has a 1px top border, 16px padding and an 8px gap. **Adding** `@Zoya.Ansari` / `Zoya.Ansari@Example.com` showed "Zoya Ansari added to Check Batch Main" / "Zoya Ansari is on the roster as Active, with no colour code.", with focus on Done. **Add another:** empty, focus on Username. **`ZOYA.ansari` again:** "This username is already in the batch." in `--destructive`, with a red border and focus on Username. **Cancel** closed the dialog and returned focus to Add intern. **The database** had `zoya.ansari`, `zoya.ansari@example.com`, every optional field, `active`, no colour code, and one onboarding event (no previous status, no reason) by the PM. |
+| Clean-up | Test users, sessions, the batch, the intern and its event deleted. The event needed the history trigger bypassed, only inside that one cleanup transaction (`set local session_replication_role = replica`); afterwards the trigger is still enabled. Only your account remains. Chrome stopped; tokens and screenshots removed. |
 
 ## Decisions & trade-offs
+- **All three decisions as recommended:** email stays required; usernames are stored lower-cased; the success sentence has no pronoun and mentions no unbuilt features.
+- **The username input is in the mono font.** In the design, `monoStyle` is set on Kuat Input's wrapper, so its `@` icon is mono but the input text (which Kuat styles inline) stays in Lexend. The intent is clearly mono, as for the Textarea, so both are mono here.
+- **The success state isn't a live region.** The linter prefers `<output>` for `role="status"`, but a Callout's block content isn't valid inside it. Instead focus moves to **Done**, whose `aria-describedby` is the confirmation, so a screen reader reads it out.
+- **Ownership of the access check:** the intern module defines `BatchAccess` and cohort implements it (as identity's `RoleAssignments`), so the intern module never reads cohort's tables.
+- **No people-admin lock:** adding an intern doesn't change anyone's roles. The `for share` row lock is enough to keep it consistent with a concurrent archive or PM change.
 
 ## Deviations from plan
+- **The lint rule against `role="status"`** led to the `aria-describedby` approach above.
+- **Route order in `app.ts`:** the plan said "mounted in `app.ts`". It's mounted *before* `/batches` so the session isn't checked twice.
+- **Also changed:** an empty username gives one message, not two. The contract test caught the duplicate message.
+
+## Not done / follow-ups
+- **7.4:** the roster shows the new intern, and adding refreshes it (there's no interns query to refresh yet).
+- **v2 reconciliation** (design/README → "Built before v2"). For example, v2's Assign mentors button uses a `user-plus` icon where 6.6 used `users`.
+- **Archive batch (A17) and Change programme manager (A16)** are designed in v2 but not on the roadmap yet. Add them when you choose.
+- **Still pending from earlier tasks:** the PRODUCT §10 wording, the API's case-insensitive user sort, and your real Google sign-in check.

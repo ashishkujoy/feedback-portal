@@ -1,6 +1,7 @@
 import type { Role } from '@feedback-portal/contracts';
 import { type AppDeps, createApp } from '../src/app.ts';
 import type { ManageBatchesDeps } from '../src/modules/cohort/application/manage-batches.ts';
+import { createBatchAccess } from '../src/modules/cohort/infrastructure/drizzle-batch-access.ts';
 import { createBatchAdminTransaction } from '../src/modules/cohort/infrastructure/drizzle-batch-admin.ts';
 import { createBatchQueries } from '../src/modules/cohort/infrastructure/drizzle-batch-queries.ts';
 import { createRoleAssignments } from '../src/modules/cohort/infrastructure/drizzle-role-assignments.ts';
@@ -13,6 +14,8 @@ import type { AuthRoutesDeps } from '../src/modules/identity/http/auth.routes.ts
 import { createSessionRepository } from '../src/modules/identity/infrastructure/drizzle-session-repository.ts';
 import { createUserAdminTransaction } from '../src/modules/identity/infrastructure/drizzle-user-admin.ts';
 import { createUserRepository } from '../src/modules/identity/infrastructure/drizzle-user-repository.ts';
+import type { ManageInternsDeps } from '../src/modules/intern/application/manage-interns.ts';
+import { createInternAdminTransaction } from '../src/modules/intern/infrastructure/drizzle-intern-admin.ts';
 import type { Database } from '../src/shared/db/client.ts';
 
 const unused = (): never => {
@@ -44,12 +47,15 @@ const unusedManageBatches: ManageBatchesDeps = {
   now: () => new Date(),
 };
 
+const unusedManageInterns: ManageInternsDeps = { transaction: unused, now: () => new Date() };
+
 export const appDeps = (ping: AppDeps['ping']): AppDeps => ({
   ping,
   branding: testBranding,
   auth: unusedAuthDeps,
   userAdmin: unused,
   manageBatches: unusedManageBatches,
+  manageInterns: unusedManageInterns,
 });
 
 type SignInAsOptions = Readonly<{
@@ -117,6 +123,7 @@ export const realApp = (
       queries: createBatchQueries(db),
       now,
     },
+    manageInterns: { transaction: createInternAdminTransaction(db, createBatchAccess), now },
   });
   return {
     app,

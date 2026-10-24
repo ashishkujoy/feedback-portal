@@ -128,7 +128,7 @@ Constraints:
 | id | uuid PK | |
 | batch_id | uuid FK → batches | An intern belongs to exactly one batch |
 | airtable_record_id | text null | Airtable record the intern was last imported from |
-| username | citext | Unique within the batch (`batch_id`, `username`). Shown as `@username`. Re-imports match on it. |
+| username | citext | Stored lower-cased, without the `@` (7.3). Unique within the batch (`batch_id`, `username`). Shown as `@username`. Re-imports match on it. |
 | name | text | |
 | email | text | Lower-cased |
 | phone | text null | |

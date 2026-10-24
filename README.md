@@ -71,6 +71,11 @@ Without credentials, the API runs normally, and **Sign in with Google** returns 
   - `POST /batches/:id/mentors` with `{ userId }` assigns a mentor; `DELETE /batches/:id/mentors/:userId` unassigns one. Assignments are kept as history.
   - `PUT /batches/:id/mentors` with `{ userIds }` makes that the batch's complete set of current mentors, all or nothing. `GET /batches/:id/mentor-candidates` lists who can be assigned (active Mentors, plus current mentors), with their other current batches' dates for the "load". Both are for admins and the batch's current PM.
   - `POST /batches/:id/archive` makes the batch read-only (409 `batch_archived` afterwards). There's no unarchiving.
+
+### API endpoints (interns)
+- **`POST /batches/:batchId/interns`** with `{ username, name, email, phone?, diplomaBranch?, parentNames?, interviewNotes? }` adds an intern by hand (when they aren't in Airtable). It answers **201** with the intern (Active, no colour code) and records the onboarding event.
+  - **Who:** admins and the batch's current PM. A batch you can't see is a **404**; one you can see but don't run is a **403**; an archived one is **409** `batch_archived`.
+  - **Usernames** are stored lower-cased, without a leading `@`, and are unique within the batch ignoring case (409 `intern_username_taken`). Emails are lower-cased; blank optional fields become empty.
   - Members must be active and hold the matching role (409 `member_inactive`, `member_role_mismatch`).
 
 ## Running everything in Docker

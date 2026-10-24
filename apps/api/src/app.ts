@@ -4,6 +4,8 @@ import type { ManageBatchesDeps } from './modules/cohort/application/manage-batc
 import { batchesRoutes } from './modules/cohort/http/batches.routes.ts';
 import { type AuthRoutesDeps, authRoutes } from './modules/identity/http/auth.routes.ts';
 import type { UserAdminTransaction } from './modules/identity/application/user-admin.ts';
+import type { ManageInternsDeps } from './modules/intern/application/manage-interns.ts';
+import { internsRoutes } from './modules/intern/http/interns.routes.ts';
 import { meRoutes } from './modules/identity/http/me.routes.ts';
 import { usersRoutes } from './modules/identity/http/users.routes.ts';
 import type { AppEnv } from './shared/http/app-env.ts';
@@ -20,6 +22,7 @@ export type AppDeps = HealthDeps &
     auth: AuthRoutesDeps;
     userAdmin: UserAdminTransaction;
     manageBatches: ManageBatchesDeps;
+    manageInterns: ManageInternsDeps;
   }>;
 
 /** Shared middleware and error handling; routes are mounted by `createApp` (and tests). */
@@ -39,4 +42,10 @@ export const createApp = (deps: AppDeps): Hono<AppEnv> =>
     .route('/auth', authRoutes(deps.auth))
     .route('/me', meRoutes(deps.auth))
     .route('/users', usersRoutes({ ...deps.auth, userAdmin: deps.userAdmin }))
+    // Before `/batches`: a request answered here never reaches that router's middleware, so the
+    // session is checked once.
+    .route(
+      '/batches/:batchId/interns',
+      internsRoutes({ ...deps.auth, manageInterns: deps.manageInterns }),
+    )
     .route('/batches', batchesRoutes({ ...deps.auth, manageBatches: deps.manageBatches }));

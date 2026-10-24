@@ -23,13 +23,24 @@ const FieldMessage = ({ id, help, error }: MessageProps) => {
 
 const labelClass = 'text-sm leading-[1.2] font-medium text-foreground';
 
-type FieldProps = MessageProps & Readonly<{ label: string; children: ReactNode }>;
+type FieldProps = MessageProps &
+  Readonly<{
+    label: string;
+    /** Kuat Label's red "*" (decorative; the control says it with `aria-required`). */
+    required?: boolean;
+    children: ReactNode;
+  }>;
 
 /** Kuat Field: a label, the control (whose id is `id`), then the error or help, at gap 6. */
-export const Field = ({ id, label, help, error, children }: FieldProps) => (
+export const Field = ({ id, label, required = false, help, error, children }: FieldProps) => (
   <div className="flex flex-col gap-1.5">
-    <label htmlFor={id} className={labelClass}>
+    <label htmlFor={id} className={`inline-flex items-center gap-1 ${labelClass}`}>
       {label}
+      {required ? (
+        <span aria-hidden className="text-destructive">
+          *
+        </span>
+      ) : null}
     </label>
     {children}
     <FieldMessage id={id} help={help} error={error} />
