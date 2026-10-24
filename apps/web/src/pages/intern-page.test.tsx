@@ -105,6 +105,7 @@ const stub = (detail: InternDetail = intern()) =>
     ...signedInWith(['program_manager']),
     [`GET /batches/${batchId}`]: { status: 200, body: batch },
     [`GET /batches/${batchId}/interns/${internId}`]: { status: 200, body: detail },
+    [`GET /batches/${batchId}/interns/${internId}/feedback`]: { status: 200, body: [] },
   });
 
 const open = async (search = '') => {
@@ -139,7 +140,7 @@ describe('the intern profile', () => {
     await open();
 
     expect(screen.getByRole('tab', { name: 'Timeline' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByText('No feedback yet')).toBeInTheDocument();
+    expect(await screen.findByText('No feedback yet')).toBeInTheDocument();
     expect(
       screen.getByText(
         'Feedback, conversations, comments and status changes for Ishita appear here, newest first.',

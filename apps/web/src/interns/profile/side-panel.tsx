@@ -11,14 +11,16 @@ type SidePanelProps = Readonly<{
   intern: InternDetail;
   batch: Pick<BatchDetail, 'mentors' | 'mentorCount'>;
   today: string;
+  /** When the newest coloured feedback was submitted ("8 Oct 2026"), once the feedback has loaded. */
+  colouredOn: string | null;
 }>;
 
 /**
- * A6's side panel: the colour code (with the notice period while on notice) and the batch's
- * mentors. The colour history comes with feedback (Phase 9).
+ * A6's side panel: the colour code (with when it was set, and the notice period while on notice)
+ * and the batch's mentors. The colour history comes in 9.7.
  */
-export const SidePanel = ({ intern, batch, today }: SidePanelProps) => {
-  const colour = colourSummary(intern.colorCode);
+export const SidePanel = ({ intern, batch, today, colouredOn }: SidePanelProps) => {
+  const colour = colourSummary(intern.colorCode, colouredOn);
   const notice = noticePeriod(intern, today);
   return (
     <aside className="flex flex-col gap-4">

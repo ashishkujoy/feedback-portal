@@ -1,7 +1,7 @@
 import { type FeedbackContentRequest, FeedbackView } from '@feedback-portal/contracts';
 import { queryOptions } from '@tanstack/react-query';
 import { z } from 'zod';
-import { apiFetch } from './api-fetch.ts';
+import { apiFetch, apiSend } from './api-fetch.ts';
 
 const feedbackPath = (batchId: string, internId: string) =>
   `/batches/${batchId}/interns/${internId}/feedback`;
@@ -33,3 +33,7 @@ export const updateDraft = (
     body,
     schema: FeedbackView,
   });
+
+/** `DELETE …/feedback/:id` (the draft's author): discards a draft; submitted feedback is kept. */
+export const discardFeedback = (batchId: string, internId: string, feedbackId: string) =>
+  apiSend(`${feedbackPath(batchId, internId)}/${feedbackId}`, { method: 'DELETE' });

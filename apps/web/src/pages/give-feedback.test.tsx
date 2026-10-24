@@ -128,6 +128,8 @@ const open = async () => {
   const user = userEvent.setup();
   renderApp(profilePath);
   await screen.findByRole('heading', { level: 1, name: 'Ishita Rao' });
+  // The timeline has loaded (empty), so both places Give feedback can be are drawn.
+  await screen.findByText('No feedback yet');
   return user;
 };
 

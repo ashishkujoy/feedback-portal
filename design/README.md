@@ -103,6 +103,14 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 - **Scrolling:** the fields scroll and the buttons stay in view, as v2's `calc(100vh - 220px)`, but 240px so the dialog itself doesn't scroll as well.
 - **Cancel** closes without asking (decision 4). The same dialog opens an existing draft (for 9.6).
 
+### Feedback on the timeline (P6, A26) as built in 9.6
+- **Feedback and the viewer's own drafts only** (9.6 decision 1): conversations, comments and status changes join in 10.6, with v2's "Show earlier activity". All entries show; no paging yet. The card's Comment row waits for 10.5.
+- **v2's rail** (32px: `message-square` on ee-blue-50 for feedback, `pen-line` on slate-100 for a draft) with the line down to the next entry; none after the last.
+- **The feedback card:** "\<author\> gave feedback · \<day\> · period Oct 2026" (the day in the viewer's time zone) and **Awaiting delivery** / **Delivered** (no date until Phase 10 records conversations). The colours: previous → new; **a first colour alone**; "No colour · Colour code unchanged"; **the same colour again as one chip with "Colour code unchanged"** (decision 2). **Notice** badge when it gave notice. The text through the sanitized renderer.
+- **The draft card:** "Your draft · only you can see this · edited 23 Oct", Draft, a plain-text excerpt (about 160 characters; **"No text yet."** for a blank draft, not in v2), **Continue editing** (opens A7 on the draft) and **Discard** (A26). **No buttons when the viewer can't write feedback there any more** (archived, read-only, no longer a mentor; decision 3).
+- **The side panel** says "From the latest coloured feedback, 8 Oct 2026." (decision 4).
+- **Editing submitted feedback** is task 9.8 (decision 5).
+
 ### Import from Airtable (A10) as built in 8.5
 - **Where:** an outline **Import from Airtable** (`download`) between Add intern and Assign mentors, and as the primary button in the managers' empty roster ("Import interns from Airtable, or add them one at a time.", then Add intern). Admins and the batch's PM only, not on an archived batch.
 - **A Base ID field** (8.5 decision 1, asked for in 8.1): the API key on its own row, then **Base ID and Table ID side by side** (mono, "Starts with “app”." / "Starts with “tbl”."), then View name full width. The key is a password field with autocomplete off; it lives only in the dialog and is gone once it closes.

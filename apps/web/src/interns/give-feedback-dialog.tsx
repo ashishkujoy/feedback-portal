@@ -300,7 +300,7 @@ type GiveFeedbackDialogProps = Readonly<{
   open: boolean;
   onClose: () => void;
   /** A draft to carry on with (9.6's "Continue editing"); saving replaces it. */
-  draft?: FeedbackView;
+  draft?: FeedbackView | undefined;
 }>;
 
 /** A7 · Give feedback: a new entry, or an existing draft, saved as a draft or submitted (9.5). */

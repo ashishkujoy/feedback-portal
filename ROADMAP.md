@@ -111,6 +111,7 @@ This file is the overview. Detailed plans, reviews, findings and status for each
 | 9.5 | **Write feedback UI**: period, body, color picker (with descriptions), and a "Mark as notice" switch | — |
 | 9.6 | **Feedback on intern timeline**: color change badges and notice flags | — |
 | 9.7 | **Color code history**: the intern's color codes over time, as a trend strip or chart | — |
+| 9.8 | **Edit submitted feedback**: until it's delivered, its author changes anything (text, month, colour, notice); the intern's colour and notice follow, recorded in the status history; marked "edited" | Domain and API tests pass |
 
 ## Phase 10 — Conversations & comments
 

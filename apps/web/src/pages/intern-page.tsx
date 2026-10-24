@@ -1,15 +1,22 @@
-import { useQuery } from '@tanstack/react-query';
-import { isFinalStatus, type StatusAction } from '@feedback-portal/contracts';
+import { type UseQueryResult, useQuery } from '@tanstack/react-query';
+import { type FeedbackView, isFinalStatus, type StatusAction } from '@feedback-portal/contracts';
 import { getRouteApi } from '@tanstack/react-router';
 import { MessageSquare } from 'lucide-react';
 import { useState } from 'react';
 import { batchQuery } from '../api/batches.ts';
 import { isApiError } from '../api/errors.ts';
+import { feedbackQuery } from '../api/feedback.ts';
 import { internQuery } from '../api/interns.ts';
 import { today } from '../batches/batch-dates.ts';
 import { canWriteFeedback } from '../batches/can-write-feedback.ts';
 import { GiveFeedbackDialog } from '../interns/give-feedback-dialog.tsx';
+import { DiscardDraftDialog } from '../interns/profile/discard-draft-dialog.tsx';
 import { EditDetailsDialog } from '../interns/profile/edit-details-dialog.tsx';
+import { latestColouredOn } from '../interns/profile/feedback-entry.ts';
+import {
+  FeedbackTimeline,
+  FeedbackTimelineSkeleton,
+} from '../interns/profile/feedback-timeline.tsx';
 import { InternDetails } from '../interns/profile/intern-details.tsx';
 import {
   PhotoButton,
@@ -72,9 +79,34 @@ const TimelinePlaceholder = ({ name, onGiveFeedback }: TimelinePlaceholderProps)
   </div>
 );
 
+type TimelineProps = Readonly<{
+  name: string;
+  feedback: Pick<UseQueryResult<FeedbackView[]>, 'data' | 'error'>;
+  onGiveFeedback: (() => void) | undefined;
+  onContinue: ((draft: FeedbackView) => void) | undefined;
+  onDiscard: ((draft: FeedbackView) => void) | undefined;
+}>;
+
+/** The Timeline tab: the feedback, or A6-nofeedback when there's none. */
+const Timeline = ({ name, feedback, onGiveFeedback, onContinue, onDiscard }: TimelineProps) => {
+  if (feedback.error) {
+    return (
+      <Callout type="issue" title="We couldn't load the feedback">
+        {isApiError(feedback.error) ? feedback.error.detail : undefined}
+      </Callout>
+    );
+  }
+  if (!feedback.data) return <FeedbackTimelineSkeleton />;
+  return feedback.data.length === 0 ? (
+    <TimelinePlaceholder name={name} onGiveFeedback={onGiveFeedback} />
+  ) : (
+    <FeedbackTimeline entries={feedback.data} onContinue={onContinue} onDiscard={onDiscard} />
+  );
+};
+
 /**
- * P6 / M6 / P22 / P23 · an intern's profile: the header and banners, the Timeline (a placeholder
- * until 9.6 lists feedback), Details and Status history tabs, and the side panel. The batch's PM
+ * P6 / M6 / P22 / P23 · an intern's profile: the header and banners, the Timeline (feedback and
+ * the viewer's drafts, 9.6), Details and Status history tabs, and the side panel. The batch's PM
  * gets the status changes (7.6); its PM and current mentors give feedback (9.5).
  */
 export const InternPage = () => {
@@ -88,7 +120,10 @@ export const InternPage = () => {
   const [changing, setChanging] = useState<StatusAction | null>(null);
   const photo = usePhotoUpload({ id: internId, batchId });
   const [editing, setEditing] = useState(false);
-  const [givingFeedback, setGivingFeedback] = useState(false);
+  // The feedback dialog: `{}` for new feedback, `{ draft }` to carry on with one; `null` closed.
+  const [writing, setWriting] = useState<Readonly<{ draft?: FeedbackView }> | null>(null);
+  const [discarding, setDiscarding] = useState<FeedbackView | null>(null);
+  const feedback = useQuery(feedbackQuery(batchId, internId));
 
   if (error) {
     return (
@@ -110,7 +145,7 @@ export const InternPage = () => {
   const canPhoto = settings?.photos === true && canEdit;
   // A read-only record takes no feedback (9.5 decision 1).
   const canFeedback = me ? canWriteFeedback(me, batch) && !isFinalStatus(intern.status) : false;
-  const giveFeedback = canFeedback ? () => setGivingFeedback(true) : undefined;
+  const giveFeedback = canFeedback ? () => setWriting({}) : undefined;
 
   return (
     <>
@@ -170,10 +205,12 @@ export const InternPage = () => {
         <GiveFeedbackDialog
           intern={intern}
           batch={batch}
-          open={givingFeedback}
-          onClose={() => setGivingFeedback(false)}
+          open={writing !== null}
+          draft={writing?.draft}
+          onClose={() => setWriting(null)}
         />
       ) : null}
+      <DiscardDraftDialog intern={intern} draft={discarding} onClose={() => setDiscarding(null)} />
       {canEdit ? (
         <EditDetailsDialog
           intern={intern}
@@ -209,14 +246,25 @@ export const InternPage = () => {
           className="flex min-w-0 flex-col gap-4"
         >
           {tab === 'timeline' ? (
-            <TimelinePlaceholder name={intern.name} onGiveFeedback={giveFeedback} />
+            <Timeline
+              name={intern.name}
+              feedback={feedback}
+              onGiveFeedback={giveFeedback}
+              onContinue={canFeedback ? (draft) => setWriting({ draft }) : undefined}
+              onDiscard={canFeedback ? setDiscarding : undefined}
+            />
           ) : null}
           {tab === 'details' ? (
             <InternDetails intern={intern} onEdit={canEdit ? () => setEditing(true) : undefined} />
           ) : null}
           {tab === 'history' ? <StatusHistory intern={intern} /> : null}
         </div>
-        <SidePanel intern={intern} batch={batch} today={on} />
+        <SidePanel
+          intern={intern}
+          batch={batch}
+          today={on}
+          colouredOn={feedback.data ? latestColouredOn(feedback.data) : null}
+        />
       </div>
     </>
   );

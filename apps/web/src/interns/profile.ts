@@ -99,7 +99,16 @@ export const eventReason = (event: InternStatusEvent, source: InternDetail['sour
   event.reason ?? (source === 'airtable' ? 'Imported from Airtable.' : 'Added by hand.');
 
 /** The side panel's colour code (7.5 decision 6). */
-export const colourSummary = (code: ColorCode | null): Readonly<{ label: string; note: string }> =>
+export const colourSummary = (
+  code: ColorCode | null,
+  /** When the latest coloured feedback was submitted, if known (v2: "…, 8 Oct 2026."). */
+  setOn: string | null = null,
+): Readonly<{ label: string; note: string }> =>
   code === null
     ? { label: 'No colour yet', note: 'Set by the first coloured feedback.' }
-    : { label: filterLabels[code], note: 'From the latest coloured feedback.' };
+    : {
+        label: filterLabels[code],
+        note: setOn
+          ? `From the latest coloured feedback, ${setOn}.`
+          : 'From the latest coloured feedback.',
+      };
