@@ -109,9 +109,17 @@ Interns arrive in Phase 7 and feedback in Phase 8, so this is the "before intern
 - **Order:** active, then upcoming, completed and archived (as the design lists them), newest start first within each.
 - **Status from the dates:** Upcoming (`neutral`) before the start, Active (`info`) through the end date, Completed (`success`) after it. **Archived** (`neutral`) isn't in the design; there's no archive button yet, as no screen has a place for one.
 - **Subtitle:** "N batches · X active, Y upcoming", or for mentors "N batches assigned to you".
-- **Batch page (A2):** the header (name, badge, "dates · Programme manager: Name") without its buttons (Import: Phase 7; Assign mentors: 6.6). No summary strip and no tabs yet: Phase 7 adds them with Interns as the first tab. Then **"Mentors"** (A4's table: Mentor, Email, Assigned; the feedback columns come in Phase 8, Remove in 6.6) and **"Past members"** (not in the design: Member, Role, Assigned, Unassigned, in A4's style; hidden when empty).
+- **Batch page (A2):** the header (name, badge, "dates · Programme manager: Name"); Import comes in Phase 7, and Assign mentors in 6.6 (below). No summary strip and no tabs yet: Phase 7 adds them with Interns as the first tab. Then **"Mentors"** (A4's table: Mentor, Email, Assigned; the feedback columns come in Phase 8, Remove in 6.6) and **"Past members"** (not in the design: Member, Role, Assigned, Unassigned, in A4's style; hidden when empty).
 - **Create batch (A9):** **admins only** (PRODUCT: an admin creates batches); the design also shows the button to PMs. The dates are native date inputs and the programme manager a native select, both styled as Kuat's Input and Select trigger. The list has active users with the Programme manager role. Picking a start fills an empty end date with start + 18 months. After creating, the new batch's page opens.
 - **Empty states:** "No batches yet." (admin) and "You aren't assigned to any batches yet." (others). A batch that doesn't exist, or that you can't see, is "Page not found".
+
+## Assign mentors (A11) and Remove (A4) as built in 6.6
+- **Who manages a batch's mentors:** admins and the batch's current PM, while it isn't archived. They get **Assign mentors** (outline, `users` icon) in the batch header and **Remove** (ghost-muted `sm`, A4's 110px column) on the Mentors table. Mentors and other viewers see neither.
+- **The dialog (560px)** is as designed: search, a bordered list (checkbox, avatar, name over email, load), "N selected", Cancel and Save mentors. **The list:** active users with the Mentor role, plus the batch's current mentors even if inactive (with the Inactive badge, so they can be removed). **Order:** the batch's mentors first, then the others, each by name, fixed while the dialog is open.
+- **Load:** "2 active batches", "1 active, 1 upcoming", "1 upcoming batch" or "Unassigned", from the mentor's other current batches; completed and archived batches don't count. Other batches' names are never shown.
+- **Saving sets the whole set at once:** if anyone can't be assigned, nothing changes and the reason shows in a Callout with the ticks kept. Save is disabled until something changes.
+- **Remove unassigns at once, without asking:** it signs nobody out and is undone by assigning again; the mentor moves to Past members.
+- **Not built: changing the programme manager.** The design has no place for it (6.6 decision 4); the API supports it. **Import from Airtable** comes with Phase 7.
 
 ## Differences from PRODUCT.md
 Decided 2026-10-16. PRODUCT.md, DATA_MODEL.md, TECH_STACK.md, ROADMAP.md and contracts are updated to match.

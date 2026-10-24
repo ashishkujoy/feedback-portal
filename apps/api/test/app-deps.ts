@@ -40,7 +40,7 @@ export const testBranding = { programName: 'Test Programme', orgName: 'Test Org'
 
 const unusedManageBatches: ManageBatchesDeps = {
   transaction: unused,
-  queries: { listSummaries: unused, detail: unused },
+  queries: { listSummaries: unused, detail: unused, mentorCandidates: unused },
   now: () => new Date(),
 };
 

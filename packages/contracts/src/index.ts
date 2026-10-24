@@ -5,6 +5,8 @@ export {
   BatchMemberView,
   BatchSummary,
   CreateBatchRequest,
+  MentorCandidate,
+  SetMentorsRequest,
 } from './batch.ts';
 export { BatchMemberRole, batchMemberRoles } from './batch-member-role.ts';
 export { ColorCode, colorCodeSeverity, compareColorCodes } from './color-code.ts';

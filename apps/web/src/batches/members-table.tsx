@@ -1,5 +1,6 @@
 import type { BatchMemberView } from '@feedback-portal/contracts';
 import { Avatar } from '../ui/avatar.tsx';
+import { Button } from '../ui/button.tsx';
 import { StatusBadge } from '../ui/status-badge.tsx';
 import { formatDay } from './batch-dates.ts';
 
@@ -24,6 +25,14 @@ const Person = ({ user }: Readonly<{ user: BatchMemberView['user'] }>) => (
 
 type TableProps = Readonly<{ members: readonly BatchMemberView[] }>;
 
+type MentorsTableProps = TableProps &
+  Readonly<{
+    /** For the batch's managers: A4's Remove, which unassigns the mentor. */
+    onRemove?: ((member: BatchMemberView) => void) | undefined;
+    /** Blocks Remove while a change is saving. */
+    busy?: boolean;
+  }>;
+
 const isCurrent = (member: BatchMemberView) => member.unassignedAt === null;
 
 export const hasPastMembers = (members: readonly BatchMemberView[]): boolean =>
@@ -33,8 +42,10 @@ export const hasPastMembers = (members: readonly BatchMemberView[]): boolean =>
  * A4's Mentors table for a batch's members: its current mentors with Mentor, Email, and when they
  * were assigned (feedback columns: Phase 8).
  */
-export const MentorsTable = ({ members: all }: TableProps) => {
+export const MentorsTable = ({ members: all, onRemove, busy = false }: MentorsTableProps) => {
   const members = all.filter((member) => isCurrent(member) && member.role === 'mentor');
+  // A4's 110px action column (plus its cell padding), only for managers.
+  const assignedCell = onRemove ? middleCell : lastCell;
   return (
     <table className="w-full table-fixed border border-border bg-background">
       <caption className="sr-only">Mentors</caption>
@@ -42,6 +53,7 @@ export const MentorsTable = ({ members: all }: TableProps) => {
         <col className="w-2/5" />
         <col className="w-2/5" />
         <col className="w-1/5" />
+        {onRemove ? <col className="w-[134px]" /> : null}
       </colgroup>
       <thead>
         <tr className={headerRow}>
@@ -51,9 +63,14 @@ export const MentorsTable = ({ members: all }: TableProps) => {
           <th scope="col" className={middleCell}>
             Email
           </th>
-          <th scope="col" className={lastCell}>
+          <th scope="col" className={assignedCell}>
             Assigned
           </th>
+          {onRemove ? (
+            <th scope="col" className={lastCell}>
+              <span className="sr-only">Actions</span>
+            </th>
+          ) : null}
         </tr>
       </thead>
       <tbody>
@@ -63,12 +80,29 @@ export const MentorsTable = ({ members: all }: TableProps) => {
               <Person user={member.user} />
             </td>
             <td className={`${middleCell} truncate text-muted-foreground`}>{member.user.email}</td>
-            <td className={`${lastCell} text-muted-foreground`}>{formatDay(member.assignedAt)}</td>
+            <td className={`${assignedCell} text-muted-foreground`}>
+              {formatDay(member.assignedAt)}
+            </td>
+            {onRemove ? (
+              <td className={lastCell}>
+                <div className="flex justify-end">
+                  <Button
+                    variant="ghost-muted"
+                    size="sm"
+                    disabled={busy}
+                    aria-label={`Remove ${member.user.name}`}
+                    onClick={() => onRemove(member)}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </td>
+            ) : null}
           </tr>
         ))}
         {members.length === 0 ? (
           <tr>
-            <td colSpan={3} className="px-4 py-3 text-sm text-muted-foreground">
+            <td colSpan={onRemove ? 4 : 3} className="px-4 py-3 text-sm text-muted-foreground">
               No mentors yet.
             </td>
           </tr>

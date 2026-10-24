@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BatchDetail, CreateBatchRequest } from './batch.ts';
+import { BatchDetail, CreateBatchRequest, SetMentorsRequest } from './batch.ts';
 
 const pmId = '01890a5d-ac96-774b-bcce-b302099a8057';
 
@@ -75,5 +75,14 @@ describe('BatchDetail', () => {
 
     expect(BatchDetail.parse(detail)).toEqual(detail);
     expect(BatchDetail.safeParse({ ...detail, startDate: '11 Jan 2027' }).success).toBe(false);
+  });
+});
+
+describe('SetMentorsRequest', () => {
+  it('takes any number of mentors, each once', () => {
+    expect(SetMentorsRequest.parse({ userIds: [] })).toEqual({ userIds: [] });
+    expect(SetMentorsRequest.safeParse({ userIds: [pmId, pmId] }).error?.issues[0]?.message).toBe(
+      'Each mentor can appear once',
+    );
   });
 });

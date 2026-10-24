@@ -29,6 +29,15 @@ export type BatchMemberView = Readonly<{
 
 export type BatchDetailView = BatchSummaryView & Readonly<{ members: readonly BatchMemberView[] }>;
 
+/** Someone who can be ticked in Assign mentors; other batches by dates only, never names. */
+export type MentorCandidateView = PersonRef &
+  Readonly<{
+    email: string;
+    isActive: boolean;
+    isAssigned: boolean;
+    otherBatches: readonly Readonly<{ startDate: string; endDate: string }>[];
+  }>;
+
 /**
  * Read models for the batch screens: the aggregate holds ids, these add names and avatars. Both
  * are scoped to what `viewer` can see.
@@ -38,4 +47,9 @@ export type BatchQueries = Readonly<{
   listSummaries: (viewer: Viewer) => Promise<readonly BatchSummaryView[]>;
   /** Members in the order they were assigned; `null` if unknown or not visible. */
   detail: (id: BatchId, viewer: Viewer) => Promise<BatchDetailView | null>;
+  /**
+   * Active users with the Mentor role, plus the batch's current mentors even if inactive, each
+   * with the other current, unarchived batches they mentor. Callers check access first.
+   */
+  mentorCandidates: (id: BatchId) => Promise<readonly MentorCandidateView[]>;
 }>;

@@ -11,6 +11,7 @@ import {
   currentMembers,
   currentProgramManager,
   isCurrentMember,
+  setMentors,
   unassignMember,
 } from './batch.ts';
 import { newBatchId } from './batch-id.ts';
@@ -271,5 +272,58 @@ describe('isCurrentMember', () => {
     expect(isCurrentMember(batch, mentor.id)).toBe(true);
     expect(isCurrentMember(unassign(batch, mentor.id, 'mentor'), mentor.id)).toBe(false);
     expect(isCurrentMember(batch, newUserId())).toBe(false);
+  });
+});
+
+const set = (batch: Batch, candidates: Candidate[]) =>
+  setMentors(batch, { candidates, newMemberId: newBatchMemberId, by: admin, now: t2 });
+
+describe('setMentors', () => {
+  it('assigns the missing, unassigns the rest, and keeps the others', () => {
+    const [ann, bo, cy] = [person(['mentor']), person(['mentor']), person(['mentor'])];
+    const batch = assign(assign(createBatch(input()), ann, 'mentor'), bo, 'mentor');
+
+    const after = set(batch, [bo, cy]);
+
+    expect(current(after)).toEqual([
+      [pm.id, 'program_manager'],
+      [bo.id, 'mentor'],
+      [cy.id, 'mentor'],
+    ]);
+    expect(after.members.find((member) => member.userId === ann.id)).toMatchObject({
+      unassignedAt: t2,
+      unassignedBy: admin,
+    });
+    // Bo's assignment is the original one, not a new row.
+    expect(after.members.filter((member) => member.userId === bo.id)).toHaveLength(1);
+  });
+
+  it('returns the same batch when nothing changes', () => {
+    const ann = person(['mentor']);
+    const batch = assign(createBatch(input()), ann, 'mentor');
+
+    expect(set(batch, [ann])).toBe(batch);
+  });
+
+  it('keeps a current mentor who has since become inactive', () => {
+    const ann = person(['mentor']);
+    const batch = assign(createBatch(input()), ann, 'mentor');
+
+    expect(set(batch, [{ ...ann, isActive: false }])).toBe(batch);
+  });
+
+  it('applies the assignment rules to new mentors, and the PM is untouched', () => {
+    const batch = createBatch(input());
+
+    expect(errorOf(() => set(batch, [person(['program_manager'])])).code).toBe(
+      'member_role_mismatch',
+    );
+    expect(current(set(batch, []))).toEqual([[pm.id, 'program_manager']]);
+  });
+
+  it('rejects an archived batch', () => {
+    expect(errorOf(() => set(archiveBatch(createBatch(input()), { now: t1 }), [])).code).toBe(
+      'batch_archived',
+    );
   });
 });

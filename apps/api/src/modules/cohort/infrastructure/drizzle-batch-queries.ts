@@ -1,12 +1,13 @@
-import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import type { DbExecutor } from '../../../shared/db/client.ts';
 import { UserId } from '../../identity/domain/user-id.ts';
-import { users } from '../../identity/infrastructure/schema.ts';
+import { userRoles, users } from '../../identity/infrastructure/schema.ts';
 import type {
   BatchDetailView,
   BatchMemberView,
   BatchQueries,
   BatchSummaryView,
+  MentorCandidateView,
 } from '../application/batch-queries.ts';
 import { BatchId } from '../domain/batch-id.ts';
 import { BatchMemberId } from '../domain/batch-member-id.ts';
@@ -108,6 +109,73 @@ export const createBatchQueries = (db: DbExecutor): BatchQueries => {
           current.filter((member) => member.batchId === row.id).map((member) => member.view),
         ),
       );
+    },
+
+    mentorCandidates: async (id): Promise<MentorCandidateView[]> => {
+      const assigned = db
+        .select({ userId: batchMembers.userId })
+        .from(batchMembers)
+        .where(
+          and(
+            eq(batchMembers.batchId, id),
+            eq(batchMembers.role, 'mentor'),
+            isNull(batchMembers.unassignedAt),
+          ),
+        );
+      const mentorRole = db
+        .select({ userId: userRoles.userId })
+        .from(userRoles)
+        .where(eq(userRoles.role, 'mentor'));
+      const people = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          avatarUrl: users.avatarUrl,
+          isActive: users.isActive,
+        })
+        .from(users)
+        .where(
+          or(
+            and(eq(users.isActive, true), inArray(users.id, mentorRole)),
+            inArray(users.id, assigned),
+          ),
+        )
+        .orderBy(asc(users.name), asc(users.id));
+      if (people.length === 0) return [];
+      // Every current mentor assignment of these people, with its batch's dates.
+      const assignments = await db
+        .select({
+          userId: batchMembers.userId,
+          batchId: batchMembers.batchId,
+          startDate: batches.startDate,
+          endDate: batches.endDate,
+        })
+        .from(batchMembers)
+        .innerJoin(batches, eq(batches.id, batchMembers.batchId))
+        .where(
+          and(
+            eq(batchMembers.role, 'mentor'),
+            isNull(batchMembers.unassignedAt),
+            eq(batches.isArchived, false),
+            inArray(
+              batchMembers.userId,
+              people.map((person) => person.id),
+            ),
+          ),
+        );
+      const isAssignedHere = new Set((await assigned).map((row) => row.userId));
+      return people.map((person) => ({
+        id: UserId.parse(person.id),
+        name: person.name,
+        email: person.email,
+        avatarUrl: person.avatarUrl,
+        isActive: person.isActive,
+        isAssigned: isAssignedHere.has(person.id),
+        otherBatches: assignments
+          .filter((row) => row.userId === person.id && row.batchId !== id)
+          .map(({ startDate, endDate }) => ({ startDate, endDate })),
+      }));
     },
 
     detail: async (id, viewer): Promise<BatchDetailView | null> => {

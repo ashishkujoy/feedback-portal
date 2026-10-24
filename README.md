@@ -69,6 +69,7 @@ Without credentials, the API runs normally, and **Sign in with Google** returns 
   - `POST /batches` with `{ name, startDate, endDate, programManagerId }` creates a batch run by that PM. Names are unique ignoring case (409 `batch_name_taken`).
   - `PUT /batches/:id/program-manager` with `{ userId }` replaces the PM. A batch always has exactly one.
   - `POST /batches/:id/mentors` with `{ userId }` assigns a mentor; `DELETE /batches/:id/mentors/:userId` unassigns one. Assignments are kept as history.
+  - `PUT /batches/:id/mentors` with `{ userIds }` makes that the batch's complete set of current mentors, all or nothing. `GET /batches/:id/mentor-candidates` lists who can be assigned (active Mentors, plus current mentors), with their other current batches' dates for the "load". Both are for admins and the batch's current PM.
   - `POST /batches/:id/archive` makes the batch read-only (409 `batch_archived` afterwards). There's no unarchiving.
   - Members must be active and hold the matching role (409 `member_inactive`, `member_role_mismatch`).
 

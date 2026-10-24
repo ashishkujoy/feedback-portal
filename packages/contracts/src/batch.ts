@@ -25,6 +25,29 @@ export const CreateBatchRequest = z
   });
 export type CreateBatchRequest = z.input<typeof CreateBatchRequest>;
 
+/** `PUT /batches/:id/mentors`: the batch's complete set of current mentors. */
+export const SetMentorsRequest = z.object({
+  userIds: z
+    .array(z.uuid())
+    .refine((ids) => new Set(ids).size === ids.length, { error: 'Each mentor can appear once' }),
+});
+export type SetMentorsRequest = z.input<typeof SetMentorsRequest>;
+
+/**
+ * `GET /batches/:id/mentor-candidates`: someone who can be ticked in Assign mentors. Their other
+ * current, unarchived batches are given by dates only, for the "load", never by name.
+ */
+export const MentorCandidate = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  email: z.email(),
+  avatarUrl: z.url().nullable(),
+  isActive: z.boolean(),
+  isAssigned: z.boolean(),
+  otherBatches: z.array(z.object({ startDate: z.iso.date(), endDate: z.iso.date() })),
+});
+export type MentorCandidate = z.infer<typeof MentorCandidate>;
+
 /** `PUT /batches/:id/program-manager` and `POST /batches/:id/mentors`. */
 export const AssignUserRequest = z.object({ userId: z.uuid() });
 export type AssignUserRequest = z.input<typeof AssignUserRequest>;

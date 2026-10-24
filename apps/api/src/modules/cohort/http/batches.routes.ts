@@ -1,4 +1,8 @@
-import { AssignUserRequest, CreateBatchRequest } from '@feedback-portal/contracts';
+import {
+  AssignUserRequest,
+  CreateBatchRequest,
+  SetMentorsRequest,
+} from '@feedback-portal/contracts';
 import { getLogger } from '@logtape/logtape';
 import { type Context, Hono } from 'hono';
 import { z } from 'zod';
@@ -17,11 +21,13 @@ import {
   getBatch,
   listBatches,
   type ManageBatchesDeps,
+  mentorCandidates,
+  setMentors,
   setProgramManager,
   unassignMentor,
 } from '../application/manage-batches.ts';
 import { BatchId } from '../domain/batch-id.ts';
-import { toBatchDetail, toBatchSummary } from './batch-views.ts';
+import { toBatchDetail, toBatchSummary, toMentorCandidate } from './batch-views.ts';
 
 export type BatchesRoutesDeps = AuthenticateDeps & Readonly<{ manageBatches: ManageBatchesDeps }>;
 
@@ -29,6 +35,9 @@ const BatchParams = z.object({ id: BatchId });
 const MentorParams = z.object({ id: BatchId, userId: UserId });
 const AssignBody = AssignUserRequest.extend({ userId: UserId });
 const CreateBody = CreateBatchRequest.safeExtend({ programManagerId: UserId });
+const SetMentorsBody = SetMentorsRequest.safeExtend({
+  userIds: SetMentorsRequest.shape.userIds.pipe(z.array(UserId)),
+});
 
 const logger = getLogger([rootCategory, 'batches']);
 
@@ -105,6 +114,27 @@ export const batchesRoutes = ({ manageBatches, ...auth }: BatchesRoutesDeps) => 
         return c.json(toBatchDetail(batch));
       },
     )
+    .put(
+      '/:id/mentors',
+      adminOrPm,
+      validate('param', BatchParams),
+      validate('json', SetMentorsBody),
+      async (c) => {
+        const actor = actorOf(c);
+        const batchId = c.req.valid('param').id;
+        const { userIds } = c.req.valid('json');
+        const batch = await setMentors(manageBatches, { actor, batchId, userIds });
+        logger.info('batch mentors set', { actorId: actor.id, batchId, userIds });
+        return c.json(toBatchDetail(batch));
+      },
+    )
+    .get('/:id/mentor-candidates', adminOrPm, validate('param', BatchParams), async (c) => {
+      const candidates = await mentorCandidates(manageBatches, {
+        actor: actorOf(c),
+        batchId: c.req.valid('param').id,
+      });
+      return c.json(candidates.map(toMentorCandidate));
+    })
     .delete('/:id/mentors/:userId', adminOrPm, validate('param', MentorParams), async (c) => {
       const actor = actorOf(c);
       const { id: batchId, userId } = c.req.valid('param');

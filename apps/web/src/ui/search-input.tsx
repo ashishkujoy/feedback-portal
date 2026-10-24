@@ -6,12 +6,20 @@ type SearchInputProps = Readonly<{
   placeholder: string;
   value: string;
   onChange: (value: string) => void;
+  /** The box's width; the design's search fields are 260px unless full width. */
+  className?: string;
 }>;
 
 const searchIcon = <Search size={16} />;
 
-/** Kuat Input (md) with a search icon, 260px wide. */
-export const SearchInput = ({ label, placeholder, value, onChange }: SearchInputProps) => (
+/** Kuat Input (md) with a search icon. */
+export const SearchInput = ({
+  label,
+  placeholder,
+  value,
+  onChange,
+  className = 'w-[260px]',
+}: SearchInputProps) => (
   <TextInput
     type="search"
     aria-label={label}
@@ -19,6 +27,6 @@ export const SearchInput = ({ label, placeholder, value, onChange }: SearchInput
     value={value}
     onChange={(event) => onChange(event.target.value)}
     leftIcon={searchIcon}
-    className="w-[260px]"
+    className={className}
   />
 );

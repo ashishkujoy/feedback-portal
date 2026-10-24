@@ -216,3 +216,41 @@ export const unassignMember = (
 /** Members are kept as they were, so the history shows who was on the batch when it ended. */
 export const archiveBatch = (batch: Batch, { now }: Readonly<{ now: Date }>): Batch =>
   batch.isArchived ? batch : { ...batch, isArchived: true, updatedAt: now };
+
+export type SetMentorsInput = Readonly<{
+  /** Everyone who should be a current mentor afterwards. */
+  candidates: readonly Candidate[];
+  /** Makes the id for each new assignment. */
+  newMemberId: () => BatchMemberId;
+  by: UserId;
+  now: Date;
+}>;
+
+/**
+ * Makes `candidates` the batch's complete set of current mentors: the others are unassigned
+ * (their rows stay as history) and the missing ones assigned, through `unassignMember` and
+ * `assignMember`, so the rules live in one place. Keeping a current mentor isn't a new
+ * assignment, so it isn't re-checked (an inactive mentor can be kept or removed later).
+ */
+export const setMentors = (
+  batch: Batch,
+  { candidates, newMemberId, by, now }: SetMentorsInput,
+): Batch => {
+  ensureEditable(batch);
+  const wanted = new Set(candidates.map((candidate) => candidate.id));
+  const current = currentMembers(batch).filter((member) => member.role === 'mentor');
+  const kept = new Set(current.map((member) => member.userId));
+  const withoutRemoved = current
+    .filter((member) => !wanted.has(member.userId))
+    .reduce(
+      (next, member) => unassignMember(next, { userId: member.userId, role: 'mentor', by, now }),
+      batch,
+    );
+  return candidates
+    .filter((candidate) => !kept.has(candidate.id))
+    .reduce(
+      (next, candidate) =>
+        assignMember(next, { candidate, role: 'mentor', memberId: newMemberId(), by, now }),
+      withoutRemoved,
+    );
+};

@@ -6,13 +6,19 @@ import {
   type Batch,
   createBatch as create,
   currentProgramManager,
+  setMentors as setMentorSet,
   unassignMember,
 } from '../domain/batch.ts';
 import { type BatchId, newBatchId } from '../domain/batch-id.ts';
 import { newBatchMemberId } from '../domain/batch-member-id.ts';
 import type { Candidate } from '../domain/candidate.ts';
 import type { BatchAdminScope, BatchAdminTransaction } from './batch-admin.ts';
-import type { BatchDetailView, BatchQueries, BatchSummaryView } from './batch-queries.ts';
+import type {
+  BatchDetailView,
+  BatchQueries,
+  BatchSummaryView,
+  MentorCandidateView,
+} from './batch-queries.ts';
 import type { Viewer } from './batch-scope.ts';
 
 export type ManageBatchesDeps = Readonly<{
@@ -162,4 +168,31 @@ export const unassignMentor = (
       batch,
       unassignMember(batch, { userId, role: 'mentor', by: actor.id, now: now() }),
     );
+  });
+
+/** Makes `userIds` the batch's complete set of current mentors, all or nothing. */
+export const setMentors = (
+  { transaction, now }: ManageBatchesDeps,
+  { actor, batchId, userIds }: BatchChange & Readonly<{ userIds: readonly UserId[] }>,
+): Promise<BatchDetailView> =>
+  transaction(async (scope) => {
+    const batch = await loadForMentorChange(scope, actor, batchId);
+    const candidates = await Promise.all(userIds.map((id) => loadCandidate(scope, id)));
+    const next = setMentorSet(batch, {
+      candidates,
+      newMemberId: newBatchMemberId,
+      by: actor.id,
+      now: now(),
+    });
+    return commit(scope, actor, batch, next);
+  });
+
+/** Who Assign mentors lists, for the batch's managers (the same access as changing mentors). */
+export const mentorCandidates = (
+  { transaction }: ManageBatchesDeps,
+  { actor, batchId }: BatchChange,
+): Promise<readonly MentorCandidateView[]> =>
+  transaction(async (scope) => {
+    await loadForMentorChange(scope, actor, batchId);
+    return scope.queries.mentorCandidates(batchId);
   });

@@ -1,10 +1,17 @@
-import { useQuery } from '@tanstack/react-query';
+import type { BatchMemberView } from '@feedback-portal/contracts';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { batchQuery } from '../api/batches.ts';
+import { Users } from 'lucide-react';
+import { useState } from 'react';
+import { batchQuery, showUpdatedBatch, unassignMentor } from '../api/batches.ts';
 import { isApiError } from '../api/errors.ts';
+import { AssignMentorsDialog } from '../batches/assign-mentors-dialog.tsx';
 import { today } from '../batches/batch-dates.ts';
 import { batchDates, batchStatus, statusBadges } from '../batches/batch-status.ts';
+import { canManageMentors } from '../batches/can-manage.ts';
 import { hasPastMembers, MentorsTable, PastMembersTable } from '../batches/members-table.tsx';
+import { useMe } from '../shell/use-me.ts';
+import { Button } from '../ui/button.tsx';
 import { Callout } from '../ui/callout.tsx';
 import { PageTitle } from '../ui/page-title.tsx';
 import { StatusBadge } from '../ui/status-badge.tsx';
@@ -20,11 +27,20 @@ const SectionTitle = ({ id, children }: Readonly<{ id: string; children: string 
 
 /**
  * A2 / P2 / M2 · a batch, before interns exist (6.5 decision 2): the header, its current mentors
- * and its past members. Tabs, the summary strip and the managers' buttons come later.
+ * and its past members. Its managers (admins and its PM) get Assign mentors and Remove (6.6).
+ * Tabs, the summary strip and Import from Airtable come with Phase 7.
  */
 export const BatchPage = () => {
   const { batchId } = route.useParams();
+  const me = useMe();
+  const queryClient = useQueryClient();
   const { data: batch, error } = useQuery(batchQuery(batchId));
+  const [assigning, setAssigning] = useState(false);
+  // Remove: unassigns at once (6.6 decision 3); the mentor moves to Past members.
+  const remove = useMutation({
+    mutationFn: (member: BatchMemberView) => unassignMentor(batchId, member.user.id),
+    onSuccess: (updated) => showUpdatedBatch(queryClient, updated),
+  });
 
   if (error) {
     return (
@@ -37,21 +53,51 @@ export const BatchPage = () => {
 
   const status = batchStatus(batch, today());
   const badge = statusBadges[status];
+  const manages = me ? canManageMentors(me, batch) : false;
 
   return (
     <>
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center gap-3">
-          <PageTitle>{batch.name}</PageTitle>
-          <StatusBadge type={badge.type}>{badge.label}</StatusBadge>
+      <div className="flex items-end justify-between gap-4">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-3">
+            <PageTitle>{batch.name}</PageTitle>
+            <StatusBadge type={badge.type}>{badge.label}</StatusBadge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {batchDates(batch, status)} · Programme manager: {batch.programManager.name}
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {batchDates(batch, status)} · Programme manager: {batch.programManager.name}
-        </p>
+        {manages ? (
+          <Button variant="outline" onClick={() => setAssigning(true)}>
+            <Users aria-hidden size={16} strokeWidth={2} />
+            Assign mentors
+          </Button>
+        ) : null}
       </div>
+      {manages ? (
+        <AssignMentorsDialog
+          batchId={batch.id}
+          open={assigning}
+          onClose={() => setAssigning(false)}
+        />
+      ) : null}
       <section aria-labelledby="batch-mentors" className="flex flex-col gap-3">
         <SectionTitle id="batch-mentors">Mentors</SectionTitle>
-        <MentorsTable members={batch.members} />
+        {remove.error ? (
+          <div role="alert">
+            <Callout
+              type="issue"
+              title={`We couldn't remove ${remove.variables?.user.name ?? 'this mentor'}`}
+            >
+              {isApiError(remove.error) ? remove.error.detail : undefined}
+            </Callout>
+          </div>
+        ) : null}
+        <MentorsTable
+          members={batch.members}
+          onRemove={manages ? (member) => remove.mutate(member) : undefined}
+          busy={remove.isPending}
+        />
       </section>
       {hasPastMembers(batch.members) ? (
         <section aria-labelledby="batch-past-members" className="flex flex-col gap-3">

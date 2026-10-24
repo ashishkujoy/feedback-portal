@@ -94,7 +94,7 @@ Update the status in both `PLAN.md` and the board below whenever it changes.
 | 6.3 Batch API | [`phase/06-batches-cohort/03-batch-api`](phase/06-batches-cohort/03-batch-api/PLAN.md) | Done |
 | 6.4 Visibility scope | [`phase/06-batches-cohort/04-visibility-scope`](phase/06-batches-cohort/04-visibility-scope/PLAN.md) | Done |
 | 6.5 Batches UI | [`phase/06-batches-cohort/05-batches-ui`](phase/06-batches-cohort/05-batches-ui/PLAN.md) | Done |
-| 6.6 Assign/unassign UI | [`phase/06-batches-cohort/06-assign-unassign-ui`](phase/06-batches-cohort/06-assign-unassign-ui/PLAN.md) | Not started |
+| 6.6 Assign/unassign UI | [`phase/06-batches-cohort/06-assign-unassign-ui`](phase/06-batches-cohort/06-assign-unassign-ui/PLAN.md) | Done |
 
 ### Phase 7 — Interns
 

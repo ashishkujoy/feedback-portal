@@ -1,4 +1,10 @@
-import { BatchDetail, BatchSummary, ProblemDetails, type Role } from '@feedback-portal/contracts';
+import {
+  BatchDetail,
+  BatchSummary,
+  MentorCandidate,
+  ProblemDetails,
+  type Role,
+} from '@feedback-portal/contracts';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { Client } from 'pg';
 import { z } from 'zod';
@@ -432,6 +438,135 @@ describe('visibility', () => {
     await create();
 
     expect(await names(await as(mentor).get('/batches'))).toEqual([]);
+  });
+});
+
+describe('PUT /batches/:id/mentors', () => {
+  it('sets exactly the given mentors: assigns, unassigns and keeps', async () => {
+    const { as, admin, mentor, create, person } = await setUp();
+    const batch = await create();
+    const bo = await person('Bo Chen', ['mentor']);
+    const cy = await person('Cy Diaz', ['mentor']);
+    await as(admin).put(`/batches/${batch.id}/mentors`, { userIds: [mentor.user.id, bo.user.id] });
+
+    const after = await detailOf(
+      await as(admin).put(`/batches/${batch.id}/mentors`, { userIds: [bo.user.id, cy.user.id] }),
+    );
+
+    expect(current(after)).toEqual([
+      ['Pat Manager', 'program_manager'],
+      ['Bo Chen', 'mentor'],
+      ['Cy Diaz', 'mentor'],
+    ]);
+    expect(
+      after.members.find((member) => member.user.name === 'Mo Mentor')?.unassignedAt,
+    ).not.toBeNull();
+    // The same set again changes nothing.
+    expect(
+      await detailOf(
+        await as(admin).put(`/batches/${batch.id}/mentors`, { userIds: [bo.user.id, cy.user.id] }),
+      ),
+    ).toEqual(after);
+  });
+
+  it('changes nothing when anyone in the set is not eligible', async () => {
+    const { as, admin, pm, mentor, create } = await setUp();
+    const batch = await create();
+
+    const response = await as(admin).put(`/batches/${batch.id}/mentors`, {
+      userIds: [mentor.user.id, pm.user.id],
+    });
+
+    expect((await problemOf(response, 409)).code).toBe('member_role_mismatch');
+    expect(current(await detailOf(await as(admin).get(`/batches/${batch.id}`)))).toEqual([
+      ['Pat Manager', 'program_manager'],
+    ]);
+  });
+
+  it("follows the mentor routes' access: the batch's PM yes, others 404 or 403", async () => {
+    const { as, pm, mentor, create, person } = await setUp();
+    const batch = await create();
+    const otherPm = await person('Other PM', ['program_manager']);
+    const body = { userIds: [mentor.user.id] };
+
+    const byPm = await detailOf(await as(pm).put(`/batches/${batch.id}/mentors`, body));
+    expect(byPm.mentorCount).toBe(1);
+    const byOtherPm = await as(otherPm).put(`/batches/${batch.id}/mentors`, body);
+    expect((await problemOf(byOtherPm, 404)).code).toBe('not_found');
+    // Mentors can't reach it at all (the route's role check).
+    const byMentor = await as(mentor).put(`/batches/${batch.id}/mentors`, body);
+    expect((await problemOf(byMentor, 403)).code).toBe('forbidden');
+  });
+
+  it('rejects duplicates, and any change to an archived batch', async () => {
+    const { as, admin, mentor, create } = await setUp();
+    const batch = await create();
+
+    const duplicate = await as(admin).put(`/batches/${batch.id}/mentors`, {
+      userIds: [mentor.user.id, mentor.user.id],
+    });
+    expect((await problemOf(duplicate, 400)).code).toBe('validation_failed');
+
+    await as(admin).post(`/batches/${batch.id}/archive`);
+    const archived = await as(admin).put(`/batches/${batch.id}/mentors`, { userIds: [] });
+    expect((await problemOf(archived, 409)).code).toBe('batch_archived');
+  });
+});
+
+/** The candidates in a 200 response. */
+const candidatesOf = async (response: Response) => {
+  expect(response.status).toBe(200);
+  return z.array(MentorCandidate).parse(await response.json());
+};
+
+describe('GET /batches/:id/mentor-candidates', () => {
+  it('lists active mentors and current mentors, with their other current batches by date', async () => {
+    const { setup, as, admin, pm, mentor, create, person } = await setUp();
+    const batch = await create();
+    const other = await create({ name: 'Other', startDate: '2026-01-12', endDate: '2027-06-25' });
+    const archived = await create({ name: 'Archived' });
+    const left = await create({ name: 'Left', startDate: '2025-01-13', endDate: '2026-06-26' });
+    const gone = await person('Gone Mentor', ['mentor']);
+    const idle = await person('Idle Mentor', ['mentor'], false);
+    const assignTo = (on: string, who: string) =>
+      as(admin).post(`/batches/${on}/mentors`, { userId: who });
+    await assignTo(batch.id, gone.user.id);
+    await assignTo(other.id, mentor.user.id);
+    await assignTo(archived.id, mentor.user.id);
+    await assignTo(left.id, mentor.user.id);
+    await as(admin).post(`/batches/${archived.id}/archive`);
+    await as(admin).del(`/batches/${left.id}/mentors/${mentor.user.id}`);
+    // Gone is deactivated after being assigned; Idle was never assigned.
+    await call(setup, admin.cookie, 'POST', `/users/${gone.user.id}/deactivate`);
+
+    const candidates = await candidatesOf(
+      await as(pm).get(`/batches/${batch.id}/mentor-candidates`),
+    );
+
+    expect(
+      candidates.map((candidate) => [
+        candidate.name,
+        candidate.isActive,
+        candidate.isAssigned,
+        candidate.otherBatches,
+      ]),
+    ).toEqual([
+      ['Gone Mentor', false, true, []],
+      ['Mo Mentor', true, false, [{ startDate: '2026-01-12', endDate: '2027-06-25' }]],
+    ]);
+    expect(candidates.some((candidate) => candidate.name === idle.user.name)).toBe(false);
+    expect(candidates[1]?.email).toMatch(/@example\.com$/);
+  });
+
+  it("is only for the batch's managers", async () => {
+    const { as, mentor, create, person } = await setUp();
+    const batch = await create();
+    const otherPm = await person('Other PM', ['program_manager']);
+
+    const byMentor = await as(mentor).get(`/batches/${batch.id}/mentor-candidates`);
+    expect((await problemOf(byMentor, 403)).code).toBe('forbidden');
+    const byOtherPm = await as(otherPm).get(`/batches/${batch.id}/mentor-candidates`);
+    expect((await problemOf(byOtherPm, 404)).code).toBe('not_found');
   });
 });
 

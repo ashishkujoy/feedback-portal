@@ -1,5 +1,9 @@
-import type { BatchDetail, BatchSummary } from '@feedback-portal/contracts';
-import type { BatchDetailView, BatchSummaryView } from '../application/batch-queries.ts';
+import type { BatchDetail, BatchSummary, MentorCandidate } from '@feedback-portal/contracts';
+import type {
+  BatchDetailView,
+  BatchSummaryView,
+  MentorCandidateView,
+} from '../application/batch-queries.ts';
 
 export const toBatchSummary = (batch: BatchSummaryView): BatchSummary => ({
   id: batch.id,
@@ -21,4 +25,14 @@ export const toBatchDetail = (batch: BatchDetailView): BatchDetail => ({
     assignedAt: member.assignedAt.toISOString(),
     unassignedAt: member.unassignedAt?.toISOString() ?? null,
   })),
+});
+
+export const toMentorCandidate = (candidate: MentorCandidateView): MentorCandidate => ({
+  id: candidate.id,
+  name: candidate.name,
+  email: candidate.email,
+  avatarUrl: candidate.avatarUrl,
+  isActive: candidate.isActive,
+  isAssigned: candidate.isAssigned,
+  otherBatches: candidate.otherBatches.map(({ startDate, endDate }) => ({ startDate, endDate })),
 });
