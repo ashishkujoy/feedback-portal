@@ -2,6 +2,7 @@ import { Code, Heading1, Link, List } from 'lucide-react';
 import {
   type KeyboardEvent,
   type ReactNode,
+  type Ref,
   useId,
   useLayoutEffect,
   useRef,
@@ -61,6 +62,8 @@ type MarkdownEditorProps = Readonly<{
   rows?: number;
   'aria-describedby'?: string | undefined;
   'aria-required'?: boolean;
+  /** The textarea, e.g. for React Hook Form to focus it on an error. */
+  ref?: Ref<HTMLTextAreaElement>;
 }>;
 
 /**
@@ -79,6 +82,7 @@ export const MarkdownEditor = ({
   rows = 6,
   'aria-describedby': describedBy,
   'aria-required': required,
+  ref,
 }: MarkdownEditorProps) => {
   const [mode, setMode] = useState<Mode>('write');
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -94,6 +98,12 @@ export const MarkdownEditor = ({
     element.setSelectionRange(pending.current.start, pending.current.end);
     pending.current = null;
   });
+
+  const setTextarea = (element: HTMLTextAreaElement | null) => {
+    textarea.current = element;
+    if (typeof ref === 'function') ref(element);
+    else if (ref) ref.current = element;
+  };
 
   const apply = (action: FormatAction) => {
     const element = textarea.current;
@@ -182,7 +192,7 @@ export const MarkdownEditor = ({
       </div>
       <div id={panelId} role="tabpanel" aria-labelledby={tabId(mode)}>
         <Textarea
-          ref={textarea}
+          ref={setTextarea}
           id={id}
           mono
           rows={rows}

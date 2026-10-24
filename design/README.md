@@ -94,6 +94,15 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 - **Preview** uses the sanitized renderer in a bordered box; **an empty field says "Nothing to preview yet."** (not drawn in v2).
 - **Images in Markdown render as links** (9.4 decision 2): nothing is fetched until someone clicks.
 
+### Give feedback (A7) as built in 9.5
+- **Where** (9.5 decision 1): **Give feedback** (primary, `message-square`) in the profile header after the status buttons, and in the empty timeline. The batch's PM and current mentors only; **not an admin who is neither**, not in an archived batch, not for a read-only intern. **Roster cards and rows don't have it yet:** it comes with the feedback counts beside it.
+- **Feedback period:** today's month (UTC, as the API checks) back to the batch's start month, newest first, the current one chosen (decision 3). **A batch that hasn't started** offers only its first month, says "This batch starts in \<month\>." and turns both save buttons off (not in v2).
+- **Notice:** v2's box and Kuat Switch; "Starts a one-month notice when you submit.", on: "Ends \<a month from today\>. \<PM\> then lifts it or terminates. Nothing happens automatically." (Ember tint), or off and "\<first name\> is already on notice until \<date\>.". **Switching it on chooses Red; off leaves the colour** (decision 2).
+- **Colour code:** v2's seven rows (native radios, so the arrow keys move between them), the chosen row tinted. Under it v2's "Current code: … can’t go back to no colour.", or for an intern without a code **"No colour yet. Set by the first coloured feedback."** (the side panel's words; v2 doesn't show this case).
+- **Errors:** "Write your feedback before submitting." on **Submit only** (a draft may be blank), focus on the field. A refusal shows "We couldn't submit your feedback" (or "save your draft"), "Your text is still here. Try again in a moment." and the API's detail, at the top of the fields, which scroll back to it.
+- **Scrolling:** the fields scroll and the buttons stay in view, as v2's `calc(100vh - 220px)`, but 240px so the dialog itself doesn't scroll as well.
+- **Cancel** closes without asking (decision 4). The same dialog opens an existing draft (for 9.6).
+
 ### Import from Airtable (A10) as built in 8.5
 - **Where:** an outline **Import from Airtable** (`download`) between Add intern and Assign mentors, and as the primary button in the managers' empty roster ("Import interns from Airtable, or add them one at a time.", then Add intern). Admins and the batch's PM only, not on an archived batch.
 - **A Base ID field** (8.5 decision 1, asked for in 8.1): the API key on its own row, then **Base ID and Table ID side by side** (mono, "Starts with “app”." / "Starts with “tbl”."), then View name full width. The key is a password field with autocomplete off; it lives only in the dialog and is gone once it closes.

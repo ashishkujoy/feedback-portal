@@ -60,3 +60,9 @@ const utcOf = (isoDate: string): number => {
 /** Whole days from `from` to `to` (both `YYYY-MM-DD`); negative when `to` is earlier. */
 export const daysBetween = (from: string, to: string): number =>
   Math.round((utcOf(to) - utcOf(from)) / 86_400_000);
+
+/**
+ * Today in UTC, as `YYYY-MM-DD`: the API's "today" for feedback months and notices (9.3
+ * decision 3), so the dialog offers what the API accepts.
+ */
+export const utcToday = (now = new Date()): string => now.toISOString().slice(0, 10);

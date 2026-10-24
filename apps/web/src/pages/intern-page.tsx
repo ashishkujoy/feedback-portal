@@ -1,11 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
-import type { StatusAction } from '@feedback-portal/contracts';
+import { isFinalStatus, type StatusAction } from '@feedback-portal/contracts';
 import { getRouteApi } from '@tanstack/react-router';
+import { MessageSquare } from 'lucide-react';
 import { useState } from 'react';
 import { batchQuery } from '../api/batches.ts';
 import { isApiError } from '../api/errors.ts';
 import { internQuery } from '../api/interns.ts';
 import { today } from '../batches/batch-dates.ts';
+import { canWriteFeedback } from '../batches/can-write-feedback.ts';
+import { GiveFeedbackDialog } from '../interns/give-feedback-dialog.tsx';
 import { EditDetailsDialog } from '../interns/profile/edit-details-dialog.tsx';
 import { InternDetails } from '../interns/profile/intern-details.tsx';
 import {
@@ -40,21 +43,39 @@ const tabItems = (changes: number): TabItem<Tab>[] => [
   { value: 'history', label: 'Status history', count: changes },
 ];
 
-/** A6-nofeedback, without Give feedback until Phase 9 (7.5 decision 2). */
-const TimelinePlaceholder = ({ name }: Readonly<{ name: string }>) => (
+/** Give feedback: primary, with v2's `message-square`. */
+const GiveFeedbackButton = ({ onClick }: Readonly<{ onClick: () => void }>) => (
+  <Button onClick={onClick}>
+    <MessageSquare aria-hidden size={16} strokeWidth={2} />
+    Give feedback
+  </Button>
+);
+
+type TimelinePlaceholderProps = Readonly<{
+  name: string;
+  onGiveFeedback: (() => void) | undefined;
+}>;
+
+/** A6-nofeedback, with Give feedback for those who write it (9.5). */
+const TimelinePlaceholder = ({ name, onGiveFeedback }: TimelinePlaceholderProps) => (
   <div className="flex flex-col items-center gap-2 border border-dashed border-(--slate-300) bg-background px-6 py-14 text-center">
     <p className="text-base font-semibold">No feedback yet</p>
     <p className="max-w-[420px] text-sm text-muted-foreground">
       Feedback, conversations, comments and status changes for {firstName(name)} appear here, newest
       first.
     </p>
+    {onGiveFeedback ? (
+      <div className="mt-2">
+        <GiveFeedbackButton onClick={onGiveFeedback} />
+      </div>
+    ) : null}
   </div>
 );
 
 /**
  * P6 / M6 / P22 / P23 · an intern's profile: the header and banners, the Timeline (a placeholder
- * until feedback), Details and Status history tabs, and the side panel. The batch's PM gets the
- * status changes (7.6); the photo and Give feedback come with their tasks.
+ * until 9.6 lists feedback), Details and Status history tabs, and the side panel. The batch's PM
+ * gets the status changes (7.6); its PM and current mentors give feedback (9.5).
  */
 export const InternPage = () => {
   const { batchId, internId } = route.useParams();
@@ -67,6 +88,7 @@ export const InternPage = () => {
   const [changing, setChanging] = useState<StatusAction | null>(null);
   const photo = usePhotoUpload({ id: internId, batchId });
   const [editing, setEditing] = useState(false);
+  const [givingFeedback, setGivingFeedback] = useState(false);
 
   if (error) {
     return (
@@ -86,6 +108,9 @@ export const InternPage = () => {
   // The batch's managers fix details (7.9 decision 1) while the record isn't read-only.
   const canEdit = me ? canManageBatch(me, batch) && final === null : false;
   const canPhoto = settings?.photos === true && canEdit;
+  // A read-only record takes no feedback (9.5 decision 1).
+  const canFeedback = me ? canWriteFeedback(me, batch) && !isFinalStatus(intern.status) : false;
+  const giveFeedback = canFeedback ? () => setGivingFeedback(true) : undefined;
 
   return (
     <>
@@ -125,7 +150,7 @@ export const InternPage = () => {
             ) : null}
           </div>
         </div>
-        {buttons.length > 0 ? (
+        {buttons.length > 0 || giveFeedback ? (
           <div className="flex gap-2">
             {buttons.map((button) => (
               <Button
@@ -136,10 +161,19 @@ export const InternPage = () => {
                 {button.label}
               </Button>
             ))}
+            {giveFeedback ? <GiveFeedbackButton onClick={giveFeedback} /> : null}
           </div>
         ) : null}
       </div>
       <StatusDialog intern={intern} action={changing} onClose={() => setChanging(null)} />
+      {canFeedback ? (
+        <GiveFeedbackDialog
+          intern={intern}
+          batch={batch}
+          open={givingFeedback}
+          onClose={() => setGivingFeedback(false)}
+        />
+      ) : null}
       {canEdit ? (
         <EditDetailsDialog
           intern={intern}
@@ -174,7 +208,9 @@ export const InternPage = () => {
           aria-labelledby={tabId(panelId, tab)}
           className="flex min-w-0 flex-col gap-4"
         >
-          {tab === 'timeline' ? <TimelinePlaceholder name={intern.name} /> : null}
+          {tab === 'timeline' ? (
+            <TimelinePlaceholder name={intern.name} onGiveFeedback={giveFeedback} />
+          ) : null}
           {tab === 'details' ? (
             <InternDetails intern={intern} onEdit={canEdit ? () => setEditing(true) : undefined} />
           ) : null}

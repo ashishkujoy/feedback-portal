@@ -145,7 +145,6 @@ describe('the intern profile', () => {
         'Feedback, conversations, comments and status changes for Ishita appear here, newest first.',
       ),
     ).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Give feedback/ })).not.toBeInTheDocument();
   });
 
   it('shows every detail, and how the intern was added, on Details', async () => {
