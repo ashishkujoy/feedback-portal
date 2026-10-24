@@ -23,12 +23,17 @@ import {
 } from '../domain/intern.ts';
 import { type InternId, newInternId } from '../domain/intern-id.ts';
 import { newStatusEventId } from '../domain/status-event-id.ts';
+import { mapRecords } from './airtable-mapping.ts';
+import type { AirtableSource, AirtableSourceInput } from './airtable-source.ts';
+import { type ImportPreviewView, previewImport } from './import-preview.ts';
 import type { InternAdminScope, InternAdminTransaction } from './intern-admin.ts';
 import type { InternDetailView, InternSummaryView } from './intern-queries.ts';
 import type { PhotoStorage, PhotoUploadTicketView, UploadedPhoto } from './photo-storage.ts';
 
 export type ManageInternsDeps = Readonly<{
   transaction: InternAdminTransaction;
+  /** Reads an import's source (8.1); the token comes with each request and is never kept. */
+  airtable: AirtableSource;
   /** `null` when photos are off (no Cloudinary configured). */
   photos: PhotoStorage | null;
   now: () => Date;
@@ -244,3 +249,23 @@ export const updateInternDetails = (
     if (!detail) throw new Error(`intern ${internId} vanished inside its transaction`);
     return detail;
   });
+
+/**
+ * What importing this Airtable view would do (8.3), writing nothing. Access is checked first; the
+ * view is read outside any database transaction, so none is held open during the network call.
+ */
+export const previewInternImport = async (
+  { transaction, airtable }: ManageInternsDeps,
+  {
+    actor,
+    batchId,
+    source,
+  }: Readonly<{ actor: Actor; batchId: BatchId; source: AirtableSourceInput }>,
+): Promise<ImportPreviewView> => {
+  const existing = await transaction(async (scope) => {
+    await ensureCanManage(scope, actor, batchId);
+    return scope.queries.usernamesForBatch(batchId);
+  });
+  const records = await airtable.fetchRecords(source);
+  return previewImport(mapRecords(records), existing, records.length);
+};

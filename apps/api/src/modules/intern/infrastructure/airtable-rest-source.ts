@@ -1,3 +1,4 @@
+import { ImportSourceRequest } from '@feedback-portal/contracts';
 import { z } from 'zod';
 import { validationFailed } from '../../../shared/errors/app-error.ts';
 import { fieldIssues } from '../../../shared/errors/field-issues.ts';
@@ -7,17 +8,6 @@ import {
   type AirtableRecord,
   type AirtableSource,
 } from '../application/airtable-source.ts';
-
-const Input = z.object({
-  token: z.string().trim().min(1, { error: 'Enter an API key' }),
-  baseId: z.string().regex(/^app[A-Za-z0-9]{14}$/, { error: 'A base ID starts with "app"' }),
-  tableId: z.string().regex(/^tbl[A-Za-z0-9]{14}$/, { error: 'A table ID starts with "tbl"' }),
-  view: z
-    .string()
-    .trim()
-    .min(1, { error: 'Enter a view name' })
-    .max(200, { error: 'View name must be at most 200 characters' }),
-});
 
 const Page = z.object({
   records: z.array(
@@ -97,7 +87,8 @@ export const createAirtableRestSource = ({
   maxRecords = 2000,
 }: AirtableRestSourceOptions): AirtableSource => ({
   fetchRecords: async (input) => {
-    const parsed = Input.safeParse(input);
+    // The shared rules (8.3's form checks the same), so nothing malformed reaches Airtable.
+    const parsed = ImportSourceRequest.safeParse(input);
     if (!parsed.success) throw validationFailed(fieldIssues(parsed.error));
     const { token, baseId, tableId, view } = parsed.data;
 

@@ -25,6 +25,12 @@ export const createInternQueries = (db: DbExecutor): InternQueries => ({
       .where(eq(interns.batchId, batchId))
       .orderBy(sql`lower(${interns.name})`, asc(interns.id)),
 
+  usernamesForBatch: (batchId) =>
+    db
+      .select({ id: interns.id, username: interns.username, status: interns.status })
+      .from(interns)
+      .where(eq(interns.batchId, batchId)),
+
   detail: async (batchId, internId) => {
     const [row] = await db
       .select({

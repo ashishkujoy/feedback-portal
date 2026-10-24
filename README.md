@@ -57,6 +57,11 @@ Photos are stored in Cloudinary; the database keeps only each photo's `public_id
 
 The browser uploads straight to Cloudinary with a signature from the API, and the API checks Cloudinary's signed answer before saving. Without `CLOUDINARY_URL`, photos are off and initials are shown everywhere.
 
+### API endpoints (imports)
+- **`POST /batches/:batchId/imports/preview`** with `{ token, baseId, tableId, view }` reads the Airtable view and answers what an import would do: `counts` (new, updated, invalid), the new and updated rows, and the invalid rows with their reasons. **Nothing is written, and the token is never stored or logged.** For admins and the batch's PM; 409 on an archived batch.
+  - A row matching a graduated, terminated or withdrawn intern is invalid ("… has graduated, so their record is read-only.").
+  - A wrong key, base, table or view, or too many records → **422** `airtable_source_invalid`; Airtable busy, slow or failing → **502** `airtable_unavailable`. The `detail` starts with Airtable's own type ("Airtable said: INVALID_PERMISSIONS. …").
+
 ### Airtable columns (import, Phase 8)
 The import reads these columns from your recruitment table. Names match ignoring case, spaces and apostrophes; to use other names, edit `columns` in `apps/api/src/modules/intern/application/airtable-mapping.ts`.
 

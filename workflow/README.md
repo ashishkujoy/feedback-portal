@@ -116,7 +116,7 @@ Update the status in both `PLAN.md` and the board below whenever it changes.
 |---|---|---|
 | 8.1 Airtable adapter | [`phase/08-airtable-import/01-airtable-adapter`](phase/08-airtable-import/01-airtable-adapter/PLAN.md) | Done |
 | 8.2 Field mapping | [`phase/08-airtable-import/02-field-mapping`](phase/08-airtable-import/02-field-mapping/PLAN.md) | Done |
-| 8.3 Import preview API | [`phase/08-airtable-import/03-import-preview-api`](phase/08-airtable-import/03-import-preview-api/PLAN.md) | Not started |
+| 8.3 Import preview API | [`phase/08-airtable-import/03-import-preview-api`](phase/08-airtable-import/03-import-preview-api/PLAN.md) | Done |
 | 8.4 Import commit API | [`phase/08-airtable-import/04-import-commit-api`](phase/08-airtable-import/04-import-commit-api/PLAN.md) | Not started |
 | 8.5 Import UI | [`phase/08-airtable-import/05-import-ui`](phase/08-airtable-import/05-import-ui/PLAN.md) | Not started |
 

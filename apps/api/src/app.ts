@@ -5,6 +5,7 @@ import { batchesRoutes } from './modules/cohort/http/batches.routes.ts';
 import { type AuthRoutesDeps, authRoutes } from './modules/identity/http/auth.routes.ts';
 import type { UserAdminTransaction } from './modules/identity/application/user-admin.ts';
 import type { ManageInternsDeps } from './modules/intern/application/manage-interns.ts';
+import { importsRoutes } from './modules/intern/http/imports.routes.ts';
 import { internsRoutes } from './modules/intern/http/interns.routes.ts';
 import { meRoutes } from './modules/identity/http/me.routes.ts';
 import { usersRoutes } from './modules/identity/http/users.routes.ts';
@@ -44,6 +45,10 @@ export const createApp = (deps: AppDeps): Hono<AppEnv> =>
     .route('/users', usersRoutes({ ...deps.auth, userAdmin: deps.userAdmin }))
     // Before `/batches`: a request answered here never reaches that router's middleware, so the
     // session is checked once.
+    .route(
+      '/batches/:batchId/imports',
+      importsRoutes({ ...deps.auth, manageInterns: deps.manageInterns }),
+    )
     .route(
       '/batches/:batchId/interns',
       internsRoutes({ ...deps.auth, manageInterns: deps.manageInterns }),

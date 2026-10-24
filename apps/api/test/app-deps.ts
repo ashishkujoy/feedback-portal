@@ -16,6 +16,7 @@ import { createUserAdminTransaction } from '../src/modules/identity/infrastructu
 import { createUserRepository } from '../src/modules/identity/infrastructure/drizzle-user-repository.ts';
 import { createInternCounts } from '../src/modules/intern/infrastructure/drizzle-intern-counts.ts';
 import type { ManageInternsDeps } from '../src/modules/intern/application/manage-interns.ts';
+import type { AirtableSource } from '../src/modules/intern/application/airtable-source.ts';
 import type { PhotoStorage } from '../src/modules/intern/application/photo-storage.ts';
 import { createInternAdminTransaction } from '../src/modules/intern/infrastructure/drizzle-intern-admin.ts';
 import type { Database } from '../src/shared/db/client.ts';
@@ -49,8 +50,11 @@ const unusedManageBatches: ManageBatchesDeps = {
   now: () => new Date(),
 };
 
+const unusedAirtable: AirtableSource = { fetchRecords: unused };
+
 const unusedManageInterns: ManageInternsDeps = {
   transaction: unused,
+  airtable: unusedAirtable,
   photos: null,
   now: () => new Date(),
 };
@@ -115,10 +119,12 @@ export const realApp = (
     secureCookies = false,
     googleAuth = null,
     photos = null,
+    airtable = unusedAirtable,
   }: Readonly<{
     secureCookies?: boolean;
     googleAuth?: GoogleAuth | null;
     photos?: PhotoStorage | null;
+    airtable?: AirtableSource;
   }> = {},
 ) => {
   let current = new Date();
@@ -138,6 +144,7 @@ export const realApp = (
     },
     manageInterns: {
       transaction: createInternAdminTransaction(db, createBatchAccess),
+      airtable,
       photos,
       now,
     },

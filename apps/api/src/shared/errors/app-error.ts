@@ -7,7 +7,9 @@ export type ErrorKind =
   | 'forbidden'
   | 'not_found'
   | 'conflict'
-  | 'unavailable';
+  | 'unprocessable'
+  | 'unavailable'
+  | 'upstream';
 
 const defaultCodes = {
   validation: 'validation_failed',
@@ -15,7 +17,9 @@ const defaultCodes = {
   forbidden: 'forbidden',
   not_found: 'not_found',
   conflict: 'conflict',
+  unprocessable: 'validation_failed',
   unavailable: 'unavailable',
+  upstream: 'unavailable',
 } as const satisfies Record<ErrorKind, ErrorCode>;
 
 type AppErrorOptions = Readonly<{ code?: ErrorCode; issues?: readonly FieldIssue[] }>;
@@ -54,3 +58,11 @@ export const conflict = (detail: string, code?: ErrorCode): AppError =>
 
 /** A feature that is switched off or a dependency that is down; maps to 503. */
 export const unavailable = (detail: string): AppError => new AppError('unavailable', detail);
+
+/** Well-formed but unusable, e.g. an Airtable source that can't be read; maps to 422. */
+export const unprocessable = (detail: string, code?: ErrorCode): AppError =>
+  new AppError('unprocessable', detail, code ? { code } : {});
+
+/** A service we depend on failed or was too slow (e.g. Airtable); maps to 502. */
+export const upstreamFailed = (detail: string, code?: ErrorCode): AppError =>
+  new AppError('upstream', detail, code ? { code } : {});

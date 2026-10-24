@@ -11,6 +11,7 @@ import { createUserAdminTransaction } from './modules/identity/infrastructure/dr
 import { createSessionRepository } from './modules/identity/infrastructure/drizzle-session-repository.ts';
 import { createUserRepository } from './modules/identity/infrastructure/drizzle-user-repository.ts';
 import { createInternCounts } from './modules/intern/infrastructure/drizzle-intern-counts.ts';
+import { createAirtableRestSource } from './modules/intern/infrastructure/airtable-rest-source.ts';
 import { createCloudinaryPhotoStorage } from './modules/intern/infrastructure/cloudinary-photo-storage.ts';
 import { createInternAdminTransaction } from './modules/intern/infrastructure/drizzle-intern-admin.ts';
 import { loadConfigOrExit } from './shared/config/load-config-or-exit.ts';
@@ -70,6 +71,7 @@ const server = serve(
       manageInterns: {
         transaction: createInternAdminTransaction(database.db, createBatchAccess),
         photos: config.photos ? createCloudinaryPhotoStorage(config.photos) : null,
+        airtable: createAirtableRestSource({ apiBaseUrl: config.airtable.apiBaseUrl }),
         now,
       },
     }).fetch,

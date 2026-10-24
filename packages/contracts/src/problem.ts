@@ -23,6 +23,8 @@ export const ErrorCode = z.enum([
   'invalid_status_transition',
   'intern_read_only',
   'intern_username_taken',
+  'airtable_source_invalid',
+  'airtable_unavailable',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

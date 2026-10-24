@@ -22,8 +22,12 @@ const statusFor = (kind: ErrorKind): ContentfulStatusCode => {
       return 404;
     case 'conflict':
       return 409;
+    case 'unprocessable':
+      return 422;
     case 'unavailable':
       return 503;
+    case 'upstream':
+      return 502;
   }
 };
 
