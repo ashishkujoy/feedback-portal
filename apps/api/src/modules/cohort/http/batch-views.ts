@@ -14,6 +14,7 @@ export const toBatchSummary = (batch: BatchSummaryView): BatchSummary => ({
   programManager: batch.programManager,
   mentorCount: batch.mentorCount,
   mentors: [...batch.mentors],
+  interns: { ...batch.interns, colours: { ...batch.interns.colours } },
 });
 
 export const toBatchDetail = (batch: BatchDetailView): BatchDetail => ({

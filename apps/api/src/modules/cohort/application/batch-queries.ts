@@ -1,3 +1,4 @@
+import type { InternCountsView } from './intern-counts.ts';
 import type { BatchMemberRole } from '@feedback-portal/contracts';
 import type { UserId } from '../../identity/domain/user-id.ts';
 import type { BatchId } from '../domain/batch-id.ts';
@@ -17,6 +18,7 @@ export type BatchSummaryView = Readonly<{
   mentorCount: number;
   /** Current mentors, in the order they were assigned. */
   mentors: readonly PersonRef[];
+  interns: InternCountsView;
 }>;
 
 export type BatchMemberView = Readonly<{

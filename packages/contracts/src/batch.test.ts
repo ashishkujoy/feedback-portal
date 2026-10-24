@@ -62,6 +62,20 @@ describe('BatchDetail', () => {
       programManager: person,
       mentorCount: 0,
       mentors: [],
+      interns: {
+        total: 3,
+        onNotice: 1,
+        terminated: 0,
+        colours: {
+          green: 1,
+          yellow: 0,
+          borderline_yellow: 0,
+          orange: 0,
+          borderline_red: 0,
+          red: 1,
+          none: 1,
+        },
+      },
       members: [
         {
           id: '01890a5d-ac96-774b-bcce-b30209000002',
@@ -75,6 +89,9 @@ describe('BatchDetail', () => {
 
     expect(BatchDetail.parse(detail)).toEqual(detail);
     expect(BatchDetail.safeParse({ ...detail, startDate: '11 Jan 2027' }).success).toBe(false);
+    expect(
+      BatchDetail.safeParse({ ...detail, interns: { ...detail.interns, total: -1 } }).success,
+    ).toBe(false);
   });
 });
 

@@ -37,7 +37,7 @@ The UI is designed in Claude Design. **All UI work follows these screens** (see 
 These screens were built from v1 or improvised, and v2 now draws them. **Compare each with v2 when its area is next touched** (follow-ups, not done yet):
 - the shell, and Sign in (4.4 → **A29**), Page not found (→ **A27**);
 - Users and roles and Add user (5.1–5.3 → **A12**, **A13**);
-- the batch list, the batch page and Create batch (6.5 → **A1**, **A2-asbuilt**, **A9**);
+- the batch list, the batch page and Create batch (6.5 → **A1**, **A2-asbuilt**, **A9**). A1's counts and colour bar are done (7.8); its separate Archived badge and its loading and error states are not;
 - Assign mentors and the Mentors table (6.6 → **A11**, **A4**).
 
 ### Add intern (A14) as built in 7.3
@@ -54,6 +54,12 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 - **Not yet** (decision 5): photos (initials only), links to the profile, and Import from Airtable. The empty state for managers says "Add interns one at a time." with **Add intern**, instead of v2's sentence about importing.
 - **No results** for a filter without a search names the filter: "No interns match "Red"". v2 only draws the search case.
 - **Kuat Tag in toggle mode** is full size (8px 10px, 14/21), so the 12 tags wrap to a second line at 1440px.
+
+### Batch card counts (A1) as built in 7.8
+- **Stats:** Interns, Mentors, On notice, Terminated; before anyone is added, Mentors only, with "No interns yet." in place of the colour bar.
+- **The counts cover every intern, whatever their status** (7.8 decision 1), the same as the roster's All.
+- **The colour bar leaves out empty codes** (decision 3), so the 2px gaps are only between real segments; the legend lists all seven codes, including zeros.
+- **The Interns tab count on the batch page** comes from these counts, so it shows before the roster loads.
 
 ## Screens (v1)
 **Desktop is 1440 wide; mobile is 390×844.** Every desktop screen has the same shell:

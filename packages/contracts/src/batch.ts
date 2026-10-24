@@ -54,6 +54,25 @@ export type AssignUserRequest = z.input<typeof AssignUserRequest>;
 
 const Person = z.object({ id: z.uuid(), name: z.string(), avatarUrl: z.url().nullable() });
 
+const count = z.int().nonnegative();
+
+/** Every intern in a batch, whatever their status (7.8 decision 1). `none`: no colour code yet. */
+export const InternCounts = z.object({
+  total: count,
+  onNotice: count,
+  terminated: count,
+  colours: z.object({
+    green: count,
+    yellow: count,
+    borderline_yellow: count,
+    orange: count,
+    borderline_red: count,
+    red: count,
+    none: count,
+  }),
+});
+export type InternCounts = z.infer<typeof InternCounts>;
+
 /** A batch as the list shows it. Dates are `YYYY-MM-DD`. */
 export const BatchSummary = z.object({
   id: z.uuid(),
@@ -66,6 +85,7 @@ export const BatchSummary = z.object({
   mentorCount: z.int().nonnegative(),
   /** Current mentors, in the order they were assigned (for the card's avatars). */
   mentors: z.array(Person),
+  interns: InternCounts,
 });
 export type BatchSummary = z.infer<typeof BatchSummary>;
 

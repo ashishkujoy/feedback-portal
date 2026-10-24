@@ -14,6 +14,7 @@ import type { AuthRoutesDeps } from '../src/modules/identity/http/auth.routes.ts
 import { createSessionRepository } from '../src/modules/identity/infrastructure/drizzle-session-repository.ts';
 import { createUserAdminTransaction } from '../src/modules/identity/infrastructure/drizzle-user-admin.ts';
 import { createUserRepository } from '../src/modules/identity/infrastructure/drizzle-user-repository.ts';
+import { createInternCounts } from '../src/modules/intern/infrastructure/drizzle-intern-counts.ts';
 import type { ManageInternsDeps } from '../src/modules/intern/application/manage-interns.ts';
 import { createInternAdminTransaction } from '../src/modules/intern/infrastructure/drizzle-intern-admin.ts';
 import type { Database } from '../src/shared/db/client.ts';
@@ -119,8 +120,8 @@ export const realApp = (
     auth: { users, sessions, googleAuth, webAppUrl: 'http://web.test', secureCookies, now },
     userAdmin: createUserAdminTransaction(db, now, createRoleAssignments),
     manageBatches: {
-      transaction: createBatchAdminTransaction(db),
-      queries: createBatchQueries(db),
+      transaction: createBatchAdminTransaction(db, createInternCounts),
+      queries: createBatchQueries(db, createInternCounts),
       now,
     },
     manageInterns: { transaction: createInternAdminTransaction(db, createBatchAccess), now },

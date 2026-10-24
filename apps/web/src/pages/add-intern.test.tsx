@@ -4,6 +4,7 @@ import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderApp } from '../test/render-app.tsx';
 import { problem, type Reply, signedInWith, stubApi, userWith } from '../test/stub-api.ts';
+import { noInternCounts } from '../test/fixtures.ts';
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -27,6 +28,7 @@ const batch = (overrides: Partial<BatchDetail> = {}): BatchDetail => ({
   isArchived: false,
   programManager: { id: me.id, name: me.name, avatarUrl: null },
   mentorCount: 0,
+  interns: noInternCounts,
   mentors: [],
   members: [],
   ...overrides,

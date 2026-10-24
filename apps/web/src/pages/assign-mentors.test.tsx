@@ -9,6 +9,7 @@ import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderApp } from '../test/render-app.tsx';
 import { problem, type Reply, signedInWith, stubApi, userWith } from '../test/stub-api.ts';
+import { noInternCounts } from '../test/fixtures.ts';
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -64,6 +65,7 @@ const detail = (members: BatchMemberView[], overrides: Partial<BatchDetail> = {}
   isArchived: false,
   programManager: { id: me.id, name: me.name, avatarUrl: null },
   mentorCount: members.filter((m) => m.role === 'mentor' && m.unassignedAt === null).length,
+  interns: noInternCounts,
   mentors: [],
   members,
   ...overrides,

@@ -65,7 +65,7 @@ Without credentials, the API runs normally, and **Sign in with Google** returns 
 ### API endpoints (batches)
 - **`/batches`**: admins can do everything; a batch's current PM can change its mentors.
   - **Visibility:** anyone signed in can read batches, but only those they're currently assigned to (in any role); admins see all. A batch you can't see is a **404**, as if it didn't exist. Unassigning or replacing someone removes their access at once; archived batches stay visible to their members.
-  - `GET /batches` lists batches (active first, newest first) with their PM and mentor count. `GET /batches/:id` adds every member, current and past.
+  - `GET /batches` lists batches (active first, newest first) with their PM, mentor count and **intern counts** (`interns`: the total, on notice, terminated, and one count per colour code plus `none`; every intern, whatever their status). `GET /batches/:id` adds every member, current and past.
   - `POST /batches` with `{ name, startDate, endDate, programManagerId }` creates a batch run by that PM. Names are unique ignoring case (409 `batch_name_taken`).
   - `PUT /batches/:id/program-manager` with `{ userId }` replaces the PM. A batch always has exactly one.
   - `POST /batches/:id/mentors` with `{ userId }` assigns a mentor; `DELETE /batches/:id/mentors/:userId` unassigns one. Assignments are kept as history.

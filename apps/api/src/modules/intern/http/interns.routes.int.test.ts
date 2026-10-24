@@ -1,4 +1,10 @@
-import { BatchDetail, InternSummary, ProblemDetails, type Role } from '@feedback-portal/contracts';
+import {
+  BatchDetail,
+  BatchSummary,
+  InternSummary,
+  ProblemDetails,
+  type Role,
+} from '@feedback-portal/contracts';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { realApp } from '../../../../test/app-deps.ts';
@@ -244,5 +250,48 @@ describe('GET /batches/:batchId/interns', () => {
     expect((await problemOf(await get(setup, '', `/batches/${batch.id}/interns`), 401)).code).toBe(
       'unauthenticated',
     );
+  });
+});
+
+describe('the batch counts', () => {
+  it('include the interns once they are added', async () => {
+    const { setup, admin, pm, batch, add } = await setUp();
+    // A second, later batch without interns: listed first (newest start), with zeros.
+    await post(setup, admin.cookie, '/batches', {
+      name: 'Batch 2',
+      startDate: '2027-07-12',
+      endDate: '2028-12-22',
+      programManagerId: pm.user.id,
+    });
+    await add(pm);
+    await add(pm, { ...ishita, username: 'kabir', name: 'Kabir Nair' });
+
+    const detail = BatchDetail.parse(
+      await (await get(setup, pm.cookie, `/batches/${batch.id}`)).json(),
+    );
+    const summaries = z
+      .array(BatchSummary)
+      .parse(await (await get(setup, pm.cookie, '/batches')).json());
+
+    const expected = {
+      total: 2,
+      onNotice: 0,
+      terminated: 0,
+      colours: {
+        green: 0,
+        yellow: 0,
+        borderline_yellow: 0,
+        orange: 0,
+        borderline_red: 0,
+        red: 0,
+        none: 2,
+      },
+    };
+    expect(detail.interns).toEqual(expected);
+    expect(summaries.map((summary) => [summary.name, summary.interns.total])).toEqual([
+      ['Batch 2', 0],
+      ['Batch 1', 2],
+    ]);
+    expect(summaries[1]?.interns).toEqual(expected);
   });
 });

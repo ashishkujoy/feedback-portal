@@ -87,6 +87,7 @@ This file is the overview. Detailed plans, reviews, findings and status for each
 | 7.5 | **Intern profile page**: details, interview notes, and a timeline placeholder | — |
 | 7.6 | **Status change API + UI**: graduate, withdraw, lift notice, or terminate, with a reason | Only the PM can do this; final statuses are read-only |
 | 7.7 | **Cloudinary photos**: a signed-upload endpoint, an upload widget, and the photo shown on the card and profile | — |
+| 7.8 | **Batch card counts**: interns, on notice and terminated, and the colour bar, on the batch list (A1) | — |
 
 ## Phase 8 — Airtable import
 

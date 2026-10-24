@@ -5,6 +5,7 @@ export {
   BatchMemberView,
   BatchSummary,
   CreateBatchRequest,
+  InternCounts,
   MentorCandidate,
   SetMentorsRequest,
 } from './batch.ts';

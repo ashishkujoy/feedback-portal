@@ -107,6 +107,7 @@ Update the status in both `PLAN.md` and the board below whenever it changes.
 | 7.5 Intern profile page | [`phase/07-interns/05-intern-profile-page`](phase/07-interns/05-intern-profile-page/PLAN.md) | Not started |
 | 7.6 Status change API + UI | [`phase/07-interns/06-status-change-api-ui`](phase/07-interns/06-status-change-api-ui/PLAN.md) | Not started |
 | 7.7 Cloudinary photos | [`phase/07-interns/07-cloudinary-photos`](phase/07-interns/07-cloudinary-photos/PLAN.md) | Not started |
+| 7.8 Batch card counts | [`phase/07-interns/08-batch-card-counts`](phase/07-interns/08-batch-card-counts/PLAN.md) | Done |
 
 ### Phase 8 — Airtable import
 

@@ -9,6 +9,11 @@ import type {
   BatchSummaryView,
   MentorCandidateView,
 } from '../application/batch-queries.ts';
+import {
+  type InternCounts,
+  type InternCountsView,
+  noInterns,
+} from '../application/intern-counts.ts';
 import { BatchId } from '../domain/batch-id.ts';
 import { BatchMemberId } from '../domain/batch-member-id.ts';
 import { visibleBatchCondition } from './batch-visibility.ts';
@@ -57,7 +62,11 @@ const toMemberView = (row: MemberRow): BatchMemberView => ({
 });
 
 /** Builds a summary from the batch's current members. Every batch has a PM (6.2). */
-const toSummary = (row: BatchRow, current: readonly BatchMemberView[]): BatchSummaryView => {
+const toSummary = (
+  row: BatchRow,
+  current: readonly BatchMemberView[],
+  interns: InternCountsView,
+): BatchSummaryView => {
   const pm = current.find((member) => member.role === 'program_manager');
   if (!pm) throw new Error(`batch ${row.id} has no current programme manager`);
   const mentors = current.filter((member) => member.role === 'mentor');
@@ -74,10 +83,16 @@ const toSummary = (row: BatchRow, current: readonly BatchMemberView[]): BatchSum
       name: user.name,
       avatarUrl: user.avatarUrl,
     })),
+    interns,
   };
 };
 
-export const createBatchQueries = (db: DbExecutor): BatchQueries => {
+/** `internCounts` comes from the intern module, bound to the same database or transaction. */
+export const createBatchQueries = (
+  db: DbExecutor,
+  internCounts: (db: DbExecutor) => InternCounts,
+): BatchQueries => {
+  const countsOf = internCounts(db);
   const membersWithUsers = () =>
     db.select(memberColumns).from(batchMembers).innerJoin(users, eq(users.id, batchMembers.userId));
 
@@ -103,10 +118,12 @@ export const createBatchQueries = (db: DbExecutor): BatchQueries => {
           )
           .orderBy(asc(batchMembers.assignedAt), asc(batchMembers.id))
       ).map((member) => ({ batchId: member.batchId, view: toMemberView(member) }));
+      const counts = await countsOf(rows.map((row) => BatchId.parse(row.id)));
       return rows.map((row) =>
         toSummary(
           row,
           current.filter((member) => member.batchId === row.id).map((member) => member.view),
+          counts.get(row.id) ?? noInterns,
         ),
       );
     },
@@ -190,7 +207,8 @@ export const createBatchQueries = (db: DbExecutor): BatchQueries => {
           .orderBy(asc(batchMembers.assignedAt), asc(batchMembers.id))
       ).map(toMemberView);
       const current = members.filter((member) => member.unassignedAt === null);
-      return { ...toSummary(row, current), members };
+      const counts = await countsOf([id]);
+      return { ...toSummary(row, current, counts.get(id) ?? noInterns), members };
     },
   };
 };

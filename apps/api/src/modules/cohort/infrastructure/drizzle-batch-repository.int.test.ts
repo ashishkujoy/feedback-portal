@@ -5,6 +5,7 @@ import { AppError } from '../../../shared/errors/app-error.ts';
 import { createUser, deactivate } from '../../identity/domain/user.ts';
 import { newUserId, type UserId } from '../../identity/domain/user-id.ts';
 import { createUserRepository } from '../../identity/infrastructure/drizzle-user-repository.ts';
+import { createInternCounts } from '../../intern/infrastructure/drizzle-intern-counts.ts';
 import {
   archiveBatch,
   assignMember,
@@ -118,7 +119,7 @@ describe('BatchQueries', () => {
     const archived = archiveBatch(newBatch('Archived', pm, admin.id, '2027-06-01'), { now: t1 });
     await Promise.all([older, newer, archived].map((batch) => repo().save(batch)));
 
-    const summaries = await createBatchQueries(db()).listSummaries(asAdmin);
+    const summaries = await createBatchQueries(db(), createInternCounts).listSummaries(asAdmin);
 
     expect(summaries.map((batch) => [batch.name, batch.isArchived, batch.mentorCount])).toEqual([
       ['Newer', false, 1],
@@ -152,7 +153,7 @@ describe('BatchQueries', () => {
     });
     await repo().save(batch);
 
-    const detail = await createBatchQueries(db()).detail(batch.id, asAdmin);
+    const detail = await createBatchQueries(db(), createInternCounts).detail(batch.id, asAdmin);
 
     expect(detail?.members[0]?.user.email).toMatch(/^pat\.\w+@example\.com$/);
     expect(
@@ -167,7 +168,9 @@ describe('BatchQueries', () => {
       ['Mo Mentor', 'mentor', false, t2],
     ]);
     expect(detail?.mentorCount).toBe(0);
-    expect(await createBatchQueries(db()).detail(newBatchId(), asAdmin)).toBeNull();
+    expect(
+      await createBatchQueries(db(), createInternCounts).detail(newBatchId(), asAdmin),
+    ).toBeNull();
   });
 });
 

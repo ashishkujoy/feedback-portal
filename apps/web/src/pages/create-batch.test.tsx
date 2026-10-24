@@ -4,6 +4,7 @@ import { userEvent } from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderApp } from '../test/render-app.tsx';
 import { problem, type Reply, signedInWith, stubApi } from '../test/stub-api.ts';
+import { noInternCounts } from '../test/fixtures.ts';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -33,6 +34,7 @@ const created: BatchDetail = {
   isArchived: false,
   programManager: { id: amy.id, name: amy.name, avatarUrl: null },
   mentorCount: 0,
+  interns: noInternCounts,
   mentors: [],
   members: [
     {

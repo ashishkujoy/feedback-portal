@@ -10,6 +10,7 @@ import { createGoogleAuth } from './modules/identity/infrastructure/google-oauth
 import { createUserAdminTransaction } from './modules/identity/infrastructure/drizzle-user-admin.ts';
 import { createSessionRepository } from './modules/identity/infrastructure/drizzle-session-repository.ts';
 import { createUserRepository } from './modules/identity/infrastructure/drizzle-user-repository.ts';
+import { createInternCounts } from './modules/intern/infrastructure/drizzle-intern-counts.ts';
 import { createInternAdminTransaction } from './modules/intern/infrastructure/drizzle-intern-admin.ts';
 import { loadConfigOrExit } from './shared/config/load-config-or-exit.ts';
 import { createDb } from './shared/db/client.ts';
@@ -60,8 +61,8 @@ const server = serve(
       auth,
       userAdmin: createUserAdminTransaction(database.db, now, createRoleAssignments),
       manageBatches: {
-        transaction: createBatchAdminTransaction(database.db),
-        queries: createBatchQueries(database.db),
+        transaction: createBatchAdminTransaction(database.db, createInternCounts),
+        queries: createBatchQueries(database.db, createInternCounts),
         now,
       },
       manageInterns: {

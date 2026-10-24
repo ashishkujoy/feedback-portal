@@ -4,6 +4,7 @@ import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderApp } from '../test/render-app.tsx';
 import { problem, signedInWith, stubApi } from '../test/stub-api.ts';
+import { noInternCounts } from '../test/fixtures.ts';
 
 beforeEach(() => {
   // Only Date is faked, so timers (and user-event) run normally.
@@ -35,6 +36,7 @@ const batch = (n: number, name: string, overrides: Partial<BatchSummary> = {}): 
   isArchived: false,
   programManager: pat,
   mentorCount: 0,
+  interns: noInternCounts,
   mentors: [],
   ...overrides,
 });
@@ -137,5 +139,81 @@ describe('the batches page', () => {
         String(input instanceof Request ? input.url : input).endsWith(`/batches/${active.id}`),
       ),
     ).toBe(true);
+  });
+});
+
+const stats = (name: string) =>
+  [...card(name).querySelectorAll('dl > div')].map(
+    (stat) => `${stat.querySelector('dt')?.textContent} ${stat.querySelector('dd')?.textContent}`,
+  );
+
+describe('intern counts on the card (A1)', () => {
+  const counted = batch(5, 'Batch 2026', {
+    interns: {
+      total: 8,
+      onNotice: 1,
+      terminated: 2,
+      colours: {
+        green: 3,
+        yellow: 0,
+        borderline_yellow: 1,
+        orange: 0,
+        borderline_red: 0,
+        red: 2,
+        none: 2,
+      },
+    },
+  });
+
+  it('shows Interns, Mentors, On notice and Terminated', async () => {
+    withBatches(['admin'], [counted]);
+    renderApp('/batches');
+    await screen.findByRole('list', { name: 'Batches' });
+
+    expect(stats('Batch 2026')).toEqual(['Interns 8', 'Mentors 0', 'On notice 1', 'Terminated 2']);
+  });
+
+  it('sizes a bar segment by each colour that has interns, and lists every colour', async () => {
+    withBatches(['admin'], [counted]);
+    renderApp('/batches');
+    await screen.findByRole('list', { name: 'Batches' });
+
+    const segments = [...card('Batch 2026').querySelectorAll('[data-colour]')];
+    expect(
+      segments.map((segment) => [
+        segment.getAttribute('data-colour'),
+        segment instanceof HTMLElement ? segment.style.flexGrow : '',
+      ]),
+    ).toEqual([
+      ['green', '3'],
+      ['borderline_yellow', '1'],
+      ['red', '2'],
+      ['none', '2'],
+    ]);
+    expect(
+      within(within(card('Batch 2026')).getByRole('list', { name: 'Colour codes' }))
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual([
+      'Green 3',
+      'Yellow 0',
+      'Borderline Yellow 1',
+      'Orange 0',
+      'Borderline Red 0',
+      'Red 2',
+      'No colour 2',
+    ]);
+  });
+
+  it('says "No interns yet." and shows only Mentors for a batch without interns', async () => {
+    withBatches(['admin'], [batch(6, 'Batch 2029', { mentorCount: 2 })]);
+    renderApp('/batches');
+    await screen.findByRole('list', { name: 'Batches' });
+
+    expect(stats('Batch 2029')).toEqual(['Mentors 2']);
+    expect(within(card('Batch 2029')).getByText('No interns yet.')).toBeInTheDocument();
+    expect(
+      within(card('Batch 2029')).queryByRole('list', { name: 'Colour codes' }),
+    ).not.toBeInTheDocument();
   });
 });

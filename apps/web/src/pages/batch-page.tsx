@@ -4,7 +4,6 @@ import { getRouteApi } from '@tanstack/react-router';
 import { Plus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { batchQuery, showUpdatedBatch, unassignMentor } from '../api/batches.ts';
-import { internsQuery } from '../api/interns.ts';
 import { isApiError } from '../api/errors.ts';
 import { AssignMentorsDialog } from '../batches/assign-mentors-dialog.tsx';
 import { today } from '../batches/batch-dates.ts';
@@ -33,7 +32,7 @@ type Tab = 'interns' | 'mentors';
 
 const panelId = 'batch-panel';
 
-const tabItems = (internCount: number | undefined, mentorCount: number): TabItem<Tab>[] => [
+const tabItems = (internCount: number, mentorCount: number): TabItem<Tab>[] => [
   { value: 'interns', label: 'Interns', count: internCount },
   { value: 'mentors', label: 'Mentors', count: mentorCount },
 ];
@@ -48,7 +47,6 @@ export const BatchPage = () => {
   const { tab = 'interns', view = 'cards', filter = 'all', q = '' } = route.useSearch();
   const navigate = route.useNavigate();
   const me = useMe();
-  const interns = useQuery(internsQuery(batchId)).data;
   const queryClient = useQueryClient();
   const { data: batch, error } = useQuery(batchQuery(batchId));
   const [assigning, setAssigning] = useState(false);
@@ -128,7 +126,7 @@ export const BatchPage = () => {
       ) : null}
       <Tabs
         label="Batch"
-        items={tabItems(interns?.length, batch.mentorCount)}
+        items={tabItems(batch.interns.total, batch.mentorCount)}
         value={tab}
         controls={panelId}
         onChange={(next) => setSearch({ tab: next })}

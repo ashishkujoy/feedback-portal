@@ -3,6 +3,7 @@ import { screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderApp } from '../test/render-app.tsx';
 import { problem, signedInWith, stubApi } from '../test/stub-api.ts';
+import { noInternCounts } from '../test/fixtures.ts';
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -59,6 +60,7 @@ const detail = (members: BatchMemberView[]): BatchDetail => ({
   isArchived: false,
   programManager: { id: pat.user.id, name: 'Pat Manager', avatarUrl: null },
   mentorCount: 2,
+  interns: noInternCounts,
   mentors: [],
   members,
 });

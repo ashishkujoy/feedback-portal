@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { batchesQuery, batchQuery } from '../api/batches.ts';
 import { isApiError } from '../api/errors.ts';
 import { addIntern, internsQuery } from '../api/interns.ts';
 import { Button } from '../ui/button.tsx';
@@ -41,8 +42,10 @@ const AddInternForm = ({ batchId, onAdded, onClose }: FormProps) => {
     mutationFn: (body: CreateInternRequest) => addIntern(batchId, body),
     onSuccess: (intern) => {
       onAdded(intern);
-      // The roster behind the dialog picks the new intern up.
+      // The roster behind the dialog picks the new intern up, and the batch its counts (7.8).
       void queryClient.invalidateQueries({ queryKey: internsQuery(batchId).queryKey });
+      void queryClient.invalidateQueries({ queryKey: batchQuery(batchId).queryKey, exact: true });
+      void queryClient.invalidateQueries({ queryKey: batchesQuery.queryKey, exact: true });
     },
     onError: (error) => {
       if (isApiError(error, 'intern_username_taken')) {

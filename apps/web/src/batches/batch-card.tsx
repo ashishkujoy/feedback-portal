@@ -2,6 +2,7 @@ import type { BatchSummary } from '@feedback-portal/contracts';
 import { Link } from '@tanstack/react-router';
 import { ArrowRight } from 'lucide-react';
 import { useMemo } from 'react';
+import { ColourBar } from '../interns/colour-bar.tsx';
 import { AvatarStack } from '../ui/avatar-stack.tsx';
 import { buttonClasses } from '../ui/button.tsx';
 import { StatusBadge } from '../ui/status-badge.tsx';
@@ -9,15 +10,23 @@ import { batchDates, batchStatus, statusBadges } from './batch-status.ts';
 
 type BatchCardProps = Readonly<{ batch: BatchSummary; today: string }>;
 
+const Stat = ({ label, value }: Readonly<{ label: string; value: number }>) => (
+  <div className="flex flex-col gap-0.5">
+    <dt className="text-xs text-muted-foreground">{label}</dt>
+    <dd className="text-lg font-semibold">{value}</dd>
+  </div>
+);
+
 /**
- * A1's batch card, before interns exist (6.5 decision 1): status, dates, name, the mentor count,
- * and the mentors' avatars with View batch. Interns, notice counts and the colour bar come with
- * Phase 7.
+ * A1's batch card: status, dates, name, the stats (Interns, Mentors, On notice, Terminated; only
+ * Mentors before anyone is added), the colour bar or "No interns yet.", and the mentors' avatars
+ * with View batch.
  */
 export const BatchCard = ({ batch, today }: BatchCardProps) => {
   const status = batchStatus(batch, today);
   const badge = statusBadges[status];
   const params = useMemo(() => ({ batchId: batch.id }), [batch.id]);
+  const hasInterns = batch.interns.total > 0;
   return (
     <article
       aria-labelledby={`batch-${batch.id}`}
@@ -32,11 +41,20 @@ export const BatchCard = ({ batch, today }: BatchCardProps) => {
           {batch.name}
         </h2>
         <dl className="flex gap-7">
-          <div className="flex flex-col gap-0.5">
-            <dt className="text-xs text-muted-foreground">Mentors</dt>
-            <dd className="text-lg font-semibold">{batch.mentorCount}</dd>
-          </div>
+          {hasInterns ? <Stat label="Interns" value={batch.interns.total} /> : null}
+          <Stat label="Mentors" value={batch.mentorCount} />
+          {hasInterns ? (
+            <>
+              <Stat label="On notice" value={batch.interns.onNotice} />
+              <Stat label="Terminated" value={batch.interns.terminated} />
+            </>
+          ) : null}
         </dl>
+        {hasInterns ? (
+          <ColourBar colours={batch.interns.colours} />
+        ) : (
+          <p className="text-[13px] text-muted-foreground">No interns yet.</p>
+        )}
       </div>
       <div className="mt-auto flex items-center justify-between gap-3 border-t border-border px-5 py-3">
         <AvatarStack label="Mentors" people={batch.mentors} />

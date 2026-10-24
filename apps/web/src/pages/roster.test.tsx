@@ -4,6 +4,7 @@ import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderApp } from '../test/render-app.tsx';
 import { problem, type Reply, signedInWith, stubApi, userWith } from '../test/stub-api.ts';
+import { noInternCounts } from '../test/fixtures.ts';
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -27,6 +28,7 @@ const batch = (overrides: Partial<BatchDetail> = {}): BatchDetail => ({
   isArchived: false,
   programManager: { id: me.id, name: me.name, avatarUrl: null },
   mentorCount: 0,
+  interns: noInternCounts,
   mentors: [],
   members: [],
   ...overrides,
@@ -102,7 +104,7 @@ const tag = (name: RegExp) =>
 
 describe('tabs', () => {
   it('opens on Interns, with counts, and moves the mentor tables to Mentors', async () => {
-    stub({ detail: batch({ mentorCount: 3 }) });
+    stub({ detail: batch({ mentorCount: 3, interns: { ...noInternCounts, total: 5 } }) });
     const { user, router } = await open();
     await screen.findByRole('list', { name: 'Interns' });
 
