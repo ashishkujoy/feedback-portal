@@ -159,9 +159,9 @@ Checks: `notice_ends_on` is set exactly when `status = 'on_notice'`; `email = lo
 | actor_id | uuid FK → users | |
 | created_at | timestamptz | |
 
-Index on (`intern_id`, `created_at`). **A trigger rejects `UPDATE` and `DELETE`** (append-only). `feedback_id`'s foreign key is added with the `feedback` table (9.1).
+Index on (`intern_id`, `created_at`). **A trigger rejects `UPDATE` and `DELETE`** (append-only). `feedback_id` references `feedback` (9.1).
 
-Checks: `from_status` differs from `to_status`; `from_status` is `NULL` only for `to_status = 'active'` (onboarding); a non-blank `reason` unless onboarding; both notice dates, with the end after the start, exactly when `to_status = 'on_notice'`.
+Checks: `from_status` differs from `to_status`; `from_status` is `NULL` only for `to_status = 'active'` (onboarding); `feedback_id` only on an event going `on_notice`; a non-blank `reason` unless onboarding; both notice dates, with the end after the start, exactly when `to_status = 'on_notice'`.
 
 **`airtable_imports`**: one row per import run. A batch can be imported many times. The Airtable token is never stored.
 | Column | Type | Notes |
@@ -188,17 +188,19 @@ Checks: counts ≥ 0; `completed_at` set exactly when not `pending`; `failure_re
 | id | uuid PK | |
 | intern_id | uuid FK → interns | |
 | author_id | uuid FK → users | Mentor or PM of the intern's batch |
-| period | date | First day of the month the feedback covers |
-| body | text | Markdown |
+| period | date | First day of the month the feedback covers (checked) |
+| body | text | Markdown. May be blank while a draft, not once submitted |
 | color_code | `color_code` null | `NULL` means "leave unchanged" |
 | previous_color_code | `color_code` null | Snapshot taken at submission, so history reads as "orange → borderline_red" |
 | gives_notice | boolean | Default `false`. When `true`, submitting the feedback puts the intern `on_notice` for one month in the same transaction. |
 | state | `feedback_state` | `draft` → `submitted` → `delivered` |
-| conversation_id | uuid FK null | Set when the feedback is delivered |
-| submitted_at | timestamptz null | |
+| conversation_id | uuid null | Set exactly when the feedback is delivered. Its foreign key comes with `conversations` (10.1) |
+| submitted_at | timestamptz null | Set exactly when the feedback is no longer a draft |
 | created_at / updated_at | timestamptz | |
 
-Indexes: (`intern_id`, `period`); (`intern_id`, `submitted_at`) where `color_code IS NOT NULL`.
+Indexes: (`intern_id`, `period`); (`intern_id`, `submitted_at`) where `color_code IS NOT NULL`; (`author_id`, `state`) for an author's drafts.
+
+Checks: `period` is the first of a month; `submitted_at` exactly when not `draft`; `conversation_id` exactly when `delivered`; no `previous_color_code` on a draft; a non-blank body once submitted. **A trigger rejects deleting anything but a draft, and any update of delivered feedback** (9.1 decisions 1 and 2).
 
 **`conversations`**: a one-on-one in which the PM delivers one or more feedback entries.
 | Column | Type | Notes |
@@ -235,9 +237,9 @@ Constraint: `CHECK (num_nonnulls(feedback_id, conversation_id) = 1)`, so each co
 - An intern cannot be set back to "no code" once they have one.
 
 **Feedback lifecycle**
-- `draft`: visible and editable only by the author.
+- `draft`: visible and editable only by the author, who can also discard it.
 - `submitted`: visible to all current mentors and the PM of the batch. The author can still edit the text; the color code is fixed once submitted.
-- `delivered`: immutable. Attached to a conversation.
+- `delivered`: immutable (the database refuses any change). Attached to a conversation.
 - Several mentors can submit feedback for the same intern and month. The PM delivers them together in one conversation.
 - Comments on feedback are allowed once it is `submitted`, and they stay open after delivery. A comment adds context without changing the original entry. Drafts cannot be commented on.
 
@@ -289,5 +291,5 @@ Photos follow the design (7.7 decision 1): admins and the batch's PM, not mentor
 2. **An intern cannot be terminated without first going through notice.** If immediate termination is needed, add `active → terminated`.
 3. **Comments can go on both feedback entries and conversations.** For example, a mentor adds context to another mentor's feedback.
 4. **Admins without a batch assignment are read-only** for that batch's feedback.
-5. **Feedback is never deleted.** There is no delete endpoint or soft-delete column.
+5. **Submitted feedback is never deleted.** Only a draft can be discarded by its author (v2 A26), since nobody else has seen it. There is no soft-delete column, and the database refuses to delete anything else.
 6. **Termination is manual.** `notice_ends_on` passing changes nothing by itself; the PM terminates or lifts the notice.

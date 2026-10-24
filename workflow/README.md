@@ -124,7 +124,7 @@ Update the status in both `PLAN.md` and the board below whenever it changes.
 
 | Task | Folder | Status |
 |---|---|---|
-| 9.1 Schema | [`phase/09-feedback/01-schema`](phase/09-feedback/01-schema/PLAN.md) | Not started |
+| 9.1 Schema | [`phase/09-feedback/01-schema`](phase/09-feedback/01-schema/PLAN.md) | Done |
 | 9.2 Feedback domain | [`phase/09-feedback/02-feedback-domain`](phase/09-feedback/02-feedback-domain/PLAN.md) | Not started |
 | 9.3 Feedback API | [`phase/09-feedback/03-feedback-api`](phase/09-feedback/03-feedback-api/PLAN.md) | Not started |
 | 9.4 Markdown components | [`phase/09-feedback/04-markdown-components`](phase/09-feedback/04-markdown-components/PLAN.md) | Not started |

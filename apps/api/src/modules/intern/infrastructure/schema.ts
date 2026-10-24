@@ -1,4 +1,4 @@
-import { colorCodes, internStatuses } from '@feedback-portal/contracts';
+import { internStatuses } from '@feedback-portal/contracts';
 import { sql } from 'drizzle-orm';
 import {
   check,
@@ -13,8 +13,9 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { citext } from '../../../shared/db/columns.ts';
+import { citext, colorCodeEnum } from '../../../shared/db/columns.ts';
 import { batches } from '../../cohort/infrastructure/schema.ts';
+import { feedback } from '../../feedback/infrastructure/schema.ts';
 import { users } from '../../identity/infrastructure/schema.ts';
 
 // Column names come from the camelCase keys via `casing: 'snake_case'`. No foreign key cascades:
@@ -22,9 +23,6 @@ import { users } from '../../identity/infrastructure/schema.ts';
 
 /** Where an intern stands in the program; values come from the shared contracts enum. */
 export const internStatusEnum = pgEnum('intern_status', internStatuses);
-
-/** How an intern is performing; `NULL` means "no colour code yet". */
-export const colorCodeEnum = pgEnum('color_code', colorCodes);
 
 export const interns = pgTable(
   'interns',
@@ -97,8 +95,8 @@ export const internStatusEvents = pgTable(
     reason: text(),
     noticeStartsOn: date({ mode: 'string' }),
     noticeEndsOn: date({ mode: 'string' }),
-    // The feedback marked as notice that started it. Its foreign key comes with `feedback` (9.1).
-    feedbackId: uuid(),
+    // The feedback marked as notice that started it.
+    feedbackId: uuid().references(() => feedback.id),
     actorId: uuid()
       .notNull()
       .references(() => users.id),
@@ -117,6 +115,11 @@ export const internStatusEvents = pgTable(
     check(
       'intern_status_events_reason_check',
       sql`${table.fromStatus} is null or coalesce(${table.reason}, '') ~ '[^[:space:]]'`,
+    ),
+    // Feedback can only put an intern on notice.
+    check(
+      'intern_status_events_feedback_check',
+      sql`${table.feedbackId} is null or ${table.toStatus} = 'on_notice'`,
     ),
     // Both dates are tested for NULL first: a comparison with NULL is NULL, which a CHECK passes.
     check(
