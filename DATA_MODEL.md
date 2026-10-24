@@ -142,7 +142,9 @@ Constraints:
 | notice_ends_on | date null | Set while the intern is `on_notice` |
 | created_at / updated_at | timestamptz | |
 
-Index on (`batch_id`, `status`).
+Index on (`batch_id`, `status`). Unique (`batch_id`, `username`).
+
+Checks: `notice_ends_on` is set exactly when `status = 'on_notice'`; `email = lower(email)`; `username` and `name` contain a non-space character. No foreign key cascades: interns aren't deleted.
 
 **`intern_status_events`**: append-only, never updated.
 | Column | Type | Notes |
@@ -156,6 +158,10 @@ Index on (`batch_id`, `status`).
 | feedback_id | uuid FK null | The feedback marked as notice that started it, if any |
 | actor_id | uuid FK → users | |
 | created_at | timestamptz | |
+
+Index on (`intern_id`, `created_at`). **A trigger rejects `UPDATE` and `DELETE`** (append-only). `feedback_id`'s foreign key is added with the `feedback` table (9.1).
+
+Checks: `from_status` differs from `to_status`; `from_status` is `NULL` only for `to_status = 'active'` (onboarding); a non-blank `reason` unless onboarding; both notice dates, with the end after the start, exactly when `to_status = 'on_notice'`.
 
 **`airtable_imports`**: one row per import run. A batch can be imported many times.
 | Column | Type | Notes |

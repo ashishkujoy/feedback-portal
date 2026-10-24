@@ -1,13 +1,16 @@
 import { z } from 'zod';
 
-export const ColorCode = z.enum([
+/** Tuple form, for consumers that need the literal list (e.g. the Postgres enum). */
+export const colorCodes = [
   'green',
   'yellow',
   'borderline_yellow',
   'orange',
   'borderline_red',
   'red',
-]);
+] as const;
+
+export const ColorCode = z.enum(colorCodes);
 export type ColorCode = z.infer<typeof ColorCode>;
 
 /** Severity order: 1 is the best performance, 6 the most at risk. */

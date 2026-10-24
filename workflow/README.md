@@ -100,7 +100,7 @@ Update the status in both `PLAN.md` and the board below whenever it changes.
 
 | Task | Folder | Status |
 |---|---|---|
-| 7.1 Schema | [`phase/07-interns/01-schema`](phase/07-interns/01-schema/PLAN.md) | Not started |
+| 7.1 Schema | [`phase/07-interns/01-schema`](phase/07-interns/01-schema/PLAN.md) | Done |
 | 7.2 Intern domain | [`phase/07-interns/02-intern-domain`](phase/07-interns/02-intern-domain/PLAN.md) | Not started |
 | 7.3 Manual add intern API + UI | [`phase/07-interns/03-manual-add-intern-api-ui`](phase/07-interns/03-manual-add-intern-api-ui/PLAN.md) | Not started |
 | 7.4 Batch roster UI | [`phase/07-interns/04-batch-roster-ui`](phase/07-interns/04-batch-roster-ui/PLAN.md) | Not started |
