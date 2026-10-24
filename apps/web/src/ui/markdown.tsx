@@ -4,6 +4,18 @@ import rehypeSanitize from 'rehype-sanitize';
 import remarkGfm from 'remark-gfm';
 
 const heading = 'mb-1.5 text-[15px] font-semibold';
+
+/** Links open in a new tab, without giving the new page a handle on this one. */
+const ExternalLink = ({ href, children }: Props & Readonly<{ href?: string | undefined }>) => (
+  <a
+    href={href}
+    className="text-(--ee-blue-600) underline hover:text-(--ee-blue-700)"
+    target="_blank"
+    rel="noopener noreferrer"
+  >
+    {children}
+  </a>
+);
 const list = 'mb-2.5 pl-5 [&>li]:my-0.5';
 
 type Props = Readonly<{ children?: ReactNode }>;
@@ -24,15 +36,18 @@ const components: Components = {
     <code className="bg-(--slate-100) px-[5px] py-px font-mono text-[12.5px]">{children}</code>
   ),
   a: ({ children, href }: Props & Readonly<{ href?: string | undefined }>) => (
-    <a
-      href={href}
-      className="text-(--ee-blue-600) underline hover:text-(--ee-blue-700)"
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      {children}
-    </a>
+    <ExternalLink href={href}>{children}</ExternalLink>
   ),
+  // Images become links (9.4 decision 2): nothing is fetched from an author's address until
+  // someone clicks. A `src` the sanitizer removed (not http or https) leaves the alt text.
+  img: ({ src, alt }: Readonly<{ src?: string | Blob | undefined; alt?: string | undefined }>) => {
+    const label = alt || (typeof src === 'string' ? src : '');
+    return typeof src === 'string' && src ? (
+      <ExternalLink href={src}>{label}</ExternalLink>
+    ) : (
+      <span>{label}</span>
+    );
+  },
 };
 
 const remarkPlugins = [remarkGfm];

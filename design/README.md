@@ -88,6 +88,12 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 - **The dialog shares A14's fields** (`interns/intern-fields.tsx`). Username is disabled (Kuat's disabled Input: `--muted` at 60%) with "Usernames can't change because imports match on them."; the rest are filled in from the profile. **Save details** ("Saving…"). A blank optional field clears it (decision 3).
 - **The email error stays "Invalid email address"** (decision 2), as on every other form, rather than A15's "Enter a valid email address."
 
+### Markdown editor (A7's Feedback field) as built in 9.4
+- **`ui/markdown-editor.tsx`:** Write / Preview tabs, then "Markdown" and v2's six 30px buttons (Bold, Italic, Heading, Bulleted list, Code, Link), each named and with a tooltip. **Ctrl/⌘+B** and **Ctrl/⌘+I** too. Buttons are off on Preview and when the field is disabled.
+- **What the buttons do:** Bold `**…**` and Italic `_…_` (toggles), Heading `### ` and List `- ` on each selected line (toggles), Code `` `…` `` or a fenced block over several lines, Link `[…](url)` with `url` selected. Undo keeps them (the browser's `insertText`).
+- **Preview** uses the sanitized renderer in a bordered box; **an empty field says "Nothing to preview yet."** (not drawn in v2).
+- **Images in Markdown render as links** (9.4 decision 2): nothing is fetched until someone clicks.
+
 ### Import from Airtable (A10) as built in 8.5
 - **Where:** an outline **Import from Airtable** (`download`) between Add intern and Assign mentors, and as the primary button in the managers' empty roster ("Import interns from Airtable, or add them one at a time.", then Add intern). Admins and the batch's PM only, not on an archived batch.
 - **A Base ID field** (8.5 decision 1, asked for in 8.1): the API key on its own row, then **Base ID and Table ID side by side** (mono, "Starts with “app”." / "Starts with “tbl”."), then View name full width. The key is a password field with autocomplete off; it lives only in the dialog and is gone once it closes.
