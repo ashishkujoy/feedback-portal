@@ -18,7 +18,7 @@ export type StatusEvent = Readonly<{
   reason: string | null;
   noticeStartsOn: string | null;
   noticeEndsOn: string | null;
-  /** The feedback that gave notice, if any (Phase 9). */
+  /** The feedback that gave notice, if any. */
   feedbackId: string | null;
   actorId: UserId;
   createdAt: Date;
@@ -44,7 +44,7 @@ export type Intern = InternDetails &
     photoPublicId: string | null;
     /** Denormalized from `statusEvents`; operations keep them in step. */
     status: InternStatus;
-    /** Set by submitted feedback (Phase 9); `null` means no colour code yet. */
+    /** Set by submitted feedback; `null` means no colour code yet. */
     colorCode: ColorCode | null;
     /** `YYYY-MM-DD`, set exactly while on notice. */
     noticeEndsOn: string | null;
@@ -143,7 +143,8 @@ const statusLabels: Readonly<Record<InternStatus, string>> = {
 /** Graduated, terminated and withdrawn interns are read-only (PRODUCT §10). */
 export const isReadOnly = (intern: Intern): boolean => isFinalStatus(intern.status);
 
-const ensureEditable = (intern: Intern): void => {
+/** Refuses any change to a graduated, terminated or withdrawn intern. */
+export const ensureEditable = (intern: Intern): void => {
   if (isReadOnly(intern)) {
     throw conflict(
       `This intern is ${statusLabels[intern.status]}, so their record is read-only`,
@@ -286,6 +287,18 @@ export const updateDetails = (
 ): Intern => {
   ensureEditable(intern);
   return { ...intern, ...parseDetails(details), updatedAt: now };
+};
+
+/**
+ * The colour code from submitted feedback (Phase 9). There is no way back to `null`: feedback
+ * without a colour leaves the code alone.
+ */
+export const setColorCode = (
+  intern: Intern,
+  { colorCode, now }: Readonly<{ colorCode: ColorCode; now: Date }>,
+): Intern => {
+  ensureEditable(intern);
+  return { ...intern, colorCode, updatedAt: now };
 };
 
 /** The notice that is running, if the intern is on notice. */

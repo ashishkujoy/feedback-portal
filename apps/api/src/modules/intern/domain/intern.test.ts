@@ -14,6 +14,7 @@ import {
   liftNotice,
   onboardIntern,
   refreshFromAirtable,
+  setColorCode,
   terminate,
   updateDetails,
   withdraw,
@@ -377,6 +378,27 @@ describe('refreshFromAirtable', () => {
           now: t2,
         }),
       ).code,
+    ).toBe('intern_read_only');
+  });
+});
+
+describe('setColorCode', () => {
+  it('sets the code from submitted feedback, leaving status and history alone', () => {
+    const intern = onboard();
+
+    const coloured = setColorCode(intern, { colorCode: 'borderline_red', now: t2 });
+
+    expect(coloured).toMatchObject({
+      colorCode: 'borderline_red',
+      status: 'active',
+      updatedAt: t2,
+    });
+    expect(coloured.statusEvents).toBe(intern.statusEvents);
+  });
+
+  it('refuses a read-only intern', () => {
+    expect(
+      errorOf(() => setColorCode(internIn('terminated'), { colorCode: 'red', now: t2 })).code,
     ).toBe('intern_read_only');
   });
 });

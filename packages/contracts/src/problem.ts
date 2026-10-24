@@ -25,6 +25,9 @@ export const ErrorCode = z.enum([
   'intern_username_taken',
   'airtable_source_invalid',
   'airtable_unavailable',
+  'intern_not_active',
+  'feedback_not_draft',
+  'feedback_delivered',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

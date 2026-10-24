@@ -188,11 +188,11 @@ Checks: counts ≥ 0; `completed_at` set exactly when not `pending`; `failure_re
 | id | uuid PK | |
 | intern_id | uuid FK → interns | |
 | author_id | uuid FK → users | Mentor or PM of the intern's batch |
-| period | date | First day of the month the feedback covers (checked) |
+| period | date | First day of the month the feedback covers (checked); from the batch's start month to the current month (9.2 decision 4) |
 | body | text | Markdown. May be blank while a draft, not once submitted |
 | color_code | `color_code` null | `NULL` means "leave unchanged" |
-| previous_color_code | `color_code` null | Snapshot taken at submission, so history reads as "orange → borderline_red" |
-| gives_notice | boolean | Default `false`. When `true`, submitting the feedback puts the intern `on_notice` for one month in the same transaction. |
+| previous_color_code | `color_code` null | The intern's code just before submission, **only when this feedback sets a code**, so history reads as "orange → borderline_red" (9.2 decision 5) |
+| gives_notice | boolean | Default `false`. When `true`, submitting the feedback puts the intern `on_notice` for one month from the day it's submitted, in the same transaction. Only for an `active` intern; any colour code (or none) can go with it (9.2 decisions 1 and 2). |
 | state | `feedback_state` | `draft` → `submitted` → `delivered` |
 | conversation_id | uuid null | Set exactly when the feedback is delivered. Its foreign key comes with `conversations` (10.1) |
 | submitted_at | timestamptz null | Set exactly when the feedback is no longer a draft |
@@ -252,7 +252,7 @@ Constraint: `CHECK (num_nonnulls(feedback_id, conversation_id) = 1)`, so each co
 | From | To | Who | Trigger |
 |---|---|---|---|
 | — | `active` | Admin or PM | Onboarding / import |
-| `active` | `on_notice` | Mentor or PM of the batch | Submitting feedback with `gives_notice = true`. Notice runs one month. |
+| `active` | `on_notice` | Mentor or PM of the batch | Submitting feedback with `gives_notice = true`. Notice runs one month from the submission day; the history reads "Notice given in the October 2026 feedback." and points at the feedback. |
 | `on_notice` | `active` | PM | Notice lifted, with a reason |
 | `on_notice` | `terminated` | PM | Notice period ended, with a reason |
 | `active` | `graduated` | PM | Program completed, with a reason |
