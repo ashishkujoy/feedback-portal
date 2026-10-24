@@ -14,6 +14,12 @@ export const createBatchAccess =
     const [row] = await db
       .select({
         isArchived: batches.isArchived,
+        startDate: batches.startDate,
+        isMember: sql<boolean>`exists (select 1 from ${batchMembers} where ${and(
+          eq(batchMembers.batchId, batches.id),
+          eq(batchMembers.userId, viewer.id),
+          isNull(batchMembers.unassignedAt),
+        )})`,
         isProgramManager: sql<boolean>`exists (select 1 from ${batchMembers} where ${and(
           eq(batchMembers.batchId, batches.id),
           eq(batchMembers.userId, viewer.id),
@@ -29,5 +35,7 @@ export const createBatchAccess =
       canManage: viewer.isAdmin || row.isProgramManager,
       isProgramManager: row.isProgramManager,
       isArchived: row.isArchived,
+      isMember: row.isMember,
+      startDate: row.startDate,
     };
   };

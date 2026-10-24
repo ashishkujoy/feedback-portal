@@ -17,3 +17,6 @@ export const addMonths = (isoDate: string, count: number): string => {
     .map((part, i) => String(part).padStart(i === 0 ? 4 : 2, '0'))
     .join('-');
 };
+
+/** The calendar date in UTC (9.3 decision 3): the server's "today" for notices and months. */
+export const utcToday = (now: Date): string => now.toISOString().slice(0, 10);

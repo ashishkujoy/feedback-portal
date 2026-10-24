@@ -4,6 +4,8 @@ import type { ManageBatchesDeps } from './modules/cohort/application/manage-batc
 import { batchesRoutes } from './modules/cohort/http/batches.routes.ts';
 import { type AuthRoutesDeps, authRoutes } from './modules/identity/http/auth.routes.ts';
 import type { UserAdminTransaction } from './modules/identity/application/user-admin.ts';
+import type { ManageFeedbackDeps } from './modules/feedback/application/manage-feedback.ts';
+import { feedbackRoutes } from './modules/feedback/http/feedback.routes.ts';
 import type { ManageInternsDeps } from './modules/intern/application/manage-interns.ts';
 import { importsRoutes } from './modules/intern/http/imports.routes.ts';
 import { internsRoutes } from './modules/intern/http/interns.routes.ts';
@@ -24,6 +26,7 @@ export type AppDeps = HealthDeps &
     userAdmin: UserAdminTransaction;
     manageBatches: ManageBatchesDeps;
     manageInterns: ManageInternsDeps;
+    manageFeedback: ManageFeedbackDeps;
   }>;
 
 /** Shared middleware and error handling; routes are mounted by `createApp` (and tests). */
@@ -48,6 +51,10 @@ export const createApp = (deps: AppDeps): Hono<AppEnv> =>
     .route(
       '/batches/:batchId/imports',
       importsRoutes({ ...deps.auth, manageInterns: deps.manageInterns }),
+    )
+    .route(
+      '/batches/:batchId/interns/:internId/feedback',
+      feedbackRoutes({ ...deps.auth, manageFeedback: deps.manageFeedback }),
     )
     .route(
       '/batches/:batchId/interns',

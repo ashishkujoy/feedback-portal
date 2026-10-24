@@ -8,6 +8,10 @@ export type BatchAccessGrant = Readonly<{
   /** The batch's current programme manager (status changes are theirs alone, 7.6). */
   isProgramManager: boolean;
   isArchived: boolean;
+  /** A current mentor or programme manager: who writes feedback (admins only when assigned). */
+  isMember: boolean;
+  /** `YYYY-MM-DD`: feedback can cover months from this one on (9.2 decision 4). */
+  startDate: string;
 }>;
 
 /**

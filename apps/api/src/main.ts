@@ -14,6 +14,7 @@ import { createInternCounts } from './modules/intern/infrastructure/drizzle-inte
 import { createAirtableRestSource } from './modules/intern/infrastructure/airtable-rest-source.ts';
 import { createCloudinaryPhotoStorage } from './modules/intern/infrastructure/cloudinary-photo-storage.ts';
 import { createImportRuns } from './modules/intern/infrastructure/drizzle-import-runs.ts';
+import { createFeedbackTransaction } from './modules/feedback/infrastructure/drizzle-feedback-admin.ts';
 import { createInternAdminTransaction } from './modules/intern/infrastructure/drizzle-intern-admin.ts';
 import { loadConfigOrExit } from './shared/config/load-config-or-exit.ts';
 import { createDb } from './shared/db/client.ts';
@@ -74,6 +75,10 @@ const server = serve(
         photos: config.photos ? createCloudinaryPhotoStorage(config.photos) : null,
         airtable: createAirtableRestSource({ apiBaseUrl: config.airtable.apiBaseUrl }),
         importRuns: createImportRuns(database.db),
+        now,
+      },
+      manageFeedback: {
+        transaction: createFeedbackTransaction(database.db, createBatchAccess),
         now,
       },
     }).fetch,

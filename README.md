@@ -115,6 +115,15 @@ Every other column is kept as it is in the intern's raw Airtable record. On a re
   - **Usernames** are stored lower-cased, without a leading `@`, and are unique within the batch ignoring case (409 `intern_username_taken`). Emails are lower-cased; blank optional fields become empty.
   - Members must be active and hold the matching role (409 `member_inactive`, `member_role_mismatch`).
 
+### API endpoints (feedback)
+All under **`/batches/:batchId/interns/:internId/feedback`**. Anyone who can see the batch reads it; **its current mentors and PM write** (an admin only when assigned to the batch; otherwise 403). Archived batches are read-only (409 `batch_archived`), and so are graduated, terminated and withdrawn interns (409 `intern_read_only`; a draft can still be discarded).
+- **`GET /`** lists submitted and delivered feedback **plus your own drafts** (`FeedbackView`, drafts first, then newest submitted). Someone else's draft is invisible, and a **404** on every write.
+- **`POST /`** with `{ period, body, colorCode, givesNotice, submit? }` creates a draft (201). With **`submit: true`** it's submitted in the same request: either it's submitted or nothing is saved. Submitting sets the intern's colour (when one is given) and, with `givesNotice`, puts an Active intern on notice for one month.
+- **`PUT /:feedbackId`** replaces a draft's content, and submits it with `submit: true`. 409 `feedback_not_draft` once submitted.
+- **`PATCH /:feedbackId`** with `{ body }` edits the text of your submitted feedback.
+- **`DELETE /:feedbackId`** discards your draft (204).
+- **Times are UTC.** Timestamps go out as UTC ISO strings for the browser to show in local time, and "today" (a notice's start, the latest month that can be chosen) is the UTC date. `period` is the first of a month, from the batch's start month to the current one. Two submissions for the same intern run one after the other (a second notice is 409 `intern_not_active`).
+
 ## Running everything in Docker
 
 ```sh

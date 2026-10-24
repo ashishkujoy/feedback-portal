@@ -11,6 +11,7 @@ export {
 } from './batch.ts';
 export { BatchMemberRole, batchMemberRoles } from './batch-member-role.ts';
 export { ColorCode, colorCodes, colorCodeSeverity, compareColorCodes } from './color-code.ts';
+export { FeedbackBodyRequest, FeedbackContentRequest, FeedbackView } from './feedback.ts';
 export { FeedbackState, feedbackStates } from './feedback-state.ts';
 export { HealthResponse } from './health.ts';
 export {

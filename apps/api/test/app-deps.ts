@@ -19,6 +19,7 @@ import type { ManageInternsDeps } from '../src/modules/intern/application/manage
 import type { AirtableSource } from '../src/modules/intern/application/airtable-source.ts';
 import type { PhotoStorage } from '../src/modules/intern/application/photo-storage.ts';
 import { createImportRuns } from '../src/modules/intern/infrastructure/drizzle-import-runs.ts';
+import { createFeedbackTransaction } from '../src/modules/feedback/infrastructure/drizzle-feedback-admin.ts';
 import { createInternAdminTransaction } from '../src/modules/intern/infrastructure/drizzle-intern-admin.ts';
 import type { Database } from '../src/shared/db/client.ts';
 
@@ -69,6 +70,7 @@ export const appDeps = (ping: AppDeps['ping']): AppDeps => ({
   userAdmin: unused,
   manageBatches: unusedManageBatches,
   manageInterns: unusedManageInterns,
+  manageFeedback: { transaction: unused, now: () => new Date() },
 });
 
 type SignInAsOptions = Readonly<{
@@ -151,6 +153,7 @@ export const realApp = (
       photos,
       now,
     },
+    manageFeedback: { transaction: createFeedbackTransaction(db, createBatchAccess), now },
   });
   return {
     app,
@@ -161,6 +164,10 @@ export const realApp = (
       signInAs({ users, sessions, now }, { secureCookies, ...options }),
     travel: (ms: number) => {
       current = new Date(current.getTime() + ms);
+    },
+    /** Sets the clock; sign people in after it, so their sessions start then. */
+    setTime: (at: Date) => {
+      current = at;
     },
   };
 };
