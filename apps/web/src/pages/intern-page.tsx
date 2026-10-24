@@ -264,6 +264,7 @@ export const InternPage = () => {
           batch={batch}
           today={on}
           colouredOn={feedback.data ? latestColouredOn(feedback.data) : null}
+          feedback={feedback.data}
         />
       </div>
     </>

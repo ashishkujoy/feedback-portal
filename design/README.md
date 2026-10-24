@@ -63,7 +63,7 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 
 ### Intern profile (P6 / M6, P22, P23, A6) as built in 7.5
 - **At `/batches/:batchId/interns/:internId`**, with the crumbs Batches › \<batch\> › \<intern\>. Roster names link to it: only the name, so nothing interactive nests.
-- **Left out until their tasks** (7.5 decision 1): Give feedback (Phase 9), and the colour history and "Linked feedback" (Phase 9).
+- **Left out until their tasks** (7.5 decision 1): Give feedback (9.5), the colour history (9.7) and "Linked feedback" (Phase 9).
 - **Timeline:** v2's empty state without its button (decision 2), naming the intern by first name.
 - **Status history** is built (decision 3). The onboarding row, which has no reason, reads "Added by hand." or "Imported from Airtable.". Reasons render as Markdown.
 - **On-notice banner** without "with \<colour\> feedback" until Phase 9 (decision 5). Once a notice has ended: "Notice ended on \<date\> · decision needed".
@@ -110,6 +110,13 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 - **The draft card:** "Your draft · only you can see this · edited 23 Oct", Draft, a plain-text excerpt (about 160 characters; **"No text yet."** for a blank draft, not in v2), **Continue editing** (opens A7 on the draft) and **Discard** (A26). **No buttons when the viewer can't write feedback there any more** (archived, read-only, no longer a mentor; decision 3).
 - **The side panel** says "From the latest coloured feedback, 8 Oct 2026." (decision 4).
 - **Editing submitted feedback** is task 9.8 (decision 5).
+
+### Colour history (A6 side panel) as built in 9.7
+- **Between Colour code and Mentors**, only once the intern has coloured feedback (v2 hides it for Zoya), and not while the feedback loads or after it fails to load. Built from the feedback list: no API of its own (9.7 decision 1).
+- **The strip:** v2's 10px bar with 1px gaps, each colour as wide as the days it lasted, grey "No colour" before the first coloured feedback, a colour given again merged into one run. **From the batch's start to today, or to the day the intern graduated, was terminated or withdrew** (that day replaces "Today"); hidden before the batch starts (decision 2).
+- **The chart:** v2's rows Green → Red (104px labels, 20px rows, 10px dots), one column per coloured feedback, a colour given again in its own column. **At most the latest 4 columns** with "Latest 4 of N." under them (decision 3): v2 draws 4, and more make the dates wrap into the dots at 300px.
+- **Dates:** always "24 Jul", with the full date as the tooltip (decision 4; v2 uses month names for Meera).
+- **Screen readers** get a hidden list ("Yellow, 24 Jul 2026", every entry); the strip and chart are hidden from them.
 
 ### Import from Airtable (A10) as built in 8.5
 - **Where:** an outline **Import from Airtable** (`download`) between Add intern and Assign mentors, and as the primary button in the managers' empty roster ("Import interns from Airtable, or add them one at a time.", then Add intern). Admins and the batch's PM only, not on an archived batch.

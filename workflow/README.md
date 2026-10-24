@@ -130,7 +130,7 @@ Update the status in both `PLAN.md` and the board below whenever it changes.
 | 9.4 Markdown components | [`phase/09-feedback/04-markdown-components`](phase/09-feedback/04-markdown-components/PLAN.md) | Done |
 | 9.5 Write feedback UI | [`phase/09-feedback/05-write-feedback-ui`](phase/09-feedback/05-write-feedback-ui/PLAN.md) | Done |
 | 9.6 Feedback on intern timeline | [`phase/09-feedback/06-feedback-on-intern-timeline`](phase/09-feedback/06-feedback-on-intern-timeline/PLAN.md) | Done |
-| 9.7 Color code history | [`phase/09-feedback/07-color-code-history`](phase/09-feedback/07-color-code-history/PLAN.md) | Not started |
+| 9.7 Color code history | [`phase/09-feedback/07-color-code-history`](phase/09-feedback/07-color-code-history/PLAN.md) | Done |
 | 9.8 Edit submitted feedback | [`phase/09-feedback/08-edit-submitted-feedback`](phase/09-feedback/08-edit-submitted-feedback/PLAN.md) | Not started |
 
 ### Phase 10 — Conversations & comments
