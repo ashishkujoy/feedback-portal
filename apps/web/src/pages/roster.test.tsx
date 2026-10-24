@@ -263,10 +263,21 @@ describe('states', () => {
     const { user } = await open();
 
     expect(await screen.findByText('No interns yet')).toBeInTheDocument();
-    expect(screen.getByText('Add interns one at a time.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Import interns from Airtable, or add them one at a time.'),
+    ).toBeInTheDocument();
     const buttons = screen.getAllByRole('button', { name: 'Add intern' });
     await user.click(buttons.at(-1) ?? document.body);
     expect(screen.getByRole('dialog', { name: 'Add intern' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+
+    // The empty state's Import from Airtable (primary) opens the import.
+    const imports = screen.getAllByRole('button', { name: 'Import from Airtable' });
+    expect(imports).toHaveLength(2);
+    await user.click(imports.at(-1) ?? document.body);
+    expect(
+      screen.getByRole('dialog', { name: 'Import interns from Airtable' }),
+    ).toBeInTheDocument();
   });
 
   it('tells a mentor who adds interns', async () => {
@@ -281,6 +292,7 @@ describe('states', () => {
       await screen.findByText('The programme manager adds interns to this batch.'),
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add intern' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Import from Airtable' })).not.toBeInTheDocument();
   });
 
   it('shows skeletons while loading', async () => {

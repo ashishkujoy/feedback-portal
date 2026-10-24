@@ -9,11 +9,11 @@ export const ImportSourceRequest = z.object({
   baseId: z
     .string()
     .trim()
-    .regex(/^app[A-Za-z0-9]{14}$/, { error: 'A base ID starts with "app"' }),
+    .regex(/^app[A-Za-z0-9]{14}$/, { error: 'Base IDs start with “app”' }),
   tableId: z
     .string()
     .trim()
-    .regex(/^tbl[A-Za-z0-9]{14}$/, { error: 'A table ID starts with "tbl"' }),
+    .regex(/^tbl[A-Za-z0-9]{14}$/, { error: 'Table IDs start with “tbl”' }),
   view: z
     .string()
     .trim()

@@ -41,7 +41,7 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 - Assign mentors and the Mentors table (6.6 → **A11**, **A4**).
 
 ### Add intern (A14) as built in 7.3
-- **Add intern** (outline, `plus`) sits in the batch header before Assign mentors, for the batch's managers. A2's **Archive batch** and **Import from Airtable** come with their tasks.
+- **Add intern** (outline, `plus`) sits in the batch header before Assign mentors, for the batch's managers. A2's **Archive batch** comes with its task; **Import from Airtable** came in 8.5.
 - **Email is required** (7.3 decision 1): the dialog marks it, unlike A14, because every intern has an email (DATA_MODEL).
 - **Usernames are stored lower-cased** (decision 2), as A14's help text says.
 - **The success sentence is "\<Name\> is on the roster as Active, with no colour code."** (decision 3): no pronoun, and nothing about features not built yet.
@@ -51,7 +51,7 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 - **No feedback parts yet** (decision 2): cards have no "N feedback · date" or Give feedback, and their footer appears only for **Read-only**. The table has Intern, Colour code, Status and a Read-only column, without Feedback and Last feedback.
 - **Filters:** one at a time (decision 3). Choosing the selected tag again goes back to All. The tab, view, filter and search are in the URL (`?tab=mentors&view=table&filter=red&q=ish`), with the defaults left out; typing a search replaces the history entry.
 - **Order:** by name, ignoring case and accents; everything loads at once (decision 4).
-- **Not yet** (decision 5): photos (initials only), links to the profile, and Import from Airtable. The empty state for managers says "Add interns one at a time." with **Add intern**, instead of v2's sentence about importing.
+- **Not yet** (decision 5): photos (initials only) and links to the profile, both since built (7.5, 7.7). The empty state for managers has v2's sentence and buttons since 8.5.
 - **No results** for a filter without a search names the filter: "No interns match "Red"". v2 only draws the search case.
 - **Kuat Tag in toggle mode** is full size (8px 10px, 14/21), so the 12 tags wrap to a second line at 1440px.
 
@@ -87,6 +87,15 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 - **An outline `sm` Edit details** at the right of the Details card's header, for admins and the batch's PM, not on a read-only intern or an archived batch (7.9 decision 1).
 - **The dialog shares A14's fields** (`interns/intern-fields.tsx`). Username is disabled (Kuat's disabled Input: `--muted` at 60%) with "Usernames can't change because imports match on them."; the rest are filled in from the profile. **Save details** ("Saving…"). A blank optional field clears it (decision 3).
 - **The email error stays "Invalid email address"** (decision 2), as on every other form, rather than A15's "Enter a valid email address."
+
+### Import from Airtable (A10) as built in 8.5
+- **Where:** an outline **Import from Airtable** (`download`) between Add intern and Assign mentors, and as the primary button in the managers' empty roster ("Import interns from Airtable, or add them one at a time.", then Add intern). Admins and the batch's PM only, not on an archived batch.
+- **A Base ID field** (8.5 decision 1, asked for in 8.1): the API key on its own row, then **Base ID and Table ID side by side** (mono, "Starts with “app”." / "Starts with “tbl”."), then View name full width. The key is a password field with autocomplete off; it lives only in the dialog and is gone once it closes.
+- **Source errors** come from the shared contract, without v2's closing full stop, like every other form: "Enter an API key", "Base IDs start with “app”", "Table IDs start with “tbl”", "Enter a view name". Airtable's refusal shows "We couldn't connect to Airtable" with the API's sentence.
+- **Importing** (decision 2): the spinner and "Importing N interns", **without v2's progress bar or its import-history sentence** (the import is one request, and A25 isn't built). Close stays; the import carries on.
+- **Result** (decision 3): **no "View import history"** until A25. "Skipped rows weren't changed." only when something was skipped.
+- **Nothing to import** (decision 4, not in v2): the preview shows with **Import 0 interns** disabled, and focus on Back.
+- **Invalid rows** list every reason on its own line. Failed: "Import failed" with the API's sentence and "Nothing was saved.", then Back (to the preview) and Try again.
 
 ## Screens (v1)
 **Desktop is 1440 wide; mobile is 390×844.** Every desktop screen has the same shell:

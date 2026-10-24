@@ -1,7 +1,7 @@
 import type { BatchMemberView } from '@feedback-portal/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { Plus, Users } from 'lucide-react';
+import { Download, Plus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { batchQuery, showUpdatedBatch, unassignMentor } from '../api/batches.ts';
 import { isApiError } from '../api/errors.ts';
@@ -11,6 +11,7 @@ import { batchDates, batchStatus, statusBadges } from '../batches/batch-status.t
 import { canManageBatch } from '../batches/can-manage.ts';
 import { hasPastMembers, MentorsTable, PastMembersTable } from '../batches/members-table.tsx';
 import { AddInternDialog } from '../interns/add-intern-dialog.tsx';
+import { ImportDialog } from '../interns/import-dialog.tsx';
 import { RosterPanel, type RosterState } from '../interns/roster-panel.tsx';
 import { useMe } from '../shell/use-me.ts';
 import { Button } from '../ui/button.tsx';
@@ -40,7 +41,8 @@ const tabItems = (internCount: number, mentorCount: number): TabItem<Tab>[] => [
 /**
  * A2 / A3 / M2 / A4 · a batch: the header, then the Interns tab (the roster, 7.4) and the Mentors
  * tab (its current mentors and past members). Its managers (admins and its PM) get Add intern
- * (7.3), Assign mentors and Remove (6.6). v2's other tabs and Import come with their tasks.
+ * (7.3), Import from Airtable (8.5), Assign mentors and Remove (6.6). v2's other tabs come with
+ * their tasks.
  */
 export const BatchPage = () => {
   const { batchId } = route.useParams();
@@ -51,6 +53,7 @@ export const BatchPage = () => {
   const { data: batch, error } = useQuery(batchQuery(batchId));
   const [assigning, setAssigning] = useState(false);
   const [addingIntern, setAddingIntern] = useState(false);
+  const [importing, setImporting] = useState(false);
   // Remove: unassigns at once (6.6 decision 3); the mentor moves to Past members.
   const remove = useMutation({
     mutationFn: (member: BatchMemberView) => unassignMentor(batchId, member.user.id),
@@ -102,6 +105,10 @@ export const BatchPage = () => {
               <Plus aria-hidden size={16} strokeWidth={2} />
               Add intern
             </Button>
+            <Button variant="outline" onClick={() => setImporting(true)}>
+              <Download aria-hidden size={16} strokeWidth={2} />
+              Import from Airtable
+            </Button>
             <Button variant="outline" onClick={() => setAssigning(true)}>
               <Users aria-hidden size={16} strokeWidth={2} />
               Assign mentors
@@ -116,6 +123,12 @@ export const BatchPage = () => {
             batchName={batch.name}
             open={addingIntern}
             onClose={() => setAddingIntern(false)}
+          />
+          <ImportDialog
+            batchId={batch.id}
+            batchName={batch.name}
+            open={importing}
+            onClose={() => setImporting(false)}
           />
           <AssignMentorsDialog
             batchId={batch.id}
@@ -145,6 +158,7 @@ export const BatchPage = () => {
             q={q}
             onStateChange={setSearch}
             onAddIntern={manages ? () => setAddingIntern(true) : undefined}
+            onImport={manages ? () => setImporting(true) : undefined}
           />
         ) : (
           <>

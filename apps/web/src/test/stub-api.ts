@@ -3,10 +3,10 @@ import { vi } from 'vitest';
 
 export type Reply = Readonly<{ status: number; body?: unknown; contentType?: string }>;
 
-export const problem = (status: number, code: string): Reply => ({
+export const problem = (status: number, code: string, detail?: string): Reply => ({
   status,
   contentType: 'application/problem+json',
-  body: { type: 'about:blank', title: 'Error', status, code, requestId: 'req-1' },
+  body: { type: 'about:blank', title: 'Error', status, code, requestId: 'req-1', detail },
 });
 
 /** Neutral names; the real ones only ever come from the API's config. */

@@ -32,6 +32,8 @@ type RosterPanelProps = RosterState &
     onStateChange: (next: Partial<RosterState>) => void;
     /** For the batch's managers: the empty state's Add intern. */
     onAddIntern?: (() => void) | undefined;
+    /** For the batch's managers: the empty state's Import from Airtable. */
+    onImport?: (() => void) | undefined;
   }>;
 
 const viewOptions = [
@@ -164,7 +166,13 @@ const RosterList = ({ interns, batch, view, filter, q, onStateChange }: ListProp
  * A2 / A3 / M2 · the Interns tab: the roster with its states. The search and filters are kept
  * through a failed load and a retry.
  */
-export const RosterPanel = ({ batch, onStateChange, onAddIntern, ...state }: RosterPanelProps) => {
+export const RosterPanel = ({
+  batch,
+  onStateChange,
+  onAddIntern,
+  onImport,
+  ...state
+}: RosterPanelProps) => {
   const { data: interns, error, refetch, isFetching } = useQuery(internsQuery(batch.id));
 
   if (error && !interns) {
@@ -189,15 +197,17 @@ export const RosterPanel = ({ batch, onStateChange, onAddIntern, ...state }: Ros
         title="No interns yet"
         description={
           onAddIntern
-            ? // v2 also offers Import from Airtable, which comes with Phase 8.
-              'Add interns one at a time.'
+            ? 'Import interns from Airtable, or add them one at a time.'
             : 'The programme manager adds interns to this batch.'
         }
       >
         {onAddIntern ? (
-          <Button variant="outline" onClick={onAddIntern}>
-            Add intern
-          </Button>
+          <>
+            {onImport ? <Button onClick={onImport}>Import from Airtable</Button> : null}
+            <Button variant="outline" onClick={onAddIntern}>
+              Add intern
+            </Button>
+          </>
         ) : null}
       </EmptyBox>
     );

@@ -28,8 +28,8 @@ describe('ImportSourceRequest', () => {
 
     expect(result.error?.issues.map((issue) => [issue.path.join('.'), issue.message])).toEqual([
       ['token', 'Enter an API key'],
-      ['baseId', 'A base ID starts with "app"'],
-      ['tableId', 'A table ID starts with "tbl"'],
+      ['baseId', 'Base IDs start with “app”'],
+      ['tableId', 'Table IDs start with “tbl”'],
       ['view', 'Enter a view name'],
     ]);
   });
