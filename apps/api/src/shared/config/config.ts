@@ -106,6 +106,12 @@ const EnvSchema = z.object({
     .string()
     .refine(isHttpUrl, { error: httpUrlError })
     .default('https://res.cloudinary.com'),
+  // Airtable import (Phase 8). The token is typed in per import, never configured; this is only
+  // for tests and local stand-ins (default: Airtable's).
+  AIRTABLE_API_BASE_URL: z
+    .string()
+    .refine(isHttpUrl, { error: httpUrlError })
+    .default('https://api.airtable.com'),
   // Read only by the seed (`pnpm db:seed`); the API server ignores them.
   BOOTSTRAP_ADMIN_EMAIL: z.email({ error: 'expected an email address' }).optional(),
   BOOTSTRAP_ADMIN_NAME: z
@@ -125,6 +131,7 @@ export type Config = Readonly<{
   branding: Readonly<{ programName: string; orgName: string }>;
   telemetry: TelemetryConfig;
   auth: AuthConfig;
+  airtable: AirtableConfig;
   /** `null` when `CLOUDINARY_URL` isn't set: photos are off. */
   photos: PhotosConfig | null;
   /** `null` when `BOOTSTRAP_ADMIN_EMAIL` isn't set. */
@@ -146,6 +153,8 @@ export type AuthConfig = Readonly<{
   /** Secure, `__Host-` prefixed cookies; on in production, off for plain-http local dev. */
   secureCookies: boolean;
 }>;
+
+export type AirtableConfig = Readonly<{ apiBaseUrl: string }>;
 
 export type PhotosConfig = Readonly<{
   cloudName: string;
@@ -238,6 +247,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => {
     CLOUDINARY_FOLDER,
     CLOUDINARY_API_BASE_URL,
     CLOUDINARY_DELIVERY_BASE_URL,
+    AIRTABLE_API_BASE_URL,
     BOOTSTRAP_ADMIN_EMAIL,
     BOOTSTRAP_ADMIN_NAME,
   } = result.data;
@@ -270,6 +280,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => {
       webAppUrl: WEB_APP_URL.replace(/\/+$/, ''),
       secureCookies: NODE_ENV === 'production',
     }),
+    airtable: Object.freeze({ apiBaseUrl: AIRTABLE_API_BASE_URL.replace(/\/+$/, '') }),
     photos: cloudinary
       ? Object.freeze({
           ...cloudinary,

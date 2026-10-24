@@ -1,0 +1,6 @@
+{
+  "error": {
+    "type": "VIEW_NAME_NOT_FOUND",
+    "message": "Could not find view \"Batch 2 – late joiners\" in table"
+  }
+}

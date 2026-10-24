@@ -24,6 +24,7 @@ describe('loadConfig', () => {
       branding: { programName: 'Test Program', orgName: 'Test Org' },
       telemetry: { enabled: false },
       auth: { google: null, webAppUrl: 'http://localhost:5173', secureCookies: false },
+      airtable: { apiBaseUrl: 'https://api.airtable.com' },
       photos: null,
       bootstrapAdmin: null,
     });

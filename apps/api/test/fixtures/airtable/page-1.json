@@ -1,0 +1,29 @@
+{
+  "records": [
+    {
+      "id": "recA1b2C3d4E5f6G7",
+      "createdTime": "2026-06-02T08:15:00.000Z",
+      "fields": {
+        "Username": "Ishita.Rao",
+        "Full name": "Ishita Rao",
+        "Email": "ishita.rao@example.com",
+        "Phone": "+91 98450 12345",
+        "Diploma branch": "Computer Engineering",
+        "Parents' names": "Ramesh Rao, Kavitha Rao",
+        "Interview notes": "### Technical round\n- Solved the string-compression problem tests first",
+        "Interview score": 8
+      }
+    },
+    {
+      "id": "recB2c3D4e5F6g7H8",
+      "createdTime": "2026-06-02T08:16:00.000Z",
+      "fields": {
+        "Username": "zoya.ansari",
+        "Full name": "Zoya Ansari",
+        "Email": "zoya.ansari@example.com",
+        "Diploma branch": "Information Technology"
+      }
+    }
+  ],
+  "offset": "itrPage2/recB2c3D4e5F6g7H8"
+}

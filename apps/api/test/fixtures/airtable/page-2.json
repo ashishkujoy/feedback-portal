@@ -1,0 +1,14 @@
+{
+  "records": [
+    {
+      "id": "recC3d4E5f6G7h8I9",
+      "createdTime": "2026-06-03T09:00:00.000Z",
+      "fields": {
+        "Username": "kabir.nair",
+        "Full name": "Kabir Nair",
+        "Email": "kabir.nair@example.com",
+        "Phone": "+91 99000 41822"
+      }
+    }
+  ]
+}
