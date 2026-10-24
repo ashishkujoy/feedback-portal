@@ -102,7 +102,7 @@ describe('the batch page', () => {
 
   it('lists current mentors with email and when they were assigned', async () => {
     withBatch(detail([oldPm, ann, bo, pat, cy]));
-    renderApp(`/batches/${id}`);
+    renderApp(`/batches/${id}?tab=mentors`);
     await screen.findByRole('heading', { level: 1, name: 'Batch 2027' });
 
     expect(rowsOf('Mentors')).toEqual([
@@ -113,7 +113,7 @@ describe('the batch page', () => {
 
   it('lists past members: mentors who left and replaced programme managers', async () => {
     withBatch(detail([oldPm, ann, bo, pat, cy]));
-    renderApp(`/batches/${id}`);
+    renderApp(`/batches/${id}?tab=mentors`);
     await screen.findByRole('heading', { level: 1, name: 'Batch 2027' });
 
     expect(screen.getByRole('heading', { level: 2, name: 'Past members' })).toBeInTheDocument();
@@ -125,7 +125,7 @@ describe('the batch page', () => {
 
   it('hides past members when there are none, and says when there are no mentors', async () => {
     withBatch(detail([pat]));
-    renderApp(`/batches/${id}`);
+    renderApp(`/batches/${id}?tab=mentors`);
     await screen.findByRole('heading', { level: 1, name: 'Batch 2027' });
 
     expect(screen.queryByRole('heading', { name: 'Past members' })).not.toBeInTheDocument();

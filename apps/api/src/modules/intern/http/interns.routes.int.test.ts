@@ -1,5 +1,6 @@
 import { BatchDetail, InternSummary, ProblemDetails, type Role } from '@feedback-portal/contracts';
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import { realApp } from '../../../../test/app-deps.ts';
 import { useTestDb } from '../../../../test/test-db.ts';
 import { newBatchId } from '../../cohort/domain/batch-id.ts';
@@ -10,6 +11,9 @@ const testDb = useTestDb();
 const db = () => testDb.handle.db;
 
 type Setup = ReturnType<typeof realApp>;
+
+const get = ({ app }: Setup, cookie: string, path: string) =>
+  app.request(path, { headers: { cookie } });
 
 const post = ({ app, webAppUrl }: Setup, cookie: string, path: string, body?: unknown) =>
   app.request(path, {
@@ -47,7 +51,9 @@ const setUp = async () => {
   await post(setup, admin.cookie, `/batches/${batch.id}/mentors`, { userId: mentor.user.id });
   const add = (who: { cookie: string }, body: unknown = ishita, batchId = batch.id) =>
     post(setup, who.cookie, `/batches/${batchId}/interns`, body);
-  return { setup, person, admin, pm, mentor, batch, add };
+  const list = (who: { cookie: string }, batchId = batch.id) =>
+    get(setup, who.cookie, `/batches/${batchId}/interns`);
+  return { setup, person, admin, pm, mentor, batch, add, list };
 };
 
 describe('POST /batches/:batchId/interns', () => {
@@ -160,5 +166,83 @@ describe('POST /batches/:batchId/interns', () => {
 
       expect((await problemOf(await add(admin, ishita, newBatchId()), 404)).code).toBe('not_found');
     });
+  });
+});
+
+const namesOf = async (response: Response) => {
+  expect(response.status).toBe(200);
+  return z
+    .array(InternSummary)
+    .parse(await response.json())
+    .map((intern) => intern.name);
+};
+
+describe('GET /batches/:batchId/interns', () => {
+  it("lists the batch's interns by name, ignoring case", async () => {
+    const { pm, add, list } = await setUp();
+    await Promise.all(
+      [
+        ['zoya', 'Zoya Ansari'],
+        ['aarav', 'aarav Sharma'],
+        ['ishita', 'Ishita Rao'],
+      ].map(async ([username = '', name]) =>
+        add(pm, { username, name, email: `${username}@example.com` }),
+      ),
+    );
+
+    expect(await namesOf(await list(pm))).toEqual(['aarav Sharma', 'Ishita Rao', 'Zoya Ansari']);
+  });
+
+  it('lists only that batch', async () => {
+    const { setup, admin, pm, add, list } = await setUp();
+    const other = BatchDetail.parse(
+      await (
+        await post(setup, admin.cookie, '/batches', {
+          name: 'Batch 2',
+          startDate: '2027-01-11',
+          endDate: '2028-06-25',
+          programManagerId: pm.user.id,
+        })
+      ).json(),
+    );
+    await add(pm);
+    await add(pm, { ...ishita, username: 'kabir', name: 'Kabir Nair' }, other.id);
+
+    expect(await namesOf(await list(pm))).toEqual(['Ishita Rao']);
+  });
+
+  it("is open to the batch's PM, its mentors and admins", async () => {
+    const { pm, mentor, admin, add, list } = await setUp();
+    await add(pm);
+
+    const lists = await Promise.all(
+      [pm, mentor, admin].map(async (who) => namesOf(await list(who))),
+    );
+
+    expect(lists).toEqual([['Ishita Rao'], ['Ishita Rao'], ['Ishita Rao']]);
+  });
+
+  it('is still readable once the batch is archived', async () => {
+    const { setup, admin, pm, batch, add, list } = await setUp();
+    await add(pm);
+    await post(setup, admin.cookie, `/batches/${batch.id}/archive`);
+
+    expect(await namesOf(await list(pm))).toEqual(['Ishita Rao']);
+  });
+
+  it("is 404 for someone who isn't on the batch, and for an unknown batch", async () => {
+    const { person, admin, list } = await setUp();
+    const outsider = await person('Oli Other', ['mentor']);
+
+    expect((await problemOf(await list(outsider), 404)).code).toBe('not_found');
+    expect((await problemOf(await list(admin, newBatchId()), 404)).code).toBe('not_found');
+  });
+
+  it('is 401 when signed out', async () => {
+    const { setup, batch } = await setUp();
+
+    expect((await problemOf(await get(setup, '', `/batches/${batch.id}/interns`), 401)).code).toBe(
+      'unauthenticated',
+    );
   });
 });

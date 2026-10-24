@@ -99,7 +99,7 @@ const stub = (
 
 const loaded = async () => {
   const user = userEvent.setup();
-  renderApp(`/batches/${batchId}`);
+  renderApp(`/batches/${batchId}?tab=mentors`);
   await screen.findByRole('heading', { level: 1, name: 'Batch 2027' });
   return user;
 };

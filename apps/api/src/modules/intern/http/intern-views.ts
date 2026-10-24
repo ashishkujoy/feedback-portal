@@ -1,7 +1,8 @@
 import type { InternSummary } from '@feedback-portal/contracts';
+import type { InternSummaryView } from '../application/intern-queries.ts';
 import type { Intern } from '../domain/intern.ts';
 
-export const toInternSummary = (intern: Intern): InternSummary => ({
+export const toInternSummary = (intern: Intern | InternSummaryView): InternSummary => ({
   id: intern.id,
   batchId: intern.batchId,
   username: intern.username,

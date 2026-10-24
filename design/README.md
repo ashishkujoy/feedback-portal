@@ -46,6 +46,15 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 - **Usernames are stored lower-cased** (decision 2), as A14's help text says.
 - **The success sentence is "\<Name\> is on the roster as Active, with no colour code."** (decision 3): no pronoun, and nothing about features not built yet.
 
+### Batch page and roster (A2, A3, M2, A4) as built in 7.4
+- **Tabs:** only **Interns** (first) and **Mentors** (6.6's Mentors and Past members tables) for now (7.4 decision 1). Overview, Notice tracker and Imports come with their tasks.
+- **No feedback parts yet** (decision 2): cards have no "N feedback · date" or Give feedback, and their footer appears only for **Read-only**. The table has Intern, Colour code, Status and a Read-only column, without Feedback and Last feedback.
+- **Filters:** one at a time (decision 3). Choosing the selected tag again goes back to All. The tab, view, filter and search are in the URL (`?tab=mentors&view=table&filter=red&q=ish`), with the defaults left out; typing a search replaces the history entry.
+- **Order:** by name, ignoring case and accents; everything loads at once (decision 4).
+- **Not yet** (decision 5): photos (initials only), links to the profile, and Import from Airtable. The empty state for managers says "Add interns one at a time." with **Add intern**, instead of v2's sentence about importing.
+- **No results** for a filter without a search names the filter: "No interns match "Red"". v2 only draws the search case.
+- **Kuat Tag in toggle mode** is full size (8px 10px, 14/21), so the 12 tags wrap to a second line at 1440px.
+
 ## Screens (v1)
 **Desktop is 1440 wide; mobile is 390×844.** Every desktop screen has the same shell:
 - A 240px **Tech Blue sidebar**: logo mark, program name and "Mentor portal", a "Workspace" section, **Batches** (shown as "My batches" for mentors) and **Users and roles** (admin only).

@@ -18,6 +18,7 @@ import { BatchesPage } from '../pages/batches-page.tsx';
 import { LoginPage } from '../pages/login-page.tsx';
 import { NotFoundPage } from '../pages/not-found-page.tsx';
 import { UsersPage } from '../pages/users-page.tsx';
+import { RosterFilter } from '../interns/roster.ts';
 import { AppShell } from '../shell/app-shell.tsx';
 
 export type RouterContext = Readonly<{ queryClient: QueryClient }>;
@@ -108,6 +109,13 @@ const batchRoute = createRoute({
       return { name: undefined };
     }
   },
+  // The tab and the roster's view, filter and search (7.4 decision 3); bad values are dropped.
+  validateSearch: z.object({
+    tab: z.enum(['interns', 'mentors']).optional().catch(undefined),
+    view: z.enum(['cards', 'table']).optional().catch(undefined),
+    filter: RosterFilter.optional().catch(undefined),
+    q: z.string().optional().catch(undefined),
+  }),
   staticData: { crumb: ({ loaderData }) => BatchCrumb.safeParse(loaderData).data?.name },
   component: BatchPage,
   notFoundComponent: NotFoundPage,

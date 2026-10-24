@@ -51,3 +51,12 @@ export const addMonths = (isoDate: string, count: number): string => {
     .map((part, i) => String(part).padStart(i === 0 ? 4 : 2, '0'))
     .join('-');
 };
+
+const utcOf = (isoDate: string): number => {
+  const { year, month, day } = partsOf(isoDate);
+  return Date.UTC(year, month - 1, day);
+};
+
+/** Whole days from `from` to `to` (both `YYYY-MM-DD`); negative when `to` is earlier. */
+export const daysBetween = (from: string, to: string): number =>
+  Math.round((utcOf(to) - utcOf(from)) / 86_400_000);

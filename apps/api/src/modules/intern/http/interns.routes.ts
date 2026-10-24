@@ -9,7 +9,12 @@ import { hasRole } from '../../identity/domain/user.ts';
 import type { AuthEnv } from '../../identity/http/auth-env.ts';
 import { type AuthenticateDeps, authenticate } from '../../identity/http/authenticate.ts';
 import { requireRole } from '../../identity/http/require-role.ts';
-import { type Actor, addIntern, type ManageInternsDeps } from '../application/manage-interns.ts';
+import {
+  type Actor,
+  addIntern,
+  listInterns,
+  type ManageInternsDeps,
+} from '../application/manage-interns.ts';
 import { toInternSummary } from './intern-views.ts';
 
 export type InternsRoutesDeps = AuthenticateDeps & Readonly<{ manageInterns: ManageInternsDeps }>;
@@ -24,13 +29,20 @@ const actorOf = (c: Context<AuthEnv>): Actor => {
 };
 
 /**
- * A batch's interns, mounted at `/batches/:batchId/interns`. Admins and the batch's current PM
- * add interns (checked by the use case); a batch the user can't see is a 404. Logs carry ids,
- * never names.
+ * A batch's interns, mounted at `/batches/:batchId/interns`. Anyone who can see the batch reads
+ * its roster; admins and the batch's current PM add interns (checked by the use case). A batch
+ * the user can't see is a 404. Logs carry ids, never names.
  */
 export const internsRoutes = ({ manageInterns, ...auth }: InternsRoutesDeps) =>
   new Hono<AuthEnv>()
     .use(authenticate(auth))
+    .get('/', validate('param', BatchParams), async (c) => {
+      const interns = await listInterns(manageInterns, {
+        actor: actorOf(c),
+        batchId: c.req.valid('param').batchId,
+      });
+      return c.json(interns.map(toInternSummary));
+    })
     .post(
       '/',
       requireRole('admin', 'program_manager'),

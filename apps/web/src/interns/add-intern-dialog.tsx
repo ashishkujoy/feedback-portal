@@ -1,10 +1,10 @@
 import { CreateInternRequest, type InternSummary } from '@feedback-portal/contracts';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { isApiError } from '../api/errors.ts';
-import { addIntern } from '../api/interns.ts';
+import { addIntern, internsQuery } from '../api/interns.ts';
 import { Button } from '../ui/button.tsx';
 import { Callout } from '../ui/callout.tsx';
 import { Dialog } from '../ui/dialog.tsx';
@@ -29,6 +29,7 @@ type FormProps = Readonly<{
 }>;
 
 const AddInternForm = ({ batchId, onAdded, onClose }: FormProps) => {
+  const queryClient = useQueryClient();
   const {
     register,
     handleSubmit,
@@ -38,7 +39,11 @@ const AddInternForm = ({ batchId, onAdded, onClose }: FormProps) => {
   } = useForm({ resolver: zodResolver(CreateInternRequest), defaultValues });
   const mutation = useMutation({
     mutationFn: (body: CreateInternRequest) => addIntern(batchId, body),
-    onSuccess: onAdded,
+    onSuccess: (intern) => {
+      onAdded(intern);
+      // The roster behind the dialog picks the new intern up.
+      void queryClient.invalidateQueries({ queryKey: internsQuery(batchId).queryKey });
+    },
     onError: (error) => {
       if (isApiError(error, 'intern_username_taken')) {
         setError(
