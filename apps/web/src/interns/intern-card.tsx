@@ -3,6 +3,7 @@ import { Lock } from 'lucide-react';
 import { Avatar } from '../ui/avatar.tsx';
 import { StatusBadge } from '../ui/status-badge.tsx';
 import { ColourChip } from './colour-chip.tsx';
+import { InternLink } from './intern-link.tsx';
 import type { InternBadge } from './roster.ts';
 
 /** "🔒 Read-only", 12px muted, for final statuses and archived batches. */
@@ -33,7 +34,7 @@ export const InternCard = ({ intern, badge, readOnly }: InternCardProps) => (
       <ColourChip code={intern.colorCode} />
     </div>
     <div className="flex min-w-0 flex-col gap-0.5">
-      <span className="truncate text-[15px] font-semibold">{intern.name}</span>
+      <InternLink intern={intern} className="truncate text-[15px] font-semibold" />
       <span className="truncate font-mono text-[13px] text-muted-foreground">
         @{intern.username}
       </span>

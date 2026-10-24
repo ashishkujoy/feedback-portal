@@ -2,6 +2,7 @@ const sizes = {
   sm: 'size-7 text-[11.2px]',
   md: 'size-9 text-[14.4px]',
   lg: 'size-12 text-[19.2px]',
+  xl: 'size-16 text-[25.6px]',
 } as const;
 
 /** Up to two letters: the first of the first and last words. */

@@ -19,7 +19,7 @@ import { PageTitle } from '../ui/page-title.tsx';
 import { StatusBadge } from '../ui/status-badge.tsx';
 import { type TabItem, tabId, Tabs } from '../ui/tabs.tsx';
 
-const route = getRouteApi('/app/batches/$batchId');
+const route = getRouteApi('/app/batches/$batchId/');
 
 /** A5's section heading: 18px/600, -0.2px. */
 const SectionTitle = ({ id, children }: Readonly<{ id: string; children: string }>) => (

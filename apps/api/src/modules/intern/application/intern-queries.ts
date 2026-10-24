@@ -13,8 +13,36 @@ export type InternSummaryView = Readonly<{
   noticeEndsOn: string | null;
 }>;
 
+type ActorRef = Readonly<{ id: string; name: string }>;
+
+export type InternStatusEventView = Readonly<{
+  id: string;
+  fromStatus: InternStatus | null;
+  toStatus: InternStatus;
+  reason: string | null;
+  noticeStartsOn: string | null;
+  noticeEndsOn: string | null;
+  actor: ActorRef;
+  createdAt: Date;
+}>;
+
+/** The profile: details, how the intern arrived, and the history newest first. */
+export type InternDetailView = InternSummaryView &
+  Readonly<{
+    phone: string | null;
+    diplomaBranch: string | null;
+    parentNames: string | null;
+    interviewNotes: string | null;
+    source: 'manual' | 'airtable';
+    createdAt: Date;
+    addedBy: ActorRef;
+    statusEvents: readonly InternStatusEventView[];
+  }>;
+
 /** Reads for the screens; access is checked by the use cases. */
 export type InternQueries = Readonly<{
   /** The batch's interns, by name ignoring case. */
   listForBatch: (batchId: BatchId) => Promise<readonly InternSummaryView[]>;
+  /** One intern of that batch; `null` if there's none with that id in it. */
+  detail: (batchId: BatchId, internId: string) => Promise<InternDetailView | null>;
 }>;

@@ -2,6 +2,7 @@ import { Avatar } from '../ui/avatar.tsx';
 import { StatusBadge } from '../ui/status-badge.tsx';
 import { ColourChip } from './colour-chip.tsx';
 import { ReadOnlyMark } from './intern-card.tsx';
+import { InternLink } from './intern-link.tsx';
 import type { RosterRow } from './roster.ts';
 
 // A3: header 10px 16px, 12/500 muted on slate-50; rows 10px 16px, 14px; 16px gaps.
@@ -51,7 +52,7 @@ export const RosterTable = ({ rows, total }: RosterTableProps) => (
               <div className="flex min-w-0 items-center gap-2.5">
                 <Avatar name={intern.name} size="sm" />
                 <div className="flex min-w-0 flex-col">
-                  <span className="truncate font-medium">{intern.name}</span>
+                  <InternLink intern={intern} className="truncate font-medium" />
                   <span className="truncate font-mono text-xs text-muted-foreground">
                     @{intern.username}
                   </span>

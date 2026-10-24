@@ -61,3 +61,34 @@ export const InternSummary = z.object({
   noticeEndsOn: z.iso.date().nullable(),
 });
 export type InternSummary = z.infer<typeof InternSummary>;
+
+const Actor = z.object({ id: z.uuid(), name: z.string() });
+
+/** One status change; `fromStatus` and `reason` are `null` only for the onboarding event. */
+export const InternStatusEvent = z.object({
+  id: z.uuid(),
+  fromStatus: InternStatus.nullable(),
+  toStatus: InternStatus,
+  reason: z.string().nullable(),
+  noticeStartsOn: z.iso.date().nullable(),
+  noticeEndsOn: z.iso.date().nullable(),
+  actor: Actor,
+  createdAt: z.iso.datetime(),
+});
+export type InternStatusEvent = z.infer<typeof InternStatusEvent>;
+
+/** `GET /batches/:batchId/interns/:internId`: the profile. Events are newest first. */
+export const InternDetail = InternSummary.extend({
+  phone: z.string().nullable(),
+  diplomaBranch: z.string().nullable(),
+  parentNames: z.string().nullable(),
+  /** Markdown, rendered sanitized. */
+  interviewNotes: z.string().nullable(),
+  /** Added by hand (7.3), or imported from Airtable (Phase 8). */
+  source: z.enum(['manual', 'airtable']),
+  createdAt: z.iso.datetime(),
+  /** Who added or first imported the intern: the onboarding event's actor. */
+  addedBy: Actor,
+  statusEvents: z.array(InternStatusEvent),
+});
+export type InternDetail = z.infer<typeof InternDetail>;

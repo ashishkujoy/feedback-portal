@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { validate } from '../../../shared/http/validate.ts';
 import { rootCategory } from '../../../shared/logging/logging.ts';
 import { BatchId } from '../../cohort/domain/batch-id.ts';
+import { InternId } from '../domain/intern-id.ts';
 import { hasRole } from '../../identity/domain/user.ts';
 import type { AuthEnv } from '../../identity/http/auth-env.ts';
 import { type AuthenticateDeps, authenticate } from '../../identity/http/authenticate.ts';
@@ -12,14 +13,16 @@ import { requireRole } from '../../identity/http/require-role.ts';
 import {
   type Actor,
   addIntern,
+  getIntern,
   listInterns,
   type ManageInternsDeps,
 } from '../application/manage-interns.ts';
-import { toInternSummary } from './intern-views.ts';
+import { toInternDetail, toInternSummary } from './intern-views.ts';
 
 export type InternsRoutesDeps = AuthenticateDeps & Readonly<{ manageInterns: ManageInternsDeps }>;
 
 const BatchParams = z.object({ batchId: BatchId });
+const InternParams = BatchParams.extend({ internId: InternId });
 
 const logger = getLogger([rootCategory, 'interns']);
 
@@ -30,7 +33,7 @@ const actorOf = (c: Context<AuthEnv>): Actor => {
 
 /**
  * A batch's interns, mounted at `/batches/:batchId/interns`. Anyone who can see the batch reads
- * its roster; admins and the batch's current PM add interns (checked by the use case). A batch
+ * its roster and each intern's profile; admins and the batch's current PM add interns (checked by the use case). A batch
  * the user can't see is a 404. Logs carry ids, never names.
  */
 export const internsRoutes = ({ manageInterns, ...auth }: InternsRoutesDeps) =>
@@ -42,6 +45,11 @@ export const internsRoutes = ({ manageInterns, ...auth }: InternsRoutesDeps) =>
         batchId: c.req.valid('param').batchId,
       });
       return c.json(interns.map(toInternSummary));
+    })
+    .get('/:internId', validate('param', InternParams), async (c) => {
+      const { batchId, internId } = c.req.valid('param');
+      const intern = await getIntern(manageInterns, { actor: actorOf(c), batchId, internId });
+      return c.json(toInternDetail(intern));
     })
     .post(
       '/',

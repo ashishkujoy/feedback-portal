@@ -5,7 +5,7 @@ import { type DetailsInput, type Intern, onboardIntern } from '../domain/intern.
 import { newInternId } from '../domain/intern-id.ts';
 import { newStatusEventId } from '../domain/status-event-id.ts';
 import type { InternAdminScope, InternAdminTransaction } from './intern-admin.ts';
-import type { InternSummaryView } from './intern-queries.ts';
+import type { InternDetailView, InternSummaryView } from './intern-queries.ts';
 
 export type ManageInternsDeps = Readonly<{
   transaction: InternAdminTransaction;
@@ -64,4 +64,16 @@ export const listInterns = (
   transaction(async (scope) => {
     await ensureCanSee(scope, actor, batchId);
     return scope.queries.listForBatch(batchId);
+  });
+
+/** One intern's profile, for anyone who can see the batch; an intern of another batch is a 404. */
+export const getIntern = (
+  { transaction }: ManageInternsDeps,
+  { actor, batchId, internId }: Readonly<{ actor: Actor; batchId: BatchId; internId: string }>,
+): Promise<InternDetailView> =>
+  transaction(async (scope) => {
+    await ensureCanSee(scope, actor, batchId);
+    const intern = await scope.queries.detail(batchId, internId);
+    if (!intern) throw notFound('Intern not found');
+    return intern;
   });

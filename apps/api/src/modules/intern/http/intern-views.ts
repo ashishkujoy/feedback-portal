@@ -1,5 +1,5 @@
-import type { InternSummary } from '@feedback-portal/contracts';
-import type { InternSummaryView } from '../application/intern-queries.ts';
+import type { InternDetail, InternSummary } from '@feedback-portal/contracts';
+import type { InternDetailView, InternSummaryView } from '../application/intern-queries.ts';
 import type { Intern } from '../domain/intern.ts';
 
 export const toInternSummary = (intern: Intern | InternSummaryView): InternSummary => ({
@@ -11,4 +11,25 @@ export const toInternSummary = (intern: Intern | InternSummaryView): InternSumma
   status: intern.status,
   colorCode: intern.colorCode,
   noticeEndsOn: intern.noticeEndsOn,
+});
+
+export const toInternDetail = (intern: InternDetailView): InternDetail => ({
+  ...toInternSummary(intern),
+  phone: intern.phone,
+  diplomaBranch: intern.diplomaBranch,
+  parentNames: intern.parentNames,
+  interviewNotes: intern.interviewNotes,
+  source: intern.source,
+  createdAt: intern.createdAt.toISOString(),
+  addedBy: intern.addedBy,
+  statusEvents: intern.statusEvents.map((event) => ({
+    id: event.id,
+    fromStatus: event.fromStatus,
+    toStatus: event.toStatus,
+    reason: event.reason,
+    noticeStartsOn: event.noticeStartsOn,
+    noticeEndsOn: event.noticeEndsOn,
+    actor: event.actor,
+    createdAt: event.createdAt.toISOString(),
+  })),
 });

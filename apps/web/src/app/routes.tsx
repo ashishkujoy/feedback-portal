@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-router';
 import { z } from 'zod';
 import { batchQuery } from '../api/batches.ts';
+import { internQuery } from '../api/interns.ts';
 import { isApiError } from '../api/errors.ts';
 import { meQuery } from '../api/me.ts';
 import { settingsQuery } from '../api/settings.ts';
@@ -15,6 +16,7 @@ import { RootLayout } from '../branding/root-layout.tsx';
 import { batchesLabel, isAdmin } from '../identity/roles.ts';
 import { BatchPage } from '../pages/batch-page.tsx';
 import { BatchesPage } from '../pages/batches-page.tsx';
+import { InternPage } from '../pages/intern-page.tsx';
 import { LoginPage } from '../pages/login-page.tsx';
 import { NotFoundPage } from '../pages/not-found-page.tsx';
 import { UsersPage } from '../pages/users-page.tsx';
@@ -92,8 +94,9 @@ const batchesIndexRoute = createRoute({
 const BatchCrumb = z.object({ name: z.string() });
 
 /**
- * One batch. Loaded before it renders, so its name is in the breadcrumb straight away. One that
- * doesn't exist, or that the user can't see (6.4: the API's 404), is "Page not found".
+ * One batch and the pages under it. Loaded first, so its name is in the breadcrumb straight
+ * away. A batch that doesn't exist, or that the user can't see (6.4: the API's 404), is "Page not
+ * found".
  */
 const batchRoute = createRoute({
   getParentRoute: () => batchesRoute,
@@ -109,6 +112,14 @@ const batchRoute = createRoute({
       return { name: undefined };
     }
   },
+  staticData: { crumb: ({ loaderData }) => BatchCrumb.safeParse(loaderData).data?.name },
+  notFoundComponent: NotFoundPage,
+});
+
+/** The batch page itself: its tabs and roster. */
+const batchIndexRoute = createRoute({
+  getParentRoute: () => batchRoute,
+  path: '/',
   // The tab and the roster's view, filter and search (7.4 decision 3); bad values are dropped.
   validateSearch: z.object({
     tab: z.enum(['interns', 'mentors']).optional().catch(undefined),
@@ -116,8 +127,32 @@ const batchRoute = createRoute({
     filter: RosterFilter.optional().catch(undefined),
     q: z.string().optional().catch(undefined),
   }),
-  staticData: { crumb: ({ loaderData }) => BatchCrumb.safeParse(loaderData).data?.name },
   component: BatchPage,
+});
+
+const InternCrumb = z.object({ name: z.string() });
+
+/** An intern's profile (7.5); another batch's intern, or an unknown one, is "Page not found". */
+const internRoute = createRoute({
+  getParentRoute: () => batchRoute,
+  path: 'interns/$internId',
+  loader: async ({ context, params }) => {
+    if (!z.uuid().safeParse(params.internId).success) throw notFound();
+    try {
+      const intern = await context.queryClient.ensureQueryData(
+        internQuery(params.batchId, params.internId),
+      );
+      return { name: intern.name };
+    } catch (error) {
+      if (isApiError(error, 'not_found')) throw notFound();
+      return { name: undefined };
+    }
+  },
+  validateSearch: z.object({
+    tab: z.enum(['details', 'history']).optional().catch(undefined),
+  }),
+  staticData: { crumb: ({ loaderData }) => InternCrumb.safeParse(loaderData).data?.name },
+  component: InternPage,
   notFoundComponent: NotFoundPage,
 });
 
@@ -147,7 +182,10 @@ export const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([
     indexRoute,
-    batchesRoute.addChildren([batchesIndexRoute, batchRoute]),
+    batchesRoute.addChildren([
+      batchesIndexRoute,
+      batchRoute.addChildren([batchIndexRoute, internRoute]),
+    ]),
     usersRoute,
     notFoundRoute,
   ]),

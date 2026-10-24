@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CreateInternRequest, InternSummary } from './intern.ts';
+import { CreateInternRequest, InternDetail, InternSummary } from './intern.ts';
 
 describe('CreateInternRequest', () => {
   it('normalises the fields', () => {
@@ -62,5 +62,46 @@ describe('InternSummary', () => {
       noticeEndsOn: null,
     };
     expect(InternSummary.parse(intern)).toEqual(intern);
+  });
+});
+
+describe('InternDetail', () => {
+  const actor = { id: '01890a5d-ac96-774b-bcce-b302099a8059', name: 'Pat Manager' };
+  const detail = {
+    id: '01890a5d-ac96-774b-bcce-b302099a8057',
+    batchId: '01890a5d-ac96-774b-bcce-b302099a8058',
+    username: 'ishita.rao',
+    name: 'Ishita Rao',
+    email: 'ishita@example.com',
+    status: 'active',
+    colorCode: null,
+    noticeEndsOn: null,
+    phone: null,
+    diplomaBranch: 'Mechanical',
+    parentNames: null,
+    interviewNotes: '**Strong** in maths',
+    source: 'manual',
+    createdAt: '2027-01-11T09:00:00.000Z',
+    addedBy: actor,
+    statusEvents: [
+      {
+        id: '01890a5d-ac96-774b-bcce-b302099a8060',
+        fromStatus: null,
+        toStatus: 'active',
+        reason: null,
+        noticeStartsOn: null,
+        noticeEndsOn: null,
+        actor,
+        createdAt: '2027-01-11T09:00:00.000Z',
+      },
+    ],
+  };
+
+  it('accepts a profile with its onboarding event', () => {
+    expect(InternDetail.parse(detail)).toEqual(detail);
+  });
+
+  it('rejects an unknown source', () => {
+    expect(InternDetail.safeParse({ ...detail, source: 'csv' }).success).toBe(false);
   });
 });

@@ -73,6 +73,7 @@ Without credentials, the API runs normally, and **Sign in with Google** returns 
   - `POST /batches/:id/archive` makes the batch read-only (409 `batch_archived` afterwards). There's no unarchiving.
 
 ### API endpoints (interns)
+- **`GET /batches/:batchId/interns/:internId`** returns one intern's profile (`InternDetail`): their details, interview notes (Markdown), `source` (`manual` or `airtable`), who added them, and the status history newest first, with who made each change. It's open to anyone who can see the batch; an intern of another batch, or an unknown one, is a **404**.
 - **`GET /batches/:batchId/interns`** lists the batch's interns (`InternSummary`: username, name, email, status, colour code, notice end), by name ignoring case. Anyone who can see the batch can read it, archived or not; otherwise a **404**.
 - **`POST /batches/:batchId/interns`** with `{ username, name, email, phone?, diplomaBranch?, parentNames?, interviewNotes? }` adds an intern by hand (when they aren't in Airtable). It answers **201** with the intern (Active, no colour code) and records the onboarding event.
   - **Who:** admins and the batch's current PM. A batch you can't see is a **404**; one you can see but don't run is a **403**; an archived one is **409** `batch_archived`.

@@ -61,6 +61,16 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 - **The colour bar leaves out empty codes** (decision 3), so the 2px gaps are only between real segments; the legend lists all seven codes, including zeros.
 - **The Interns tab count on the batch page** comes from these counts, so it shows before the roster loads.
 
+### Intern profile (P6 / M6, P22, P23, A6) as built in 7.5
+- **At `/batches/:batchId/interns/:internId`**, with the crumbs Batches › \<batch\> › \<intern\>. Roster names link to it: only the name, so nothing interactive nests.
+- **Left out until their tasks** (7.5 decision 1): the status actions (7.6), Give feedback (Phase 9), the photo button (7.7), the colour history and "Linked feedback" (Phase 9), and Edit details (7.9).
+- **Timeline:** v2's empty state without its button (decision 2), naming the intern by first name.
+- **Status history** is built (decision 3). The onboarding row, which has no reason, reads "Added by hand." or "Imported from Airtable.". Reasons render as Markdown.
+- **On-notice banner** without "with \<colour\> feedback" until Phase 9 (decision 5). Once a notice has ended: "Notice ended on \<date\> · decision needed".
+- **Colour code note:** "Set by the first coloured feedback." / "From the latest coloured feedback." (decision 6). **Mentors:** "N mentors in this batch" (v2: "active mentors"), since inactive users can still be assigned.
+- **Markdown** (`ui/markdown.tsx`): v2's prose sizes (14/22, 15px/600 headings, 10px between blocks, mono inline code on slate 100). It uses react-markdown with remark-gfm, and rehype-sanitize, so raw HTML is never rendered.
+- **Missing details** show "—". Notes left empty show "No interview notes."
+
 ## Screens (v1)
 **Desktop is 1440 wide; mobile is 390×844.** Every desktop screen has the same shell:
 - A 240px **Tech Blue sidebar**: logo mark, program name and "Mentor portal", a "Workspace" section, **Batches** (shown as "My batches" for mentors) and **Users and roles** (admin only).

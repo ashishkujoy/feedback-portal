@@ -1,6 +1,7 @@
 import {
   BatchDetail,
   BatchSummary,
+  InternDetail,
   InternSummary,
   ProblemDetails,
   type Role,
@@ -10,7 +11,9 @@ import { z } from 'zod';
 import { realApp } from '../../../../test/app-deps.ts';
 import { useTestDb } from '../../../../test/test-db.ts';
 import { newBatchId } from '../../cohort/domain/batch-id.ts';
-import { InternId } from '../domain/intern-id.ts';
+import { giveNotice } from '../domain/intern.ts';
+import { InternId, newInternId } from '../domain/intern-id.ts';
+import { newStatusEventId } from '../domain/status-event-id.ts';
 import { createInternRepository } from '../infrastructure/drizzle-intern-repository.ts';
 
 const testDb = useTestDb();
@@ -293,5 +296,115 @@ describe('the batch counts', () => {
       ['Batch 1', 2],
     ]);
     expect(summaries[1]?.interns).toEqual(expected);
+  });
+});
+
+const addedOf = async (response: Response) => InternSummary.parse(await response.json());
+
+describe('GET /batches/:batchId/interns/:internId', () => {
+  it('shows the profile: details, how they arrived, and the history newest first', async () => {
+    const { setup, pm, batch, add } = await setUp();
+    const { id } = await addedOf(
+      await add(pm, {
+        ...ishita,
+        phone: '+91 98450 12345',
+        diplomaBranch: 'Computer Engineering',
+        interviewNotes: '### Technical round',
+      }),
+    );
+    // A later change, made with the domain as 7.6 will (there's no endpoint for it yet).
+    const repo = createInternRepository(db());
+    const saved = await repo.findById(InternId.parse(id));
+    if (!saved) throw new Error('expected the intern');
+    await repo.save(
+      giveNotice(saved, {
+        eventId: newStatusEventId(),
+        reason: 'Missed every deadline',
+        actor: pm.user.id,
+        now: new Date(Date.now() + 60_000),
+        startsOn: '2027-04-01',
+        feedbackId: null,
+      }),
+    );
+
+    const response = await get(setup, pm.cookie, `/batches/${batch.id}/interns/${id}`);
+
+    expect(response.status).toBe(200);
+    const detail = InternDetail.parse(await response.json());
+    expect(detail).toMatchObject({
+      id,
+      batchId: batch.id,
+      username: 'ishita.rao',
+      status: 'on_notice',
+      noticeEndsOn: '2027-05-01',
+      phone: '+91 98450 12345',
+      diplomaBranch: 'Computer Engineering',
+      parentNames: null,
+      interviewNotes: '### Technical round',
+      source: 'manual',
+      addedBy: { id: pm.user.id, name: 'Pat Manager' },
+    });
+    expect(
+      detail.statusEvents.map((event) => [
+        event.fromStatus,
+        event.toStatus,
+        event.reason,
+        event.noticeEndsOn,
+        event.actor.name,
+      ]),
+    ).toEqual([
+      ['active', 'on_notice', 'Missed every deadline', '2027-05-01', 'Pat Manager'],
+      [null, 'active', null, null, 'Pat Manager'],
+    ]);
+  });
+
+  it("is open to the batch's PM, its mentors and admins", async () => {
+    const { setup, pm, mentor, admin, batch, add } = await setUp();
+    const { id } = await addedOf(await add(pm));
+
+    const statuses = await Promise.all(
+      [pm, mentor, admin].map(
+        async (who) => (await get(setup, who.cookie, `/batches/${batch.id}/interns/${id}`)).status,
+      ),
+    );
+
+    expect(statuses).toEqual([200, 200, 200]);
+  });
+
+  it("is 404 for someone who isn't on the batch, an unknown intern, or another batch's intern", async () => {
+    const { setup, person, admin, pm, batch, add } = await setUp();
+    const { id } = await addedOf(await add(pm));
+    const outsider = await person('Oli Other', ['mentor']);
+    const other = BatchDetail.parse(
+      await (
+        await post(setup, admin.cookie, '/batches', {
+          name: 'Batch 2',
+          startDate: '2027-01-11',
+          endDate: '2028-06-25',
+          programManagerId: pm.user.id,
+        })
+      ).json(),
+    );
+
+    const codes = await Promise.all(
+      (
+        [
+          [outsider, `/batches/${batch.id}/interns/${id}`],
+          [admin, `/batches/${batch.id}/interns/${newInternId()}`],
+          [admin, `/batches/${other.id}/interns/${id}`],
+        ] as const
+      ).map(async ([who, path]) => (await problemOf(await get(setup, who.cookie, path), 404)).code),
+    );
+
+    expect(codes).toEqual(['not_found', 'not_found', 'not_found']);
+  });
+
+  it('is 401 when signed out', async () => {
+    const { setup, pm, batch, add } = await setUp();
+    const { id } = await addedOf(await add(pm));
+
+    expect(
+      (await problemOf(await get(setup, '', `/batches/${batch.id}/interns/${id}`), 401)).code,
+    ).toBe('unauthenticated');
   });
 });

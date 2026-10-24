@@ -1,4 +1,4 @@
-import { type CreateInternRequest, InternSummary } from '@feedback-portal/contracts';
+import { type CreateInternRequest, InternDetail, InternSummary } from '@feedback-portal/contracts';
 import { queryOptions } from '@tanstack/react-query';
 import { z } from 'zod';
 import { apiFetch } from './api-fetch.ts';
@@ -9,6 +9,14 @@ export const internsQuery = (batchId: string) =>
     queryKey: ['batches', batchId, 'interns'],
     queryFn: ({ signal }) =>
       apiFetch(`/batches/${batchId}/interns`, { schema: z.array(InternSummary), signal }),
+  });
+
+/** One intern's profile (anyone who can see the batch). 404 for another batch's intern. */
+export const internQuery = (batchId: string, internId: string) =>
+  queryOptions({
+    queryKey: ['batches', batchId, 'interns', internId],
+    queryFn: ({ signal }) =>
+      apiFetch(`/batches/${batchId}/interns/${internId}`, { schema: InternDetail, signal }),
   });
 
 /** `POST /batches/:id/interns` (the batch's managers): the new intern, or an `ApiError`. */
