@@ -30,7 +30,7 @@ export const InternCard = ({ intern, badge, readOnly }: InternCardProps) => (
     className={`flex flex-col gap-3 border border-border p-4 ${readOnly ? 'bg-(--slate-50)' : 'bg-background'}`}
   >
     <div className="flex items-start justify-between gap-2">
-      <Avatar name={intern.name} size="lg" />
+      <Avatar name={intern.name} src={intern.photoUrl} size="lg" />
       <ColourChip code={intern.colorCode} />
     </div>
     <div className="flex min-w-0 flex-col gap-0.5">

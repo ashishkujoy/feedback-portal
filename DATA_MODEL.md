@@ -273,7 +273,9 @@ Constraint: `CHECK (num_nonnulls(feedback_id, conversation_id) = 1)`, so each co
 | Record conversation | | ✅ | |
 | Change intern status | | ✅ | |
 | Comment on feedback or conversation | ✅* | ✅ | ✅ |
-| Upload intern photo | ✅ | ✅ | ✅ |
+| Upload intern photo | ✅ | ✅ | |
+
+Photos follow the design (7.7 decision 1): admins and the batch's PM, not mentors.
 
 \* An admin writes feedback or comments only if they are also assigned to the batch as a mentor or PM. Admin rights alone give read access to a batch, not write access to feedback.
 

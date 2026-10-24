@@ -7,13 +7,20 @@ import { isApiError } from '../api/errors.ts';
 import { internQuery } from '../api/interns.ts';
 import { today } from '../batches/batch-dates.ts';
 import { InternDetails } from '../interns/profile/intern-details.tsx';
+import {
+  PhotoButton,
+  PhotoProgress,
+  ProfileAvatar,
+  usePhotoUpload,
+} from '../interns/profile/photo-control.tsx';
 import { SidePanel } from '../interns/profile/side-panel.tsx';
 import { statusButtonsFor } from '../interns/profile/status-actions.ts';
 import { StatusDialog } from '../interns/profile/status-dialog.tsx';
 import { StatusHistory } from '../interns/profile/status-history.tsx';
 import { finalBanner, firstName, noticeBanner, statusBadges } from '../interns/profile.ts';
+import { canManageBatch } from '../batches/can-manage.ts';
+import { useSettings } from '../branding/use-settings.ts';
 import { useMe } from '../shell/use-me.ts';
-import { Avatar } from '../ui/avatar.tsx';
 import { Button } from '../ui/button.tsx';
 import { Callout } from '../ui/callout.tsx';
 import { PageTitle } from '../ui/page-title.tsx';
@@ -55,7 +62,9 @@ export const InternPage = () => {
   const { data: intern, error } = useQuery(internQuery(batchId, internId));
   const { data: batch } = useQuery(batchQuery(batchId));
   const me = useMe();
+  const settings = useSettings();
   const [changing, setChanging] = useState<StatusAction | null>(null);
+  const photo = usePhotoUpload({ id: internId, batchId });
 
   if (error) {
     return (
@@ -71,12 +80,15 @@ export const InternPage = () => {
   const notice = noticeBanner(intern, on, batch.programManager.name);
   const final = finalBanner(intern);
   const buttons = me ? statusButtonsFor(me, batch, intern) : [];
+  // A6-photo: the batch's managers (7.7 decision 1), photos on, and the record not read-only.
+  const canPhoto =
+    settings?.photos === true && me ? canManageBatch(me, batch) && final === null : false;
 
   return (
     <>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Avatar name={intern.name} size="xl" />
+          <ProfileAvatar intern={intern} uploading={photo.state.kind === 'uploading'} />
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-3">
               <PageTitle>{intern.name}</PageTitle>
@@ -86,7 +98,28 @@ export const InternPage = () => {
               <span className="font-mono">@{intern.username}</span>
               <span aria-hidden>·</span>
               <span>{batch.name}</span>
+              {canPhoto && photo.state.kind !== 'uploading' ? (
+                <>
+                  <span aria-hidden>·</span>
+                  <PhotoButton
+                    hasPhoto={intern.photoUrl !== null}
+                    onFile={(file) => void photo.start(file)}
+                  />
+                </>
+              ) : null}
             </p>
+            {photo.state.kind === 'uploading' ? (
+              <PhotoProgress
+                fileName={photo.state.fileName}
+                percent={photo.state.percent}
+                onCancel={photo.cancel}
+              />
+            ) : null}
+            {photo.state.kind === 'error' ? (
+              <p role="alert" className="text-xs text-destructive">
+                {photo.state.message}
+              </p>
+            ) : null}
           </div>
         </div>
         {buttons.length > 0 ? (

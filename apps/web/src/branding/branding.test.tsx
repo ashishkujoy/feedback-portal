@@ -46,7 +46,10 @@ describe('branding from /settings', () => {
   it('shows whatever names the API is configured with', async () => {
     stubApi({
       ...signedOut,
-      '/settings': { status: 200, body: { programName: 'Other Programme', orgName: 'Other Org' } },
+      '/settings': {
+        status: 200,
+        body: { programName: 'Other Programme', orgName: 'Other Org', photos: false },
+      },
     });
     renderApp('/login');
 

@@ -50,7 +50,7 @@ export const RosterTable = ({ rows, total }: RosterTableProps) => (
           >
             <th scope="row" className={`${firstCell} text-left font-normal`}>
               <div className="flex min-w-0 items-center gap-2.5">
-                <Avatar name={intern.name} size="sm" />
+                <Avatar name={intern.name} src={intern.photoUrl} size="sm" />
                 <div className="flex min-w-0 flex-col">
                   <InternLink intern={intern} className="truncate font-medium" />
                   <span className="truncate font-mono text-xs text-muted-foreground">

@@ -49,6 +49,14 @@ Without credentials, the API runs normally, and **Sign in with Google** returns 
 - **After signing in**, the browser goes to `WEB_APP_URL` with the session cookie set, which is the web app's Batches page.
 - **Every failure** (unknown or inactive user, cancelled, expired flow) goes to `<WEB_APP_URL>/login?error=sign_in_failed`. The API log says why, without the email.
 
+### Intern photos (optional)
+Photos are stored in Cloudinary; the database keeps only each photo's `public_id`.
+1. Copy the **API environment variable** from your Cloudinary dashboard (`cloudinary://<key>:<secret>@<cloud>`).
+2. Put it in `apps/api/.env` as `CLOUDINARY_URL`, and optionally set `CLOUDINARY_FOLDER` (default `feedback-portal/interns`).
+3. Restart the API. `GET /settings` then reports `photos: true`, and the batch's admins and PM get **Add photo** on intern profiles.
+
+The browser uploads straight to Cloudinary with a signature from the API, and the API checks Cloudinary's signed answer before saving. Without `CLOUDINARY_URL`, photos are off and initials are shown everywhere.
+
 ### API endpoints (identity)
 - **`GET /settings`** (public) returns `{ programName, orgName }` from config, cacheable for 5 minutes.
 - **`GET /me`** returns the signed-in user (`id`, `email`, `name`, `avatarUrl`, `roles`). Without a valid session it answers **401**, and clears a bad cookie. The web app treats a 401 as "go to sign-in".
@@ -73,6 +81,10 @@ Without credentials, the API runs normally, and **Sign in with Google** returns 
   - `POST /batches/:id/archive` makes the batch read-only (409 `batch_archived` afterwards). There's no unarchiving.
 
 ### API endpoints (interns)
+- **Photos** (admins and the batch's PM; not in an archived batch or for a read-only intern; **503** when photos are off):
+  - `POST /batches/:batchId/interns/:internId/photo-upload` returns a signed upload ticket for one new photo (JPG or PNG).
+  - `PUT /batches/:batchId/interns/:internId/photo` with Cloudinary's answer `{ publicId, version, signature, bytes }` saves the photo after checking the signature, that the photo was issued for this intern, and that it's 5 MB or less. It answers with the updated profile, and deletes the photo it replaced.
+  - `photoUrl` on interns is a 128px face-centred image, or `null`.
 - **`POST /batches/:batchId/interns/:internId/status-changes`** with `{ action, reason }` (`action`: `lift_notice`, `terminate`, `graduate` or `withdraw`; `reason`: Markdown, required) changes an intern's status and answers with the updated profile. **Only the batch's current programme manager** can do this (otherwise 403, or 404 when they can't see the batch), never in an archived batch (409 `batch_archived`). Forbidden changes are 409 `invalid_status_transition`, and final interns are 409 `intern_read_only`. Two changes at the same time are made one after the other.
 - **`GET /batches/:batchId/interns/:internId`** returns one intern's profile (`InternDetail`): their details, interview notes (Markdown), `source` (`manual` or `airtable`), who added them, and the status history newest first, with who made each change. It's open to anyone who can see the batch; an intern of another batch, or an unknown one, is a **404**.
 - **`GET /batches/:batchId/interns`** lists the batch's interns (`InternSummary`: username, name, email, status, colour code, notice end), by name ignoring case. Anyone who can see the batch can read it, archived or not; otherwise a **404**.

@@ -37,6 +37,7 @@ const intern = (overrides: Partial<InternDetail> = {}): InternDetail => ({
   status: 'active',
   colorCode: null,
   noticeEndsOn: null,
+  photoUrl: null,
   phone: null,
   diplomaBranch: null,
   parentNames: null,

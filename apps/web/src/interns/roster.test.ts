@@ -24,6 +24,7 @@ const intern = (overrides: Partial<InternSummary> = {}): InternSummary => {
     status: 'active',
     colorCode: null,
     noticeEndsOn: null,
+    photoUrl: null,
     ...overrides,
   };
 };

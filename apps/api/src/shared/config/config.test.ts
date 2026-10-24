@@ -24,6 +24,7 @@ describe('loadConfig', () => {
       branding: { programName: 'Test Program', orgName: 'Test Org' },
       telemetry: { enabled: false },
       auth: { google: null, webAppUrl: 'http://localhost:5173', secureCookies: false },
+      photos: null,
       bootstrapAdmin: null,
     });
   });
@@ -251,5 +252,45 @@ describe('loadConfig', () => {
         ),
       ).toEqual(['GOOGLE_REDIRECT_URI', 'WEB_APP_URL']);
     });
+  });
+});
+
+describe('photos', () => {
+  it('are off without CLOUDINARY_URL', () => {
+    expect(loadConfig(validEnv).photos).toBeNull();
+  });
+
+  it("read Cloudinary's URL, with the folder and Cloudinary's own hosts by default", () => {
+    expect(
+      loadConfig({ ...validEnv, CLOUDINARY_URL: 'cloudinary://key-1:s%40cret@demo-cloud' }).photos,
+    ).toEqual({
+      cloudName: 'demo-cloud',
+      apiKey: 'key-1',
+      apiSecret: 's@cret',
+      folder: 'feedback-portal/interns',
+      apiBaseUrl: 'https://api.cloudinary.com',
+      deliveryBaseUrl: 'https://res.cloudinary.com',
+    });
+  });
+
+  it('reject a malformed URL or folder, naming only the variable', () => {
+    const error = (() => {
+      try {
+        loadConfig({
+          ...validEnv,
+          CLOUDINARY_URL: 'https://key:zq81wvx@demo',
+          CLOUDINARY_FOLDER: '../up',
+        });
+      } catch (caught) {
+        return caught;
+      }
+      return undefined;
+    })();
+    expect(error).toBeInstanceOf(ConfigError);
+    expect(String(error)).not.toContain('zq81wvx');
+    expect(error instanceof ConfigError ? error.issues.map((issue) => issue.key) : []).toEqual([
+      'CLOUDINARY_URL',
+      'CLOUDINARY_FOLDER',
+    ]);
   });
 });

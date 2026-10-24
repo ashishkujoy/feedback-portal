@@ -59,6 +59,8 @@ export const InternSummary = z.object({
   status: InternStatus,
   colorCode: ColorCode.nullable(),
   noticeEndsOn: z.iso.date().nullable(),
+  /** A 128px face-centred square; `null` without a photo (initials are shown instead). */
+  photoUrl: z.url().nullable(),
 });
 export type InternSummary = z.infer<typeof InternSummary>;
 
@@ -108,3 +110,27 @@ export const ChangeStatusRequest = z.object({
     .max(20_000, { error: 'Reason must be at most 20000 characters' }),
 });
 export type ChangeStatusRequest = z.input<typeof ChangeStatusRequest>;
+
+/** Photos are JPG or PNG up to 5 MB (A6-photo). */
+export const photoFormats = ['jpg', 'png'] as const;
+export const maxPhotoBytes = 5 * 1024 * 1024;
+
+/** `POST …/photo-upload`: everything the browser needs for one signed upload to Cloudinary. */
+export const PhotoUploadTicket = z.object({
+  uploadUrl: z.url(),
+  apiKey: z.string(),
+  timestamp: z.int(),
+  signature: z.string(),
+  publicId: z.string(),
+  allowedFormats: z.string(),
+});
+export type PhotoUploadTicket = z.infer<typeof PhotoUploadTicket>;
+
+/** `PUT …/photo`: Cloudinary's answer to the upload, which the API checks before saving it. */
+export const SetPhotoRequest = z.object({
+  publicId: z.string().min(1),
+  version: z.int().positive(),
+  signature: z.string().min(1),
+  bytes: z.int().nonnegative(),
+});
+export type SetPhotoRequest = z.infer<typeof SetPhotoRequest>;

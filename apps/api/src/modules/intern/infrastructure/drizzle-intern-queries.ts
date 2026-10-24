@@ -13,6 +13,7 @@ const summaryColumns = {
   status: interns.status,
   colorCode: interns.colorCode,
   noticeEndsOn: interns.noticeEndsOn,
+  photoPublicId: interns.photoPublicId,
 };
 
 // Display names only: like cohort's queries, these read `users` but never change it.

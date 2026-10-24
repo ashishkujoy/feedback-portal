@@ -46,6 +46,7 @@ const intern = (name: string, overrides: Partial<InternSummary> = {}): InternSum
     status: 'active',
     colorCode: null,
     noticeEndsOn: null,
+    photoUrl: null,
     ...overrides,
   };
 };

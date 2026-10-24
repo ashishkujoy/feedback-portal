@@ -293,3 +293,12 @@ export const currentNotice = (intern: Intern): StatusEvent | undefined =>
   intern.status === 'on_notice'
     ? intern.statusEvents.findLast((event) => event.toStatus === 'on_notice')
     : undefined;
+
+/** A new photo (its storage `publicId`); rejected once the intern is read-only. */
+export const setPhoto = (
+  intern: Intern,
+  { publicId, now }: Readonly<{ publicId: string; now: Date }>,
+): Intern => {
+  ensureEditable(intern);
+  return { ...intern, photoPublicId: publicId, updatedAt: now };
+};

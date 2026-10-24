@@ -3,6 +3,8 @@ import {
   type CreateInternRequest,
   InternDetail,
   InternSummary,
+  PhotoUploadTicket,
+  type SetPhotoRequest,
 } from '@feedback-portal/contracts';
 import { queryOptions } from '@tanstack/react-query';
 import { z } from 'zod';
@@ -32,6 +34,21 @@ export const addIntern = (batchId: string, body: CreateInternRequest) =>
 export const changeStatus = (batchId: string, internId: string, body: ChangeStatusRequest) =>
   apiFetch(`/batches/${batchId}/interns/${internId}/status-changes`, {
     method: 'POST',
+    body,
+    schema: InternDetail,
+  });
+
+/** `POST …/photo-upload` (the batch's managers): a signed ticket for one upload. */
+export const photoUploadTicket = (batchId: string, internId: string) =>
+  apiFetch(`/batches/${batchId}/interns/${internId}/photo-upload`, {
+    method: 'POST',
+    schema: PhotoUploadTicket,
+  });
+
+/** `PUT …/photo`: save the uploaded photo; the updated profile, or an `ApiError`. */
+export const setPhoto = (batchId: string, internId: string, body: SetPhotoRequest) =>
+  apiFetch(`/batches/${batchId}/interns/${internId}/photo`, {
+    method: 'PUT',
     body,
     schema: InternDetail,
   });

@@ -43,6 +43,7 @@ const added: InternSummary = {
   status: 'active',
   colorCode: null,
   noticeEndsOn: null,
+  photoUrl: null,
 };
 
 const addPath = `POST /batches/${batchId}/interns`;

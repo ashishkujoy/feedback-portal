@@ -10,7 +10,7 @@ export const problem = (status: number, code: string): Reply => ({
 });
 
 /** Neutral names; the real ones only ever come from the API's config. */
-export const testSettings = { programName: 'Test Programme', orgName: 'Test Org' };
+export const testSettings = { programName: 'Test Programme', orgName: 'Test Org', photos: false };
 
 /** Answers every test gets unless it gives its own. */
 const defaults: Record<string, Reply> = { '/settings': { status: 200, body: testSettings } };

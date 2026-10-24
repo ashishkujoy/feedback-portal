@@ -16,6 +16,22 @@ const hasProtocol =
 const isPostgresUrl = hasProtocol('postgres:', 'postgresql:');
 const isHttpUrl = hasProtocol('http:', 'https:');
 
+const cloudinaryUrlError = 'expected cloudinary://<api_key>:<api_secret>@<cloud_name>';
+
+/** Cloudinary's own `CLOUDINARY_URL` format; `undefined` when it doesn't parse. */
+const parseCloudinaryUrl = (value: string) => {
+  if (!URL.canParse(value)) return undefined;
+  const url = new URL(value);
+  if (url.protocol !== 'cloudinary:' || !url.username || !url.password || !url.hostname) {
+    return undefined;
+  }
+  return {
+    apiKey: decodeURIComponent(url.username),
+    apiSecret: decodeURIComponent(url.password),
+    cloudName: url.hostname,
+  };
+};
+
 export const logLevels = ['trace', 'debug', 'info', 'warning', 'error', 'fatal'] as const;
 export const logFormats = ['json', 'pretty'] as const;
 
@@ -72,6 +88,24 @@ const EnvSchema = z.object({
     .string()
     .refine(isHttpUrl, { error: httpUrlError })
     .default('http://localhost:5173'),
+  // Intern photos (7.7). Off unless set; Cloudinary's dashboard shows this value.
+  CLOUDINARY_URL: z
+    .string()
+    .refine((value) => parseCloudinaryUrl(value) !== undefined, { error: cloudinaryUrlError })
+    .optional(),
+  CLOUDINARY_FOLDER: z
+    .string()
+    .regex(/^[\w-]+(\/[\w-]+)*$/, { error: 'expected folder names separated by /' })
+    .default('feedback-portal/interns'),
+  // Only for tests and local stand-ins; the defaults are Cloudinary's.
+  CLOUDINARY_API_BASE_URL: z
+    .string()
+    .refine(isHttpUrl, { error: httpUrlError })
+    .default('https://api.cloudinary.com'),
+  CLOUDINARY_DELIVERY_BASE_URL: z
+    .string()
+    .refine(isHttpUrl, { error: httpUrlError })
+    .default('https://res.cloudinary.com'),
   // Read only by the seed (`pnpm db:seed`); the API server ignores them.
   BOOTSTRAP_ADMIN_EMAIL: z.email({ error: 'expected an email address' }).optional(),
   BOOTSTRAP_ADMIN_NAME: z
@@ -91,6 +125,8 @@ export type Config = Readonly<{
   branding: Readonly<{ programName: string; orgName: string }>;
   telemetry: TelemetryConfig;
   auth: AuthConfig;
+  /** `null` when `CLOUDINARY_URL` isn't set: photos are off. */
+  photos: PhotosConfig | null;
   /** `null` when `BOOTSTRAP_ADMIN_EMAIL` isn't set. */
   bootstrapAdmin: BootstrapAdminConfig | null;
 }>;
@@ -109,6 +145,16 @@ export type AuthConfig = Readonly<{
   webAppUrl: string;
   /** Secure, `__Host-` prefixed cookies; on in production, off for plain-http local dev. */
   secureCookies: boolean;
+}>;
+
+export type PhotosConfig = Readonly<{
+  cloudName: string;
+  apiKey: string;
+  /** Secret: never log it. */
+  apiSecret: string;
+  folder: string;
+  apiBaseUrl: string;
+  deliveryBaseUrl: string;
 }>;
 
 /** `name: null` means "derive it from the email". */
@@ -188,6 +234,10 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => {
     GOOGLE_CLIENT_SECRET,
     GOOGLE_REDIRECT_URI,
     WEB_APP_URL,
+    CLOUDINARY_URL,
+    CLOUDINARY_FOLDER,
+    CLOUDINARY_API_BASE_URL,
+    CLOUDINARY_DELIVERY_BASE_URL,
     BOOTSTRAP_ADMIN_EMAIL,
     BOOTSTRAP_ADMIN_NAME,
   } = result.data;
@@ -200,6 +250,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => {
           metricExportIntervalMs: OTEL_METRIC_EXPORT_INTERVAL,
         }
       : { enabled: false };
+  const cloudinary = CLOUDINARY_URL ? parseCloudinaryUrl(CLOUDINARY_URL) : undefined;
   return Object.freeze({
     env: NODE_ENV,
     server: Object.freeze({ host: HOST, port: PORT }),
@@ -219,6 +270,14 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => {
       webAppUrl: WEB_APP_URL.replace(/\/+$/, ''),
       secureCookies: NODE_ENV === 'production',
     }),
+    photos: cloudinary
+      ? Object.freeze({
+          ...cloudinary,
+          folder: CLOUDINARY_FOLDER,
+          apiBaseUrl: CLOUDINARY_API_BASE_URL.replace(/\/+$/, ''),
+          deliveryBaseUrl: CLOUDINARY_DELIVERY_BASE_URL.replace(/\/+$/, ''),
+        })
+      : null,
     bootstrapAdmin: BOOTSTRAP_ADMIN_EMAIL
       ? Object.freeze({ email: BOOTSTRAP_ADMIN_EMAIL, name: BOOTSTRAP_ADMIN_NAME ?? null })
       : null,

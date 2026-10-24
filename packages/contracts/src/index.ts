@@ -19,6 +19,10 @@ export {
   InternDetail,
   InternStatusEvent,
   InternSummary,
+  maxPhotoBytes,
+  PhotoUploadTicket,
+  photoFormats,
+  SetPhotoRequest,
   StatusAction,
   statusActions,
 } from './intern.ts';

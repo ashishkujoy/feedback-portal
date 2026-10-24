@@ -3,10 +3,11 @@ import {
   BatchSummary,
   InternDetail,
   InternSummary,
+  PhotoUploadTicket,
   ProblemDetails,
   type Role,
 } from '@feedback-portal/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { realApp } from '../../../../test/app-deps.ts';
 import { useTestDb } from '../../../../test/test-db.ts';
@@ -14,6 +15,10 @@ import { newBatchId } from '../../cohort/domain/batch-id.ts';
 import { giveNotice } from '../domain/intern.ts';
 import { InternId, newInternId } from '../domain/intern-id.ts';
 import { newStatusEventId } from '../domain/status-event-id.ts';
+import {
+  createCloudinaryPhotoStorage,
+  signParams,
+} from '../infrastructure/cloudinary-photo-storage.ts';
 import { createInternRepository } from '../infrastructure/drizzle-intern-repository.ts';
 
 const testDb = useTestDb();
@@ -89,6 +94,7 @@ describe('POST /batches/:batchId/interns', () => {
       status: 'active',
       colorCode: null,
       noticeEndsOn: null,
+      photoUrl: null,
     });
     expect(response.headers.get('location')).toBe(`/batches/${batch.id}/interns/${intern.id}`);
     const saved = await createInternRepository(db()).findById(InternId.parse(intern.id));
@@ -572,5 +578,168 @@ describe('POST /batches/:batchId/interns/:internId/status-changes', () => {
     expect(statuses.toSorted((a, b) => a - b)).toEqual([200, 409]);
     const saved = await createInternRepository(db()).findById(InternId.parse(id));
     expect(saved?.statusEvents).toHaveLength(2);
+  });
+});
+
+/** What Cloudinary would answer for an upload of `publicId`. */
+const answer = (publicId: string, version = 1_799_658_001) => ({
+  publicId,
+  version,
+  signature: signParams({ public_id: publicId, version }, 'test-secret'),
+  bytes: 120_000,
+});
+
+describe('photos', () => {
+  const photosConfig = {
+    cloudName: 'demo',
+    apiKey: 'key-1',
+    apiSecret: 'test-secret',
+    folder: 'portal/interns',
+    apiBaseUrl: 'https://api.cloudinary.test',
+    deliveryBaseUrl: 'https://res.cloudinary.test',
+  };
+
+  /** The app with photos on: the real Cloudinary signing, and deletions recorded. */
+  const withPhotos = async () => {
+    const removed: string[] = [];
+    const fetchFn = vi.fn<typeof fetch>((_url, init) => {
+      removed.push(init?.body instanceof URLSearchParams ? (init.body.get('public_id') ?? '') : '');
+      return Promise.resolve(new Response('{"result":"ok"}', { status: 200 }));
+    });
+    const storage = createCloudinaryPhotoStorage(photosConfig, fetchFn);
+    const setup = realApp(db(), { photos: storage });
+    const person = (name: string, roles: [Role, ...Role[]]) => setup.signedInUser({ name, roles });
+    const admin = await person('Ada Admin', ['admin']);
+    const pm = await person('Pat Manager', ['program_manager']);
+    const mentor = await person('Mo Mentor', ['mentor']);
+    const batch = BatchDetail.parse(
+      await (
+        await post(setup, admin.cookie, '/batches', {
+          name: 'Batch 1',
+          startDate: '2027-01-11',
+          endDate: '2028-06-25',
+          programManagerId: pm.user.id,
+        })
+      ).json(),
+    );
+    await post(setup, admin.cookie, `/batches/${batch.id}/mentors`, { userId: mentor.user.id });
+    const { id } = await addedOf(
+      await post(setup, pm.cookie, `/batches/${batch.id}/interns`, ishita),
+    );
+    const base = `/batches/${batch.id}/interns/${id}`;
+    const ticket = async (who: { cookie: string }) =>
+      post(setup, who.cookie, `${base}/photo-upload`);
+    const save = (who: { cookie: string }, body: unknown) =>
+      setup.app.request(`${base}/photo`, {
+        method: 'PUT',
+        headers: {
+          cookie: who.cookie,
+          origin: setup.webAppUrl,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+    return { setup, admin, pm, mentor, batch, id, base, ticket, save, removed };
+  };
+
+  it('issues a signed ticket for a new photo of this intern', async () => {
+    const { pm, id, ticket } = await withPhotos();
+
+    const response = await ticket(pm);
+
+    expect(response.status).toBe(200);
+    const body = PhotoUploadTicket.parse(await response.json());
+    expect(body).toMatchObject({
+      uploadUrl: 'https://api.cloudinary.test/v1_1/demo/image/upload',
+      apiKey: 'key-1',
+      allowedFormats: 'jpg,png',
+    });
+    expect(body.publicId.startsWith(`portal/interns/${id}/`)).toBe(true);
+    expect(body.signature).toBe(
+      signParams(
+        { allowed_formats: 'jpg,png', public_id: body.publicId, timestamp: body.timestamp },
+        'test-secret',
+      ),
+    );
+  });
+
+  it('saves a genuine upload, shows it everywhere, and deletes the photo it replaces', async () => {
+    const { setup, pm, batch, id, ticket, save, removed } = await withPhotos();
+    const first = PhotoUploadTicket.parse(await (await ticket(pm)).json()).publicId;
+    await save(pm, answer(first));
+    const second = PhotoUploadTicket.parse(await (await ticket(pm)).json()).publicId;
+
+    const response = await save(pm, answer(second));
+
+    expect(response.status).toBe(200);
+    const url = `https://res.cloudinary.test/demo/image/upload/c_fill,g_face,w_128,h_128,f_auto,q_auto/${second}`;
+    expect(InternDetail.parse(await response.json()).photoUrl).toBe(url);
+    const roster = z
+      .array(InternSummary)
+      .parse(await (await get(setup, pm.cookie, `/batches/${batch.id}/interns`)).json());
+    expect(roster.map((intern) => intern.photoUrl)).toEqual([url]);
+    expect(removed).toEqual([first]);
+    expect(id).toBeDefined();
+  });
+
+  it('refuses a forged answer, another intern’s photo, or one over 5 MB, and saves nothing', async () => {
+    const { pm, id, ticket, save, removed } = await withPhotos();
+    const publicId = PhotoUploadTicket.parse(await (await ticket(pm)).json()).publicId;
+    const otherIntern = `portal/interns/${newInternId()}/x`;
+
+    const problems = await Promise.all(
+      [
+        { ...answer(publicId), signature: 'forged' },
+        answer(otherIntern),
+        { ...answer(publicId), bytes: 5 * 1024 * 1024 + 1 },
+      ].map(async (body) => (await problemOf(await save(pm, body), 400)).errors?.[0]?.path),
+    );
+
+    expect(problems).toEqual(['publicId', 'publicId', 'bytes']);
+    const saved = await createInternRepository(db()).findById(InternId.parse(id));
+    expect(saved?.photoPublicId).toBeNull();
+    expect(removed).toEqual([]);
+  });
+
+  it('is for the batch’s managers only', async () => {
+    const { setup, admin, pm, mentor, ticket } = await withPhotos();
+    const outsider = await setup.signedInUser({ name: 'Oli Other', roles: ['program_manager'] });
+
+    const statuses = await Promise.all(
+      [admin, pm, mentor, outsider].map(async (who) => (await ticket(who)).status),
+    );
+
+    expect(statuses).toEqual([200, 200, 403, 404]);
+  });
+
+  it('is refused for a read-only intern and in an archived batch', async () => {
+    const { setup, admin, pm, batch, base, ticket } = await withPhotos();
+    await post(setup, pm.cookie, `${base}/status-changes`, { action: 'graduate', reason: 'Done' });
+    expect((await problemOf(await ticket(pm), 409)).code).toBe('intern_read_only');
+
+    await post(setup, admin.cookie, `/batches/${batch.id}/archive`);
+    expect((await problemOf(await ticket(pm), 409)).code).toBe('batch_archived');
+  });
+
+  it('is unavailable when photos are off, and settings say so', async () => {
+    const { pm, batch, add } = await setUp();
+    const { id } = await addedOf(await add(pm));
+    const setup = realApp(db());
+
+    const response = await post(
+      setup,
+      pm.cookie,
+      `/batches/${batch.id}/interns/${id}/photo-upload`,
+    );
+
+    expect((await problemOf(response, 503)).code).toBe('unavailable');
+    expect(await (await setup.app.request('/settings')).json()).toMatchObject({ photos: false });
+    expect(
+      await (
+        await realApp(db(), { photos: createCloudinaryPhotoStorage(photosConfig) }).app.request(
+          '/settings',
+        )
+      ).json(),
+    ).toMatchObject({ photos: true });
   });
 });

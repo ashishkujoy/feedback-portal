@@ -16,6 +16,7 @@ import { createUserAdminTransaction } from '../src/modules/identity/infrastructu
 import { createUserRepository } from '../src/modules/identity/infrastructure/drizzle-user-repository.ts';
 import { createInternCounts } from '../src/modules/intern/infrastructure/drizzle-intern-counts.ts';
 import type { ManageInternsDeps } from '../src/modules/intern/application/manage-interns.ts';
+import type { PhotoStorage } from '../src/modules/intern/application/photo-storage.ts';
 import { createInternAdminTransaction } from '../src/modules/intern/infrastructure/drizzle-intern-admin.ts';
 import type { Database } from '../src/shared/db/client.ts';
 
@@ -48,11 +49,16 @@ const unusedManageBatches: ManageBatchesDeps = {
   now: () => new Date(),
 };
 
-const unusedManageInterns: ManageInternsDeps = { transaction: unused, now: () => new Date() };
+const unusedManageInterns: ManageInternsDeps = {
+  transaction: unused,
+  photos: null,
+  now: () => new Date(),
+};
 
 export const appDeps = (ping: AppDeps['ping']): AppDeps => ({
   ping,
   branding: testBranding,
+  photosEnabled: false,
   auth: unusedAuthDeps,
   userAdmin: unused,
   manageBatches: unusedManageBatches,
@@ -108,7 +114,12 @@ export const realApp = (
   {
     secureCookies = false,
     googleAuth = null,
-  }: Readonly<{ secureCookies?: boolean; googleAuth?: GoogleAuth | null }> = {},
+    photos = null,
+  }: Readonly<{
+    secureCookies?: boolean;
+    googleAuth?: GoogleAuth | null;
+    photos?: PhotoStorage | null;
+  }> = {},
 ) => {
   let current = new Date();
   const now = () => current;
@@ -117,6 +128,7 @@ export const realApp = (
   const app = createApp({
     ping: () => Promise.resolve(),
     branding: testBranding,
+    photosEnabled: photos !== null,
     auth: { users, sessions, googleAuth, webAppUrl: 'http://web.test', secureCookies, now },
     userAdmin: createUserAdminTransaction(db, now, createRoleAssignments),
     manageBatches: {
@@ -124,7 +136,11 @@ export const realApp = (
       queries: createBatchQueries(db, createInternCounts),
       now,
     },
-    manageInterns: { transaction: createInternAdminTransaction(db, createBatchAccess), now },
+    manageInterns: {
+      transaction: createInternAdminTransaction(db, createBatchAccess),
+      photos,
+      now,
+    },
   });
   return {
     app,

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { ChangeStatusRequest, CreateInternRequest, InternDetail, InternSummary } from './intern.ts';
+import {
+  ChangeStatusRequest,
+  CreateInternRequest,
+  InternDetail,
+  InternSummary,
+  maxPhotoBytes,
+  PhotoUploadTicket,
+  SetPhotoRequest,
+} from './intern.ts';
 
 describe('CreateInternRequest', () => {
   it('normalises the fields', () => {
@@ -60,6 +68,7 @@ describe('InternSummary', () => {
       status: 'active',
       colorCode: null,
       noticeEndsOn: null,
+      photoUrl: null,
     };
     expect(InternSummary.parse(intern)).toEqual(intern);
   });
@@ -76,6 +85,7 @@ describe('InternDetail', () => {
     status: 'active',
     colorCode: null,
     noticeEndsOn: null,
+    photoUrl: 'https://res.cloudinary.com/demo/image/upload/c_fill/x',
     phone: null,
     diplomaBranch: 'Mechanical',
     parentNames: null,
@@ -122,5 +132,24 @@ describe('ChangeStatusRequest', () => {
       ChangeStatusRequest.safeParse({ action: 'withdraw', reason: ' \n ' }).error?.issues[0]
         ?.message,
     ).toBe('Add a reason.');
+  });
+});
+
+describe('photo uploads', () => {
+  it('describe a ticket and the answer to save', () => {
+    expect(
+      PhotoUploadTicket.parse({
+        uploadUrl: 'https://api.cloudinary.com/v1_1/demo/image/upload',
+        apiKey: 'key',
+        timestamp: 1_800_000_000,
+        signature: 'abc',
+        publicId: 'feedback-portal/interns/i1/p1',
+        allowedFormats: 'jpg,png',
+      }).publicId,
+    ).toBe('feedback-portal/interns/i1/p1');
+    expect(
+      SetPhotoRequest.safeParse({ publicId: 'x', version: 0, signature: 's', bytes: 1 }).success,
+    ).toBe(false);
+    expect(maxPhotoBytes).toBe(5_242_880);
   });
 });

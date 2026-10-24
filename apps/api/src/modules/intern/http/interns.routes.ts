@@ -1,4 +1,9 @@
-import { ChangeStatusRequest, CreateInternRequest } from '@feedback-portal/contracts';
+import {
+  ChangeStatusRequest,
+  CreateInternRequest,
+  PhotoUploadTicket,
+  SetPhotoRequest,
+} from '@feedback-portal/contracts';
 import { getLogger } from '@logtape/logtape';
 import { type Context, Hono } from 'hono';
 import { z } from 'zod';
@@ -17,8 +22,10 @@ import {
   getIntern,
   listInterns,
   type ManageInternsDeps,
+  photoUploadTicket,
+  setInternPhoto,
 } from '../application/manage-interns.ts';
-import { toInternDetail, toInternSummary } from './intern-views.ts';
+import { type PhotoUrl, toInternDetail, toInternSummary } from './intern-views.ts';
 
 export type InternsRoutesDeps = AuthenticateDeps & Readonly<{ manageInterns: ManageInternsDeps }>;
 
@@ -38,21 +45,58 @@ const actorOf = (c: Context<AuthEnv>): Actor => {
  * that PM changes a status (both checked by the use case). A batch
  * the user can't see is a 404. Logs carry ids, never names.
  */
-export const internsRoutes = ({ manageInterns, ...auth }: InternsRoutesDeps) =>
-  new Hono<AuthEnv>()
+export const internsRoutes = ({ manageInterns, ...auth }: InternsRoutesDeps) => {
+  const { photos } = manageInterns;
+  const photoUrl: PhotoUrl = (publicId) =>
+    publicId !== null && photos ? photos.urlFor(publicId) : null;
+  const managers = requireRole('admin', 'program_manager');
+
+  return new Hono<AuthEnv>()
     .use(authenticate(auth))
     .get('/', validate('param', BatchParams), async (c) => {
       const interns = await listInterns(manageInterns, {
         actor: actorOf(c),
         batchId: c.req.valid('param').batchId,
       });
-      return c.json(interns.map(toInternSummary));
+      return c.json(interns.map((intern) => toInternSummary(intern, photoUrl)));
     })
     .get('/:internId', validate('param', InternParams), async (c) => {
       const { batchId, internId } = c.req.valid('param');
       const intern = await getIntern(manageInterns, { actor: actorOf(c), batchId, internId });
-      return c.json(toInternDetail(intern));
+      return c.json(toInternDetail(intern, photoUrl));
     })
+    .post('/:internId/photo-upload', managers, validate('param', InternParams), async (c) => {
+      const { batchId, internId } = c.req.valid('param');
+      const ticket = await photoUploadTicket(manageInterns, {
+        actor: actorOf(c),
+        batchId,
+        internId,
+      });
+      return c.json(PhotoUploadTicket.parse(ticket));
+    })
+    .put(
+      '/:internId/photo',
+      managers,
+      validate('param', InternParams),
+      validate('json', SetPhotoRequest),
+      async (c) => {
+        const actor = actorOf(c);
+        const { batchId, internId } = c.req.valid('param');
+        const { bytes, ...upload } = c.req.valid('json');
+        const { intern, previousRemovalFailed } = await setInternPhoto(manageInterns, {
+          actor,
+          batchId,
+          internId,
+          upload,
+          bytes,
+        });
+        logger.info('intern photo set', { actorId: actor.id, batchId, internId });
+        if (previousRemovalFailed) {
+          logger.warning('replaced intern photo could not be deleted', { batchId, internId });
+        }
+        return c.json(toInternDetail(intern, photoUrl));
+      },
+    )
     .post(
       '/:internId/status-changes',
       requireRole('program_manager'),
@@ -71,7 +115,7 @@ export const internsRoutes = ({ manageInterns, ...auth }: InternsRoutesDeps) =>
         });
         // The reason can hold personal detail, so only ids and the action are logged.
         logger.info('intern status changed', { actorId: actor.id, batchId, internId, action });
-        return c.json(toInternDetail(intern));
+        return c.json(toInternDetail(intern, photoUrl));
       },
     )
     .post(
@@ -89,6 +133,7 @@ export const internsRoutes = ({ manageInterns, ...auth }: InternsRoutesDeps) =>
         });
         logger.info('intern added', { actorId: actor.id, batchId, internId: intern.id });
         c.header('Location', `/batches/${batchId}/interns/${intern.id}`);
-        return c.json(toInternSummary(intern), 201);
+        return c.json(toInternSummary(intern, photoUrl), 201);
       },
     );
+};

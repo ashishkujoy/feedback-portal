@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 const sizes = {
   sm: 'size-7 text-[11.2px]',
   md: 'size-9 text-[14.4px]',
@@ -13,17 +15,35 @@ export const initialsOf = (name: string): string => {
   return `${first}${last}`.toUpperCase() || '?';
 };
 
-type AvatarProps = Readonly<{ name: string; src?: string | null; size?: keyof typeof sizes }>;
+type AvatarProps = Readonly<{
+  name: string;
+  src?: string | null;
+  size?: keyof typeof sizes;
+  className?: string;
+}>;
 
-/** Kuat Avatar: a round image, or initials on EE Blue 100 (40% of the size, semibold). */
-export const Avatar = ({ name, src, size = 'md' }: AvatarProps) => (
-  <span
-    className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-ee-blue-100 font-semibold text-ee-blue-700 select-none ${sizes[size]}`}
-  >
-    {src ? (
-      <img src={src} alt="" className="size-full object-cover" referrerPolicy="no-referrer" />
-    ) : (
-      <span aria-hidden>{initialsOf(name)}</span>
-    )}
-  </span>
-);
+/**
+ * Kuat Avatar: a round image, or initials on EE Blue 100 (40% of the size, semibold). Initials
+ * also stand in when the image can't be loaded.
+ */
+export const Avatar = ({ name, src, size = 'md', className = '' }: AvatarProps) => {
+  const [failed, setFailed] = useState<string | null>(null);
+  const showImage = src && failed !== src;
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-ee-blue-100 font-semibold text-ee-blue-700 select-none ${sizes[size]} ${className}`}
+    >
+      {showImage ? (
+        <img
+          src={src}
+          alt=""
+          className="size-full object-cover"
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(src)}
+        />
+      ) : (
+        <span aria-hidden>{initialsOf(name)}</span>
+      )}
+    </span>
+  );
+};

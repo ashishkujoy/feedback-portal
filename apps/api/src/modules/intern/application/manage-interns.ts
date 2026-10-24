@@ -1,5 +1,11 @@
-import type { StatusAction } from '@feedback-portal/contracts';
-import { conflict, forbidden, notFound } from '../../../shared/errors/app-error.ts';
+import { maxPhotoBytes, type StatusAction } from '@feedback-portal/contracts';
+import {
+  conflict,
+  forbidden,
+  notFound,
+  unavailable,
+  validationFailed,
+} from '../../../shared/errors/app-error.ts';
 import type { Viewer } from '../../cohort/application/batch-scope.ts';
 import type { BatchId } from '../../cohort/domain/batch-id.ts';
 import {
@@ -8,7 +14,9 @@ import {
   graduate,
   type Intern,
   liftNotice,
+  isReadOnly,
   onboardIntern,
+  setPhoto as withPhoto,
   terminate,
   withdraw,
 } from '../domain/intern.ts';
@@ -16,9 +24,12 @@ import { type InternId, newInternId } from '../domain/intern-id.ts';
 import { newStatusEventId } from '../domain/status-event-id.ts';
 import type { InternAdminScope, InternAdminTransaction } from './intern-admin.ts';
 import type { InternDetailView, InternSummaryView } from './intern-queries.ts';
+import type { PhotoStorage, PhotoUploadTicketView, UploadedPhoto } from './photo-storage.ts';
 
 export type ManageInternsDeps = Readonly<{
   transaction: InternAdminTransaction;
+  /** `null` when photos are off (no Cloudinary configured). */
+  photos: PhotoStorage | null;
   now: () => Date;
 }>;
 
@@ -136,3 +147,75 @@ export const changeStatus = (
     if (!detail) throw new Error(`intern ${internId} vanished inside its transaction`);
     return detail;
   });
+
+const photosOrUnavailable = (photos: PhotoStorage | null): PhotoStorage => {
+  if (!photos) throw unavailable('Photos are not configured');
+  return photos;
+};
+
+type InternRef = Readonly<{ actor: Actor; batchId: BatchId; internId: InternId }>;
+
+/**
+ * Photos are for the batch's managers (admins and its PM, 7.7 decision 1), never in an archived
+ * batch or for a read-only intern. Loads (and locks) the intern of that batch.
+ */
+const loadForPhoto = async (scope: InternAdminScope, { actor, batchId, internId }: InternRef) => {
+  await ensureCanManage(scope, actor, batchId);
+  const intern = await scope.interns.findByIdForUpdate(internId);
+  if (intern?.batchId !== batchId) throw notFound('Intern not found');
+  if (isReadOnly(intern)) {
+    throw conflict("This intern's record is read-only", 'intern_read_only');
+  }
+  return intern;
+};
+
+/** A signed upload for a new photo of this intern. */
+export const photoUploadTicket = (
+  { transaction, photos, now }: ManageInternsDeps,
+  ref: InternRef,
+): Promise<PhotoUploadTicketView> => {
+  const storage = photosOrUnavailable(photos);
+  return transaction(async (scope) => {
+    await loadForPhoto(scope, ref);
+    return storage.ticketFor(ref.internId, now());
+  });
+};
+
+export type SetPhotoResult = Readonly<{
+  intern: InternDetailView;
+  /** Whether deleting the replaced photo from the storage failed (it's kept, and logged). */
+  previousRemovalFailed: boolean;
+}>;
+
+/**
+ * Saves an uploaded photo once the storage's answer is proven genuine and for this intern, then
+ * deletes the photo it replaces (best effort, after the change is committed).
+ */
+export const setInternPhoto = async (
+  { transaction, photos, now }: ManageInternsDeps,
+  { upload, bytes, ...ref }: InternRef & Readonly<{ upload: UploadedPhoto; bytes: number }>,
+): Promise<SetPhotoResult> => {
+  const storage = photosOrUnavailable(photos);
+  const { intern, previous } = await transaction(async (scope) => {
+    const current = await loadForPhoto(scope, ref);
+    // The size is reported by the browser; the format is enforced by the signed upload.
+    if (bytes > maxPhotoBytes) {
+      throw validationFailed([{ path: 'bytes', message: 'Photo must be under 5 MB' }]);
+    }
+    if (!storage.isGenuineUpload(ref.internId, upload)) {
+      throw validationFailed([{ path: 'publicId', message: "This upload couldn't be verified" }]);
+    }
+    await scope.interns.save(withPhoto(current, { publicId: upload.publicId, now: now() }));
+    const detail = await scope.queries.detail(ref.batchId, ref.internId);
+    if (!detail) throw new Error(`intern ${ref.internId} vanished inside its transaction`);
+    return { intern: detail, previous: current.photoPublicId };
+  });
+  if (previous === null || previous === upload.publicId) {
+    return { intern, previousRemovalFailed: false };
+  }
+  const previousRemovalFailed = await storage
+    .remove(previous, now())
+    .then(() => false)
+    .catch(() => true);
+  return { intern, previousRemovalFailed };
+};

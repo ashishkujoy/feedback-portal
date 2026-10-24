@@ -11,6 +11,8 @@ export type InternSummaryView = Readonly<{
   status: InternStatus;
   colorCode: ColorCode | null;
   noticeEndsOn: string | null;
+  /** The storage's id for the photo; the HTTP layer turns it into a URL. */
+  photoPublicId: string | null;
 }>;
 
 type ActorRef = Readonly<{ id: string; name: string }>;

@@ -65,6 +65,7 @@ const intern = (overrides: Partial<InternDetail> = {}): InternDetail => ({
   status: 'active',
   colorCode: null,
   noticeEndsOn: null,
+  photoUrl: null,
   phone: '+91 98450 12345',
   diplomaBranch: 'Computer Engineering',
   parentNames: null,
@@ -278,6 +279,7 @@ describe('the roster', () => {
     status: 'active',
     colorCode: null,
     noticeEndsOn: null,
+    photoUrl: null,
   };
 
   it.each(['', '?view=table'])('links each name to the profile (%s)', async (search) => {
