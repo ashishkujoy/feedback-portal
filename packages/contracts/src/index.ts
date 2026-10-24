@@ -25,6 +25,7 @@ export {
   SetPhotoRequest,
   StatusAction,
   statusActions,
+  UpdateInternDetailsRequest,
 } from './intern.ts';
 export {
   InternStatus,

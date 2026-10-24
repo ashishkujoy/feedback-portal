@@ -1,13 +1,24 @@
 import type { ReactNode } from 'react';
+import { Button } from '../../ui/button.tsx';
 
-/** P22's card: a bordered box headed by an 18px/600 title, padding 14px 20px over a border. */
-export const SectionCard = ({
-  title,
-  children,
-}: Readonly<{ title: string; children: ReactNode }>) => (
+/** P22's card: a bordered box headed by an 18px/600 title (and an action), padding 14px 20px. */
+type SectionCardProps = Readonly<{
+  title: string;
+  /** An outline `sm` button at the right of the header (P22's Edit details), when given. */
+  actionLabel?: string;
+  onAction?: (() => void) | undefined;
+  children: ReactNode;
+}>;
+
+export const SectionCard = ({ title, actionLabel, onAction, children }: SectionCardProps) => (
   <section aria-label={title} className="border border-border bg-background">
     <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
       <h2 className="text-lg font-semibold tracking-[-0.2px]">{title}</h2>
+      {actionLabel && onAction ? (
+        <Button variant="outline" size="sm" onClick={onAction}>
+          {actionLabel}
+        </Button>
+      ) : null}
     </div>
     {children}
   </section>

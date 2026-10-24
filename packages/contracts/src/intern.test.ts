@@ -7,6 +7,7 @@ import {
   maxPhotoBytes,
   PhotoUploadTicket,
   SetPhotoRequest,
+  UpdateInternDetailsRequest,
 } from './intern.ts';
 
 describe('CreateInternRequest', () => {
@@ -151,5 +152,28 @@ describe('photo uploads', () => {
       SetPhotoRequest.safeParse({ publicId: 'x', version: 0, signature: 's', bytes: 1 }).success,
     ).toBe(false);
     expect(maxPhotoBytes).toBe(5_242_880);
+  });
+});
+
+describe('UpdateInternDetailsRequest', () => {
+  it('has the same rules as adding, without the username', () => {
+    expect(
+      UpdateInternDetailsRequest.parse({
+        username: 'ignored',
+        name: ' Ishita R. ',
+        email: 'ISHITA@example.com',
+        phone: '',
+      }),
+    ).toEqual({
+      name: 'Ishita R.',
+      email: 'ishita@example.com',
+      phone: null,
+      diplomaBranch: null,
+      parentNames: null,
+      interviewNotes: null,
+    });
+    expect(
+      UpdateInternDetailsRequest.safeParse({ name: 'I', email: 'nope' }).error?.issues[0]?.message,
+    ).toBe('Invalid email address');
   });
 });

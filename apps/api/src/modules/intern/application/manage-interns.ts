@@ -18,6 +18,7 @@ import {
   onboardIntern,
   setPhoto as withPhoto,
   terminate,
+  updateDetails,
   withdraw,
 } from '../domain/intern.ts';
 import { type InternId, newInternId } from '../domain/intern-id.ts';
@@ -219,3 +220,27 @@ export const setInternPhoto = async (
     .catch(() => true);
   return { intern, previousRemovalFailed };
 };
+
+/** Fixes an intern's details (A15); the username stays, since imports match on it. */
+export const updateInternDetails = (
+  { transaction, now }: ManageInternsDeps,
+  {
+    actor,
+    batchId,
+    internId,
+    details,
+  }: InternRef & Readonly<{ details: Omit<DetailsInput, 'username'> }>,
+): Promise<InternDetailView> =>
+  transaction(async (scope) => {
+    await ensureCanManage(scope, actor, batchId);
+    const intern = await scope.interns.findByIdForUpdate(internId);
+    if (intern?.batchId !== batchId) throw notFound('Intern not found');
+    const next = updateDetails(intern, {
+      details: { ...details, username: intern.username },
+      now: now(),
+    });
+    await scope.interns.save(next);
+    const detail = await scope.queries.detail(batchId, internId);
+    if (!detail) throw new Error(`intern ${internId} vanished inside its transaction`);
+    return detail;
+  });

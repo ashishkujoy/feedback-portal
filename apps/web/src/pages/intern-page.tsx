@@ -6,6 +6,7 @@ import { batchQuery } from '../api/batches.ts';
 import { isApiError } from '../api/errors.ts';
 import { internQuery } from '../api/interns.ts';
 import { today } from '../batches/batch-dates.ts';
+import { EditDetailsDialog } from '../interns/profile/edit-details-dialog.tsx';
 import { InternDetails } from '../interns/profile/intern-details.tsx';
 import {
   PhotoButton,
@@ -65,6 +66,7 @@ export const InternPage = () => {
   const settings = useSettings();
   const [changing, setChanging] = useState<StatusAction | null>(null);
   const photo = usePhotoUpload({ id: internId, batchId });
+  const [editing, setEditing] = useState(false);
 
   if (error) {
     return (
@@ -81,8 +83,9 @@ export const InternPage = () => {
   const final = finalBanner(intern);
   const buttons = me ? statusButtonsFor(me, batch, intern) : [];
   // A6-photo: the batch's managers (7.7 decision 1), photos on, and the record not read-only.
-  const canPhoto =
-    settings?.photos === true && me ? canManageBatch(me, batch) && final === null : false;
+  // The batch's managers fix details (7.9 decision 1) while the record isn't read-only.
+  const canEdit = me ? canManageBatch(me, batch) && final === null : false;
+  const canPhoto = settings?.photos === true && canEdit;
 
   return (
     <>
@@ -137,6 +140,14 @@ export const InternPage = () => {
         ) : null}
       </div>
       <StatusDialog intern={intern} action={changing} onClose={() => setChanging(null)} />
+      {canEdit ? (
+        <EditDetailsDialog
+          intern={intern}
+          batchName={batch.name}
+          open={editing}
+          onClose={() => setEditing(false)}
+        />
+      ) : null}
       {notice ? (
         <Callout type="warning" title={notice.title}>
           {notice.description}
@@ -164,7 +175,9 @@ export const InternPage = () => {
           className="flex min-w-0 flex-col gap-4"
         >
           {tab === 'timeline' ? <TimelinePlaceholder name={intern.name} /> : null}
-          {tab === 'details' ? <InternDetails intern={intern} /> : null}
+          {tab === 'details' ? (
+            <InternDetails intern={intern} onEdit={canEdit ? () => setEditing(true) : undefined} />
+          ) : null}
           {tab === 'history' ? <StatusHistory intern={intern} /> : null}
         </div>
         <SidePanel intern={intern} batch={batch} today={on} />

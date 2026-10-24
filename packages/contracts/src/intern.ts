@@ -49,6 +49,10 @@ export const CreateInternRequest = z.object({
 });
 export type CreateInternRequest = z.input<typeof CreateInternRequest>;
 
+/** `PUT …/details`: everything but the username, which imports match on (7.9). */
+export const UpdateInternDetailsRequest = CreateInternRequest.omit({ username: true });
+export type UpdateInternDetailsRequest = z.input<typeof UpdateInternDetailsRequest>;
+
 /** An intern as lists show them. `noticeEndsOn` is `YYYY-MM-DD`, set exactly while on notice. */
 export const InternSummary = z.object({
   id: z.uuid(),

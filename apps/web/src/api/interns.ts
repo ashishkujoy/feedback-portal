@@ -5,6 +5,7 @@ import {
   InternSummary,
   PhotoUploadTicket,
   type SetPhotoRequest,
+  type UpdateInternDetailsRequest,
 } from '@feedback-portal/contracts';
 import { queryOptions } from '@tanstack/react-query';
 import { z } from 'zod';
@@ -48,6 +49,18 @@ export const photoUploadTicket = (batchId: string, internId: string) =>
 /** `PUT …/photo`: save the uploaded photo; the updated profile, or an `ApiError`. */
 export const setPhoto = (batchId: string, internId: string, body: SetPhotoRequest) =>
   apiFetch(`/batches/${batchId}/interns/${internId}/photo`, {
+    method: 'PUT',
+    body,
+    schema: InternDetail,
+  });
+
+/** `PUT …/details` (the batch's managers): the updated profile, or an `ApiError`. */
+export const updateInternDetails = (
+  batchId: string,
+  internId: string,
+  body: UpdateInternDetailsRequest,
+) =>
+  apiFetch(`/batches/${batchId}/interns/${internId}/details`, {
     method: 'PUT',
     body,
     schema: InternDetail,

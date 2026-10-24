@@ -3,6 +3,7 @@ import {
   CreateInternRequest,
   PhotoUploadTicket,
   SetPhotoRequest,
+  UpdateInternDetailsRequest,
 } from '@feedback-portal/contracts';
 import { getLogger } from '@logtape/logtape';
 import { type Context, Hono } from 'hono';
@@ -24,6 +25,7 @@ import {
   type ManageInternsDeps,
   photoUploadTicket,
   setInternPhoto,
+  updateInternDetails,
 } from '../application/manage-interns.ts';
 import { type PhotoUrl, toInternDetail, toInternSummary } from './intern-views.ts';
 
@@ -65,6 +67,24 @@ export const internsRoutes = ({ manageInterns, ...auth }: InternsRoutesDeps) => 
       const intern = await getIntern(manageInterns, { actor: actorOf(c), batchId, internId });
       return c.json(toInternDetail(intern, photoUrl));
     })
+    .put(
+      '/:internId/details',
+      managers,
+      validate('param', InternParams),
+      validate('json', UpdateInternDetailsRequest),
+      async (c) => {
+        const actor = actorOf(c);
+        const { batchId, internId } = c.req.valid('param');
+        const intern = await updateInternDetails(manageInterns, {
+          actor,
+          batchId,
+          internId,
+          details: c.req.valid('json'),
+        });
+        logger.info('intern details updated', { actorId: actor.id, batchId, internId });
+        return c.json(toInternDetail(intern, photoUrl));
+      },
+    )
     .post('/:internId/photo-upload', managers, validate('param', InternParams), async (c) => {
       const { batchId, internId } = c.req.valid('param');
       const ticket = await photoUploadTicket(manageInterns, {

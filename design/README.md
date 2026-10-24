@@ -63,7 +63,7 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 
 ### Intern profile (P6 / M6, P22, P23, A6) as built in 7.5
 - **At `/batches/:batchId/interns/:internId`**, with the crumbs Batches › \<batch\> › \<intern\>. Roster names link to it: only the name, so nothing interactive nests.
-- **Left out until their tasks** (7.5 decision 1): Give feedback (Phase 9), the colour history and "Linked feedback" (Phase 9), and Edit details (7.9).
+- **Left out until their tasks** (7.5 decision 1): Give feedback (Phase 9), and the colour history and "Linked feedback" (Phase 9).
 - **Timeline:** v2's empty state without its button (decision 2), naming the intern by first name.
 - **Status history** is built (decision 3). The onboarding row, which has no reason, reads "Added by hand." or "Imported from Airtable.". Reasons render as Markdown.
 - **On-notice banner** without "with \<colour\> feedback" until Phase 9 (decision 5). Once a notice has ended: "Notice ended on \<date\> · decision needed".
@@ -82,6 +82,11 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 - **Uploading:** the avatar at 40% with a 22px spinner. Under the line, a 240px column with "Uploading \<file\> · N%", a 6px bar (a native `progress` styled as Kuat Progress) and a ghost-muted Cancel. The button is hidden meanwhile.
 - **Error:** v2's line for a wrong type or size. A failed save says "\<file\> wasn't uploaded." with the API's reason.
 - **Photos show on the card (48px), the table row (28px) and the profile (64px).** Initials stand in when there's none, or when the image fails to load.
+
+### Edit details (A15) as built in 7.9
+- **An outline `sm` Edit details** at the right of the Details card's header, for admins and the batch's PM, not on a read-only intern or an archived batch (7.9 decision 1).
+- **The dialog shares A14's fields** (`interns/intern-fields.tsx`). Username is disabled (Kuat's disabled Input: `--muted` at 60%) with "Usernames can't change because imports match on them."; the rest are filled in from the profile. **Save details** ("Saving…"). A blank optional field clears it (decision 3).
+- **The email error stays "Invalid email address"** (decision 2), as on every other form, rather than A15's "Enter a valid email address."
 
 ## Screens (v1)
 **Desktop is 1440 wide; mobile is 390×844.** Every desktop screen has the same shell:

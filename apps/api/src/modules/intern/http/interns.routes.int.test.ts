@@ -743,3 +743,109 @@ describe('photos', () => {
     ).toMatchObject({ photos: true });
   });
 });
+
+const put = ({ app, webAppUrl }: Setup, cookie: string, path: string, body: unknown) =>
+  app.request(path, {
+    method: 'PUT',
+    headers: { cookie, origin: webAppUrl, 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+describe('PUT /batches/:batchId/interns/:internId/details', () => {
+  const edited = {
+    username: 'someone.else',
+    name: ' Ishita R. ',
+    email: 'Ishita.R@Example.com',
+    phone: '',
+    diplomaBranch: 'Mechanical',
+    parentNames: 'Ramesh Rao',
+    interviewNotes: '**Strong** in maths',
+  };
+
+  it('replaces the details, normalised, and keeps the username', async () => {
+    const { setup, pm, admin, batch, add } = await setUp();
+    const { id } = await addedOf(await add(pm, { ...ishita, phone: '+91 98450 12345' }));
+    const path = `/batches/${batch.id}/interns/${id}/details`;
+
+    const responses = await Promise.all(
+      [pm, admin].map(async (who) => put(setup, who.cookie, path, edited)),
+    );
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    const detail = InternDetail.parse(await responses[0]?.json());
+    expect(detail).toMatchObject({
+      username: 'ishita.rao',
+      name: 'Ishita R.',
+      email: 'ishita.r@example.com',
+      phone: null,
+      diplomaBranch: 'Mechanical',
+      parentNames: 'Ramesh Rao',
+      interviewNotes: '**Strong** in maths',
+    });
+  });
+
+  it('reports an invalid field', async () => {
+    const { setup, pm, batch, add } = await setUp();
+    const { id } = await addedOf(await add(pm));
+
+    const problem = await problemOf(
+      await put(setup, pm.cookie, `/batches/${batch.id}/interns/${id}/details`, {
+        ...edited,
+        email: 'nope',
+      }),
+      400,
+    );
+
+    expect(problem.errors).toEqual([{ path: 'email', message: 'Invalid email address' }]);
+  });
+
+  it("is for the batch's managers, in its own batch, while not archived or read-only", async () => {
+    const { setup, admin, pm, mentor, person, batch, add } = await setUp();
+    const { id } = await addedOf(await add(pm));
+    const path = `/batches/${batch.id}/interns/${id}/details`;
+    const otherPm = await person('Oli Other', ['program_manager']);
+    const other = BatchDetail.parse(
+      await (
+        await post(setup, admin.cookie, '/batches', {
+          name: 'Batch 2',
+          startDate: '2027-01-11',
+          endDate: '2028-06-25',
+          programManagerId: pm.user.id,
+        })
+      ).json(),
+    );
+
+    const statuses = await Promise.all(
+      [
+        { who: mentor, target: path },
+        { who: otherPm, target: path },
+        { who: pm, target: `/batches/${other.id}/interns/${id}/details` },
+        { who: { cookie: '' }, target: path },
+      ].map(async ({ who, target }) => (await put(setup, who.cookie, target, edited)).status),
+    );
+    expect(statuses).toEqual([403, 404, 404, 401]);
+
+    await post(setup, pm.cookie, `/batches/${batch.id}/interns/${id}/status-changes`, {
+      action: 'graduate',
+      reason: 'Done',
+    });
+    expect((await problemOf(await put(setup, pm.cookie, path, edited), 409)).code).toBe(
+      'intern_read_only',
+    );
+  });
+
+  it('is refused once the batch is archived', async () => {
+    const { setup, admin, pm, batch, add } = await setUp();
+    const { id } = await addedOf(await add(pm));
+    await post(setup, admin.cookie, `/batches/${batch.id}/archive`);
+
+    expect(
+      (
+        await problemOf(
+          await put(setup, pm.cookie, `/batches/${batch.id}/interns/${id}/details`, edited),
+          409,
+        )
+      ).code,
+    ).toBe('batch_archived');
+  });
+});

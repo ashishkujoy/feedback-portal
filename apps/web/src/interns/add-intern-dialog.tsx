@@ -9,9 +9,8 @@ import { addIntern, internsQuery } from '../api/interns.ts';
 import { Button } from '../ui/button.tsx';
 import { Callout } from '../ui/callout.tsx';
 import { Dialog } from '../ui/dialog.tsx';
-import { Field, messageId } from '../ui/field.tsx';
-import { Textarea } from '../ui/textarea.tsx';
-import { TextInput } from '../ui/text-input.tsx';
+import { messageId } from '../ui/field.tsx';
+import { InternDetailFields, UsernameField } from './intern-fields.tsx';
 
 const defaultValues = {
   username: '',
@@ -80,53 +79,16 @@ const AddInternForm = ({ batchId, onAdded, onClose }: FormProps) => {
 
   return (
     <form noValidate onSubmit={(event) => void onSubmit(event)} className="flex flex-col gap-4">
-      <Field
-        id="add-intern-username"
-        label="Username"
-        required
+      <UsernameField
         help="Lowercase, as in Airtable."
         error={errors.username?.message}
-      >
-        <TextInput
-          mono
-          leftIcon="@"
-          autoComplete="off"
-          spellCheck={false}
-          aria-required
-          {...control('username', 'add-intern-username', true)}
-        />
-      </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field id="add-intern-name" label="Full name" required error={errors.name?.message}>
-          <TextInput autoComplete="off" aria-required {...control('name', 'add-intern-name')} />
-        </Field>
-        <Field id="add-intern-email" label="Email" required error={errors.email?.message}>
-          <TextInput
-            type="email"
-            autoComplete="off"
-            spellCheck={false}
-            aria-required
-            {...control('email', 'add-intern-email')}
-          />
-        </Field>
-        <Field id="add-intern-phone" label="Phone" error={errors.phone?.message}>
-          <TextInput type="tel" autoComplete="off" {...control('phone', 'add-intern-phone')} />
-        </Field>
-        <Field id="add-intern-branch" label="Diploma branch" error={errors.diplomaBranch?.message}>
-          <TextInput autoComplete="off" {...control('diplomaBranch', 'add-intern-branch')} />
-        </Field>
-      </div>
-      <Field id="add-intern-parents" label="Parents' names" error={errors.parentNames?.message}>
-        <TextInput autoComplete="off" {...control('parentNames', 'add-intern-parents')} />
-      </Field>
-      <Field
-        id="add-intern-notes"
-        label="Interview notes"
-        help="Markdown supported."
-        error={errors.interviewNotes?.message}
-      >
-        <Textarea mono rows={5} {...control('interviewNotes', 'add-intern-notes', true)} />
-      </Field>
+        {...control('username', 'add-intern-username', true)}
+      />
+      <InternDetailFields
+        idPrefix="add-intern"
+        control={control}
+        error={(name) => errors[name]?.message}
+      />
       {failed ? (
         <Callout type="issue" title="We couldn't add this intern">
           {isApiError(failed) ? failed.detail : undefined}

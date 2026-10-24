@@ -81,6 +81,7 @@ The browser uploads straight to Cloudinary with a signature from the API, and th
   - `POST /batches/:id/archive` makes the batch read-only (409 `batch_archived` afterwards). There's no unarchiving.
 
 ### API endpoints (interns)
+- **`PUT /batches/:batchId/interns/:internId/details`** with `{ name, email, phone?, diplomaBranch?, parentNames?, interviewNotes? }` replaces an intern's details and answers with the profile. **The username can't change** (imports match on it; one sent is ignored). Admins and the batch's PM only; 409 `batch_archived` or `intern_read_only`.
 - **Photos** (admins and the batch's PM; not in an archived batch or for a read-only intern; **503** when photos are off):
   - `POST /batches/:batchId/interns/:internId/photo-upload` returns a signed upload ticket for one new photo (JPG or PNG).
   - `PUT /batches/:batchId/interns/:internId/photo` with Cloudinary's answer `{ publicId, version, signature, bytes }` saves the photo after checking the signature, that the photo was issued for this intern, and that it's 5 MB or less. It answers with the updated profile, and deletes the photo it replaced.
