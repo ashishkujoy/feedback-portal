@@ -63,13 +63,19 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 
 ### Intern profile (P6 / M6, P22, P23, A6) as built in 7.5
 - **At `/batches/:batchId/interns/:internId`**, with the crumbs Batches › \<batch\> › \<intern\>. Roster names link to it: only the name, so nothing interactive nests.
-- **Left out until their tasks** (7.5 decision 1): the status actions (7.6), Give feedback (Phase 9), the photo button (7.7), the colour history and "Linked feedback" (Phase 9), and Edit details (7.9).
+- **Left out until their tasks** (7.5 decision 1): Give feedback (Phase 9), the photo button (7.7), the colour history and "Linked feedback" (Phase 9), and Edit details (7.9).
 - **Timeline:** v2's empty state without its button (decision 2), naming the intern by first name.
 - **Status history** is built (decision 3). The onboarding row, which has no reason, reads "Added by hand." or "Imported from Airtable.". Reasons render as Markdown.
 - **On-notice banner** without "with \<colour\> feedback" until Phase 9 (decision 5). Once a notice has ended: "Notice ended on \<date\> · decision needed".
 - **Colour code note:** "Set by the first coloured feedback." / "From the latest coloured feedback." (decision 6). **Mentors:** "N mentors in this batch" (v2: "active mentors"), since inactive users can still be assigned.
 - **Markdown** (`ui/markdown.tsx`): v2's prose sizes (14/22, 15px/600 headings, 10px between blocks, mono inline code on slate 100). It uses react-markdown with remark-gfm, and rehype-sanitize, so raw HTML is never rendered.
 - **Missing details** show "—". Notes left empty show "No interview notes."
+
+### Status changes (P18–P21) as built in 7.6
+- **Header buttons for the batch's current PM only** (7.6 decision 1), not in an archived batch (decision 2), and not once final. Active: Withdraw (ghost-muted), Graduate (outline). On notice: Withdraw, Terminate (destructive), Lift notice (outline).
+- **The dialogs follow v2,** with the points rewritten without pronouns ("The status changes to …", "The record becomes read-only."). Lifting the notice of an intern without a colour code says "There is no colour code until the first coloured feedback."
+- **An empty reason says "Add a reason."** (decision 3), from the shared contract and the domain. A refusal from the API shows an `issue` Callout, "We couldn't …", and keeps the reason.
+- **After a change** the dialog closes and the profile shows the answer. The roster, batch and batch list refresh (decision 5).
 
 ## Screens (v1)
 **Desktop is 1440 wide; mobile is 390×844.** Every desktop screen has the same shell:

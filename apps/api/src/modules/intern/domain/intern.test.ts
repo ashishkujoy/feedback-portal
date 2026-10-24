@@ -222,7 +222,7 @@ describe('reasons', () => {
       () => graduate(active, change(reason)),
       () => withdraw(active, change(reason)),
     ]) {
-      expect(errorOf(action).issues).toEqual([{ path: 'reason', message: 'A reason is required' }]);
+      expect(errorOf(action).issues).toEqual([{ path: 'reason', message: 'Add a reason.' }]);
     }
   });
 

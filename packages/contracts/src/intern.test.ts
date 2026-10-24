@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CreateInternRequest, InternDetail, InternSummary } from './intern.ts';
+import { ChangeStatusRequest, CreateInternRequest, InternDetail, InternSummary } from './intern.ts';
 
 describe('CreateInternRequest', () => {
   it('normalises the fields', () => {
@@ -103,5 +103,24 @@ describe('InternDetail', () => {
 
   it('rejects an unknown source', () => {
     expect(InternDetail.safeParse({ ...detail, source: 'csv' }).success).toBe(false);
+  });
+});
+
+describe('ChangeStatusRequest', () => {
+  it('trims the reason and knows the four actions', () => {
+    expect(ChangeStatusRequest.parse({ action: 'graduate', reason: '  Done \n' })).toEqual({
+      action: 'graduate',
+      reason: 'Done',
+    });
+    expect(ChangeStatusRequest.safeParse({ action: 'give_notice', reason: 'x' }).success).toBe(
+      false,
+    );
+  });
+
+  it('asks for a reason', () => {
+    expect(
+      ChangeStatusRequest.safeParse({ action: 'withdraw', reason: ' \n ' }).error?.issues[0]
+        ?.message,
+    ).toBe('Add a reason.');
   });
 });

@@ -408,3 +408,169 @@ describe('GET /batches/:batchId/interns/:internId', () => {
     ).toBe('unauthenticated');
   });
 });
+
+/** An intern of the set-up batch, saved by the PM; on notice if asked. */
+const internOf = async (
+  { pm, add }: Awaited<ReturnType<typeof setUp>>,
+  { onNotice = false, username = 'ishita.rao' } = {},
+) => {
+  const { id } = await addedOf(await add(pm, { ...ishita, username }));
+  if (onNotice) {
+    const repo = createInternRepository(db());
+    const saved = await repo.findById(InternId.parse(id));
+    if (!saved) throw new Error('expected the intern');
+    await repo.save(
+      giveNotice(saved, {
+        eventId: newStatusEventId(),
+        reason: 'Missed every deadline',
+        actor: pm.user.id,
+        now: new Date(Date.now() + 1000),
+        startsOn: '2027-04-01',
+        feedbackId: null,
+      }),
+    );
+  }
+  return id;
+};
+
+const change = (
+  { setup, batch }: Awaited<ReturnType<typeof setUp>>,
+  who: { cookie: string },
+  internId: string,
+  body: unknown,
+  batchId = batch.id,
+) => post(setup, who.cookie, `/batches/${batchId}/interns/${internId}/status-changes`, body);
+
+describe('POST /batches/:batchId/interns/:internId/status-changes', () => {
+  it.each([
+    ['graduate', false, 'active', 'graduated'],
+    ['withdraw', false, 'active', 'withdrawn'],
+    ['withdraw', true, 'on_notice', 'withdrawn'],
+    ['lift_notice', true, 'on_notice', 'active'],
+    ['terminate', true, 'on_notice', 'terminated'],
+  ] as const)(
+    '%s from %s: records the change with its reason',
+    async (action, onNotice, from, to) => {
+      const setupResult = await setUp();
+      const id = await internOf(setupResult, { onNotice });
+      // A later time than the notice, so the new event is the newest.
+      setupResult.setup.travel(60_000);
+
+      const response = await change(setupResult, setupResult.pm, id, {
+        action,
+        reason: '  Discussed in the **1:1**  ',
+      });
+
+      expect(response.status).toBe(200);
+      const detail = InternDetail.parse(await response.json());
+      expect(detail.status).toBe(to);
+      expect(detail.noticeEndsOn).toBeNull();
+      expect(detail.statusEvents[0]).toMatchObject({
+        fromStatus: from,
+        toStatus: to,
+        reason: 'Discussed in the **1:1**',
+        actor: { id: setupResult.pm.user.id, name: 'Pat Manager' },
+      });
+    },
+  );
+
+  it("refuses what the state machine doesn't allow, and any change once final", async () => {
+    const setupResult = await setUp();
+    const onNotice = await internOf(setupResult, { onNotice: true });
+    const active = await internOf(setupResult, { username: 'kabir' });
+    await change(setupResult, setupResult.pm, active, { action: 'graduate', reason: 'Done' });
+
+    const problems = await Promise.all([
+      change(setupResult, setupResult.pm, onNotice, { action: 'graduate', reason: 'Done' }),
+      change(setupResult, setupResult.pm, active, { action: 'withdraw', reason: 'Left' }),
+    ]).then((responses) => Promise.all(responses.map(async (r) => problemOf(r, 409))));
+
+    expect(problems.map((problem) => problem.code)).toEqual([
+      'invalid_status_transition',
+      'intern_read_only',
+    ]);
+  });
+
+  it('asks for a reason', async () => {
+    const setupResult = await setUp();
+    const id = await internOf(setupResult);
+
+    const problem = await problemOf(
+      await change(setupResult, setupResult.pm, id, { action: 'graduate', reason: ' \n ' }),
+      400,
+    );
+
+    expect(problem.errors).toEqual([{ path: 'reason', message: 'Add a reason.' }]);
+  });
+
+  it("is only for the batch's programme manager", async () => {
+    const setupResult = await setUp();
+    const id = await internOf(setupResult);
+    const otherPm = await setupResult.person('Oli Other', ['program_manager']);
+    const body = { action: 'graduate', reason: 'Done' };
+
+    const statuses = await Promise.all(
+      [setupResult.admin, setupResult.mentor, otherPm].map(
+        async (who) => (await change(setupResult, who, id, body)).status,
+      ),
+    );
+
+    // An admin and a mentor (a PM elsewhere) can see the batch: 403. The other PM can't: 404.
+    expect(statuses).toEqual([403, 403, 404]);
+  });
+
+  it("is 404 for another batch's intern, and 409 once the batch is archived", async () => {
+    const setupResult = await setUp();
+    const { setup, admin, pm, batch } = setupResult;
+    const id = await internOf(setupResult);
+    const other = BatchDetail.parse(
+      await (
+        await post(setup, admin.cookie, '/batches', {
+          name: 'Batch 2',
+          startDate: '2027-01-11',
+          endDate: '2028-06-25',
+          programManagerId: pm.user.id,
+        })
+      ).json(),
+    );
+    const body = { action: 'graduate', reason: 'Done' };
+
+    expect((await problemOf(await change(setupResult, pm, id, body, other.id), 404)).code).toBe(
+      'not_found',
+    );
+    await post(setup, admin.cookie, `/batches/${batch.id}/archive`);
+    expect((await problemOf(await change(setupResult, pm, id, body), 409)).code).toBe(
+      'batch_archived',
+    );
+  });
+
+  it('is 401 when signed out', async () => {
+    const setupResult = await setUp();
+    const id = await internOf(setupResult);
+
+    expect(
+      (
+        await problemOf(
+          await change(setupResult, { cookie: '' }, id, { action: 'graduate', reason: 'x' }),
+          401,
+        )
+      ).code,
+    ).toBe('unauthenticated');
+  });
+
+  it('lets one of two changes at the same time through; the other sees it', async () => {
+    const setupResult = await setUp();
+    const id = await internOf(setupResult);
+
+    const statuses = (
+      await Promise.all([
+        change(setupResult, setupResult.pm, id, { action: 'graduate', reason: 'Done' }),
+        change(setupResult, setupResult.pm, id, { action: 'withdraw', reason: 'Left' }),
+      ])
+    ).map((response) => response.status);
+
+    expect(statuses.toSorted((a, b) => a - b)).toEqual([200, 409]);
+    const saved = await createInternRepository(db()).findById(InternId.parse(id));
+    expect(saved?.statusEvents).toHaveLength(2);
+  });
+});

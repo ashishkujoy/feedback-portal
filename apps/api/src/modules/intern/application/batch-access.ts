@@ -5,6 +5,8 @@ import type { BatchId } from '../../cohort/domain/batch-id.ts';
 export type BatchAccessGrant = Readonly<{
   /** Admins, and the batch's current programme manager. */
   canManage: boolean;
+  /** The batch's current programme manager (status changes are theirs alone, 7.6). */
+  isProgramManager: boolean;
   isArchived: boolean;
 }>;
 

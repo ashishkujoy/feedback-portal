@@ -1,14 +1,20 @@
 import { useQuery } from '@tanstack/react-query';
+import type { StatusAction } from '@feedback-portal/contracts';
 import { getRouteApi } from '@tanstack/react-router';
+import { useState } from 'react';
 import { batchQuery } from '../api/batches.ts';
 import { isApiError } from '../api/errors.ts';
 import { internQuery } from '../api/interns.ts';
 import { today } from '../batches/batch-dates.ts';
 import { InternDetails } from '../interns/profile/intern-details.tsx';
 import { SidePanel } from '../interns/profile/side-panel.tsx';
+import { statusButtonsFor } from '../interns/profile/status-actions.ts';
+import { StatusDialog } from '../interns/profile/status-dialog.tsx';
 import { StatusHistory } from '../interns/profile/status-history.tsx';
 import { finalBanner, firstName, noticeBanner, statusBadges } from '../interns/profile.ts';
+import { useMe } from '../shell/use-me.ts';
 import { Avatar } from '../ui/avatar.tsx';
+import { Button } from '../ui/button.tsx';
 import { Callout } from '../ui/callout.tsx';
 import { PageTitle } from '../ui/page-title.tsx';
 import { StatusBadge } from '../ui/status-badge.tsx';
@@ -39,8 +45,8 @@ const TimelinePlaceholder = ({ name }: Readonly<{ name: string }>) => (
 
 /**
  * P6 / M6 / P22 / P23 · an intern's profile: the header and banners, the Timeline (a placeholder
- * until feedback), Details and Status history tabs, and the side panel. Actions come with their
- * tasks (7.5 decision 1).
+ * until feedback), Details and Status history tabs, and the side panel. The batch's PM gets the
+ * status changes (7.6); the photo and Give feedback come with their tasks.
  */
 export const InternPage = () => {
   const { batchId, internId } = route.useParams();
@@ -48,6 +54,8 @@ export const InternPage = () => {
   const navigate = route.useNavigate();
   const { data: intern, error } = useQuery(internQuery(batchId, internId));
   const { data: batch } = useQuery(batchQuery(batchId));
+  const me = useMe();
+  const [changing, setChanging] = useState<StatusAction | null>(null);
 
   if (error) {
     return (
@@ -62,23 +70,40 @@ export const InternPage = () => {
   const badge = statusBadges[intern.status];
   const notice = noticeBanner(intern, on, batch.programManager.name);
   const final = finalBanner(intern);
+  const buttons = me ? statusButtonsFor(me, batch, intern) : [];
 
   return (
     <>
-      <div className="flex items-center gap-4">
-        <Avatar name={intern.name} size="xl" />
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-3">
-            <PageTitle>{intern.name}</PageTitle>
-            <StatusBadge type={badge.type}>{badge.label}</StatusBadge>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Avatar name={intern.name} size="xl" />
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-3">
+              <PageTitle>{intern.name}</PageTitle>
+              <StatusBadge type={badge.type}>{badge.label}</StatusBadge>
+            </div>
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="font-mono">@{intern.username}</span>
+              <span aria-hidden>·</span>
+              <span>{batch.name}</span>
+            </p>
           </div>
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="font-mono">@{intern.username}</span>
-            <span aria-hidden>·</span>
-            <span>{batch.name}</span>
-          </p>
         </div>
+        {buttons.length > 0 ? (
+          <div className="flex gap-2">
+            {buttons.map((button) => (
+              <Button
+                key={button.action}
+                variant={button.variant}
+                onClick={() => setChanging(button.action)}
+              >
+                {button.label}
+              </Button>
+            ))}
+          </div>
+        ) : null}
       </div>
+      <StatusDialog intern={intern} action={changing} onClose={() => setChanging(null)} />
       {notice ? (
         <Callout type="warning" title={notice.title}>
           {notice.description}

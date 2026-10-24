@@ -1,4 +1,9 @@
-import { type CreateInternRequest, InternDetail, InternSummary } from '@feedback-portal/contracts';
+import {
+  type ChangeStatusRequest,
+  type CreateInternRequest,
+  InternDetail,
+  InternSummary,
+} from '@feedback-portal/contracts';
 import { queryOptions } from '@tanstack/react-query';
 import { z } from 'zod';
 import { apiFetch } from './api-fetch.ts';
@@ -22,3 +27,11 @@ export const internQuery = (batchId: string, internId: string) =>
 /** `POST /batches/:id/interns` (the batch's managers): the new intern, or an `ApiError`. */
 export const addIntern = (batchId: string, body: CreateInternRequest) =>
   apiFetch(`/batches/${batchId}/interns`, { method: 'POST', body, schema: InternSummary });
+
+/** `POST …/status-changes` (the batch's PM): the updated profile, or an `ApiError`. */
+export const changeStatus = (batchId: string, internId: string, body: ChangeStatusRequest) =>
+  apiFetch(`/batches/${batchId}/interns/${internId}/status-changes`, {
+    method: 'POST',
+    body,
+    schema: InternDetail,
+  });

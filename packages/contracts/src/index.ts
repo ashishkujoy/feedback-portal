@@ -13,7 +13,15 @@ export { BatchMemberRole, batchMemberRoles } from './batch-member-role.ts';
 export { ColorCode, colorCodes, colorCodeSeverity, compareColorCodes } from './color-code.ts';
 export { FeedbackState } from './feedback-state.ts';
 export { HealthResponse } from './health.ts';
-export { CreateInternRequest, InternDetail, InternStatusEvent, InternSummary } from './intern.ts';
+export {
+  ChangeStatusRequest,
+  CreateInternRequest,
+  InternDetail,
+  InternStatusEvent,
+  InternSummary,
+  StatusAction,
+  statusActions,
+} from './intern.ts';
 export {
   InternStatus,
   finalInternStatuses,

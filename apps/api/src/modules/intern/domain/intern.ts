@@ -108,7 +108,7 @@ const parseDetails = (input: DetailsInput): InternDetails => {
 const Reason = z
   .string()
   .trim()
-  .min(1, { error: 'A reason is required' })
+  .min(1, { error: 'Add a reason.' })
   .max(20_000, { error: 'Reason must be at most 20000 characters' });
 
 const parseReason = (reason: string): string => {

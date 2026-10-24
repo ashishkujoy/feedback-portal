@@ -1,8 +1,18 @@
+import type { StatusAction } from '@feedback-portal/contracts';
 import { conflict, forbidden, notFound } from '../../../shared/errors/app-error.ts';
 import type { Viewer } from '../../cohort/application/batch-scope.ts';
 import type { BatchId } from '../../cohort/domain/batch-id.ts';
-import { type DetailsInput, type Intern, onboardIntern } from '../domain/intern.ts';
-import { newInternId } from '../domain/intern-id.ts';
+import {
+  type ChangeInput,
+  type DetailsInput,
+  graduate,
+  type Intern,
+  liftNotice,
+  onboardIntern,
+  terminate,
+  withdraw,
+} from '../domain/intern.ts';
+import { type InternId, newInternId } from '../domain/intern-id.ts';
 import { newStatusEventId } from '../domain/status-event-id.ts';
 import type { InternAdminScope, InternAdminTransaction } from './intern-admin.ts';
 import type { InternDetailView, InternSummaryView } from './intern-queries.ts';
@@ -76,4 +86,53 @@ export const getIntern = (
     const intern = await scope.queries.detail(batchId, internId);
     if (!intern) throw notFound('Intern not found');
     return intern;
+  });
+
+const operations: Readonly<Record<StatusAction, (intern: Intern, change: ChangeInput) => Intern>> =
+  {
+    lift_notice: liftNotice,
+    terminate,
+    graduate,
+    withdraw,
+  };
+
+/**
+ * A status change by hand (PRODUCT §10): only the batch's current PM, never in an archived
+ * batch. The intern's row is locked first, so a second change at the same time sees this one.
+ */
+export const changeStatus = (
+  { transaction, now }: ManageInternsDeps,
+  {
+    actor,
+    batchId,
+    internId,
+    action,
+    reason,
+  }: Readonly<{
+    actor: Actor;
+    batchId: BatchId;
+    internId: InternId;
+    action: StatusAction;
+    reason: string;
+  }>,
+): Promise<InternDetailView> =>
+  transaction(async (scope) => {
+    const access = await ensureCanSee(scope, actor, batchId);
+    if (!access.isProgramManager) {
+      throw forbidden("Only this batch's programme manager can change an intern's status");
+    }
+    if (access.isArchived) throw conflict('This batch is archived', 'batch_archived');
+    const intern = await scope.interns.findByIdForUpdate(internId);
+    if (intern?.batchId !== batchId) throw notFound('Intern not found');
+    await scope.interns.save(
+      operations[action](intern, {
+        eventId: newStatusEventId(),
+        reason,
+        actor: actor.id,
+        now: now(),
+      }),
+    );
+    const detail = await scope.queries.detail(batchId, internId);
+    if (!detail) throw new Error(`intern ${internId} vanished inside its transaction`);
+    return detail;
   });

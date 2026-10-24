@@ -82,9 +82,10 @@ const writeIntern = async (tx: DbExecutor, intern: Intern): Promise<void> => {
 const usernameTaken = () =>
   conflict('An intern with this username is already in the batch', 'intern_username_taken');
 
-export const createInternRepository = (db: DbExecutor): InternRepository => ({
-  findById: async (id) => {
-    const [row] = await db.select().from(interns).where(eq(interns.id, id));
+export const createInternRepository = (db: DbExecutor): InternRepository => {
+  const load = async (id: InternId, lock: boolean): Promise<Intern | null> => {
+    const query = db.select().from(interns).where(eq(interns.id, id));
+    const [row] = await (lock ? query.for('update') : query);
     if (!row) return null;
     const events = await db
       .select()
@@ -92,15 +93,20 @@ export const createInternRepository = (db: DbExecutor): InternRepository => ({
       .where(eq(internStatusEvents.internId, id))
       .orderBy(asc(internStatusEvents.createdAt), asc(internStatusEvents.id));
     return toIntern(row, events);
-  },
+  };
 
-  save: async (intern) => {
-    try {
-      // A savepoint when `db` is already a transaction.
-      await db.transaction((tx) => writeIntern(tx, intern));
-    } catch (error) {
-      if (isUniqueViolation(error, 'interns_batch_username_unique')) throw usernameTaken();
-      throw error;
-    }
-  },
-});
+  return {
+    findById: (id) => load(id, false),
+    findByIdForUpdate: (id) => load(id, true),
+
+    save: async (intern) => {
+      try {
+        // A savepoint when `db` is already a transaction.
+        await db.transaction((tx) => writeIntern(tx, intern));
+      } catch (error) {
+        if (isUniqueViolation(error, 'interns_batch_username_unique')) throw usernameTaken();
+        throw error;
+      }
+    },
+  };
+};

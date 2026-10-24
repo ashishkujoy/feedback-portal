@@ -1,6 +1,7 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { useTestDb } from '../../../../test/test-db.ts';
+import { pgErrorOf } from '../../../shared/db/pg-error.ts';
 import { AppError } from '../../../shared/errors/app-error.ts';
 import { createBatch } from '../../cohort/domain/batch.ts';
 import { type BatchId, newBatchId } from '../../cohort/domain/batch-id.ts';
@@ -148,5 +149,31 @@ describe('InternRepository', () => {
 
   it('finds nothing for an unknown id', async () => {
     expect(await repo().findById(newInternId())).toBeNull();
+  });
+});
+
+describe('findByIdForUpdate', () => {
+  it('holds the row until the transaction ends', async () => {
+    const pm = await savedPm();
+    const intern = onboard(await savedBatch('Batch 1', pm), pm);
+    await repo().save(intern);
+
+    const blocked = await db().transaction(async (tx) => {
+      expect(await createInternRepository(tx).findByIdForUpdate(intern.id)).toEqual(intern);
+      // Another connection gives up quickly instead of waiting for this transaction.
+      return db()
+        .transaction(async (other) => {
+          await other.execute(sql`set local lock_timeout = '200ms'`);
+          await createInternRepository(other).findByIdForUpdate(intern.id);
+          return null;
+        })
+        .catch((error: unknown) => pgErrorOf(error)?.code ?? 'unexpected');
+    });
+
+    expect(blocked).toBe('55P03');
+    // Once it has ended, the row can be locked again.
+    expect(
+      await db().transaction((tx) => createInternRepository(tx).findByIdForUpdate(intern.id)),
+    ).toEqual(intern);
   });
 });

@@ -25,5 +25,9 @@ export const createBatchAccess =
       .where(and(eq(batches.id, batchId), visibleBatchCondition(viewer, batches.id)))
       .for('share', { of: batches });
     if (!row) return null;
-    return { canManage: viewer.isAdmin || row.isProgramManager, isArchived: row.isArchived };
+    return {
+      canManage: viewer.isAdmin || row.isProgramManager,
+      isProgramManager: row.isProgramManager,
+      isArchived: row.isArchived,
+    };
   };

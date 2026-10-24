@@ -1,4 +1,4 @@
-import { CreateInternRequest } from '@feedback-portal/contracts';
+import { ChangeStatusRequest, CreateInternRequest } from '@feedback-portal/contracts';
 import { getLogger } from '@logtape/logtape';
 import { type Context, Hono } from 'hono';
 import { z } from 'zod';
@@ -13,6 +13,7 @@ import { requireRole } from '../../identity/http/require-role.ts';
 import {
   type Actor,
   addIntern,
+  changeStatus,
   getIntern,
   listInterns,
   type ManageInternsDeps,
@@ -33,7 +34,8 @@ const actorOf = (c: Context<AuthEnv>): Actor => {
 
 /**
  * A batch's interns, mounted at `/batches/:batchId/interns`. Anyone who can see the batch reads
- * its roster and each intern's profile; admins and the batch's current PM add interns (checked by the use case). A batch
+ * its roster and each intern's profile; admins and the batch's current PM add interns, and only
+ * that PM changes a status (both checked by the use case). A batch
  * the user can't see is a 404. Logs carry ids, never names.
  */
 export const internsRoutes = ({ manageInterns, ...auth }: InternsRoutesDeps) =>
@@ -51,6 +53,27 @@ export const internsRoutes = ({ manageInterns, ...auth }: InternsRoutesDeps) =>
       const intern = await getIntern(manageInterns, { actor: actorOf(c), batchId, internId });
       return c.json(toInternDetail(intern));
     })
+    .post(
+      '/:internId/status-changes',
+      requireRole('program_manager'),
+      validate('param', InternParams),
+      validate('json', ChangeStatusRequest),
+      async (c) => {
+        const actor = actorOf(c);
+        const { batchId, internId } = c.req.valid('param');
+        const { action, reason } = c.req.valid('json');
+        const intern = await changeStatus(manageInterns, {
+          actor,
+          batchId,
+          internId,
+          action,
+          reason,
+        });
+        // The reason can hold personal detail, so only ids and the action are logged.
+        logger.info('intern status changed', { actorId: actor.id, batchId, internId, action });
+        return c.json(toInternDetail(intern));
+      },
+    )
     .post(
       '/',
       requireRole('admin', 'program_manager'),

@@ -92,3 +92,19 @@ export const InternDetail = InternSummary.extend({
   statusEvents: z.array(InternStatusEvent),
 });
 export type InternDetail = z.infer<typeof InternDetail>;
+
+/** The changes a programme manager makes by hand (7.6); notice is given through feedback (Phase 9). */
+export const statusActions = ['lift_notice', 'terminate', 'graduate', 'withdraw'] as const;
+export const StatusAction = z.enum(statusActions);
+export type StatusAction = z.infer<typeof StatusAction>;
+
+/** `POST /batches/:batchId/interns/:internId/status-changes`. The domain's reason limits. */
+export const ChangeStatusRequest = z.object({
+  action: StatusAction,
+  reason: z
+    .string()
+    .trim()
+    .min(1, { error: 'Add a reason.' })
+    .max(20_000, { error: 'Reason must be at most 20000 characters' }),
+});
+export type ChangeStatusRequest = z.input<typeof ChangeStatusRequest>;
