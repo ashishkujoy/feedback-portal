@@ -127,6 +127,14 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 - **Nothing to import** (decision 4, not in v2): the preview shows with **Import 0 interns** disabled, and focus on Back.
 - **Invalid rows** list every reason on its own line. Failed: "Import failed" with the API's sentence and "Nothing was saved.", then Back (to the preview) and Try again.
 
+### Import fields (A10) as built in 8.6 — not in v2
+- **A Fields step between Source and Preview** (8.6 decision 1): the steps read Source → Fields → Preview → Result, and Source's button is **Next** ("Reading the view…"). Built from Kuat's Field and Select only: a 160px label column (with Kuat's red "*" for Username, Name and Email) and a native Select per intern field, gap 12.
+- **The options** are the view's columns, first seen first. **Username** also offers "From the email (before @)" (decision 2). Optional fields offer "Not imported". Required ones start on "Choose a column" when nothing fits.
+- **Pre-filled** from the batch's saved mapping, else the latest any batch saved, else the defaults (decision 4). A saved column the view no longer has leaves the field unset, with "“\<column\>” isn't in this view." under it.
+- **Preview import** with a required field unset shows "Choose a column." under each such field, and focus goes to the first. The API's refusal shows as "We couldn't preview the import" with its sentence. **A view with no records** shows "This view has no records" and only Back.
+- **The intro line:** "Match the view's columns to intern fields. They're saved for \<batch\> when you import." The dialog's description now says "Interns are matched by their Airtable record or username" (v2 says "by username").
+- **Back** from the preview returns to Fields with the choices kept, and Back from Fields returns to Source with what was typed.
+
 ## Screens (v1)
 **Desktop is 1440 wide; mobile is 390×844.** Every desktop screen has the same shell:
 - A 240px **Tech Blue sidebar**: logo mark, program name and "Mentor portal", a "Workspace" section, **Batches** (shown as "My batches" for mentors) and **Users and roles** (admin only).

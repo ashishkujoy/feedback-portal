@@ -1,7 +1,11 @@
 import {
+  type FieldMapping,
+  type ImportColumns,
   type ImportPreview,
   type ImportResult,
   ImportSourceRequest,
+  type MappedField,
+  mappedFields,
 } from '@feedback-portal/contracts';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -9,39 +13,58 @@ import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { batchesQuery, batchQuery } from '../api/batches.ts';
 import { isApiError } from '../api/errors.ts';
-import { previewImport, runImport } from '../api/imports.ts';
+import { listImportColumns, previewImport, runImport } from '../api/imports.ts';
 import { internsQuery } from '../api/interns.ts';
 import { Button } from '../ui/button.tsx';
 import { Callout } from '../ui/callout.tsx';
 import { Dialog } from '../ui/dialog.tsx';
 import { Field, messageId } from '../ui/field.tsx';
+import { Select } from '../ui/select.tsx';
 import { Spinner } from '../ui/spinner.tsx';
 import { TextInput } from '../ui/text-input.tsx';
+import {
+  choicesFrom,
+  columnValue,
+  type FieldChoices,
+  fromEmail,
+  mappingFrom,
+  requiredFields,
+} from './import-fields.ts';
 
 /** What the form sends once the contract has trimmed it: the key included, so it stays here. */
 type Source = ImportSourceRequest;
 
 const emptySource = { token: '', baseId: '', tableId: '', view: '' } satisfies Source;
 
+/** The Fields step's state, kept so Back from the preview returns to the same choices. */
+type Fields = Readonly<{ source: Source; columns: ImportColumns; choices: FieldChoices }>;
+
+/** Everything a preview was made from, for importing it or going back. */
+type Previewed = Fields & Readonly<{ mapping: FieldMapping; preview: ImportPreview }>;
+
 type Step =
   | Readonly<{ kind: 'source' }>
-  | Readonly<{ kind: 'preview'; source: Source; preview: ImportPreview }>
-  | Readonly<{ kind: 'importing'; source: Source; preview: ImportPreview }>
+  | (Fields & Readonly<{ kind: 'fields' }>)
+  | (Previewed & Readonly<{ kind: 'preview' }>)
+  | (Previewed & Readonly<{ kind: 'importing' }>)
   | Readonly<{ kind: 'result'; result: ImportResult }>
-  | Readonly<{ kind: 'failed'; source: Source; preview: ImportPreview; reason: string }>;
+  | (Previewed & Readonly<{ kind: 'failed'; reason: string }>);
 
-const stepLabels = ['Source', 'Preview', 'Result'] as const;
+const stepLabels = ['Source', 'Fields', 'Preview', 'Result'];
 
 const stepIndex = (step: Step): number => {
   if (step.kind === 'source') return 0;
-  return step.kind === 'preview' ? 1 : 2;
+  if (step.kind === 'fields') return 1;
+  return step.kind === 'preview' ? 2 : 3;
 };
 
 const interns = (count: number) => `${count} ${count === 1 ? 'intern' : 'interns'}`;
 
 /** Airtable's refusals carry a sentence for people (8.3); anything else gets a general one. */
 const reasonOf = (error: unknown): string | undefined =>
-  isApiError(error, 'airtable_source_invalid') || isApiError(error, 'airtable_unavailable')
+  isApiError(error, 'airtable_source_invalid') ||
+  isApiError(error, 'airtable_unavailable') ||
+  isApiError(error, 'airtable_mapping_invalid')
     ? error.detail
     : undefined;
 
@@ -104,7 +127,7 @@ const Footer = ({
 type SourceFormProps = Readonly<{
   batchId: string;
   values: Source;
-  onPreviewed: (source: Source, preview: ImportPreview) => void;
+  onRead: (source: Source, columns: ImportColumns) => void;
   onCancel: () => void;
 }>;
 
@@ -112,7 +135,7 @@ type SourceFormProps = Readonly<{
  * A10-source: the key (a password field browsers are asked not to save), the base and table IDs,
  * and the view. The contract checks them before anything is sent (A10-sourceerrors).
  */
-const SourceForm = ({ batchId, values, onPreviewed, onCancel }: SourceFormProps) => {
+const SourceForm = ({ batchId, values, onRead, onCancel }: SourceFormProps) => {
   const {
     register,
     handleSubmit,
@@ -120,7 +143,7 @@ const SourceForm = ({ batchId, values, onPreviewed, onCancel }: SourceFormProps)
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(ImportSourceRequest), defaultValues: values });
   const mutation = useMutation({
-    mutationFn: (source: Source) => previewImport(batchId, source),
+    mutationFn: (source: Source) => listImportColumns(batchId, source),
   });
 
   useEffect(() => {
@@ -128,8 +151,8 @@ const SourceForm = ({ batchId, values, onPreviewed, onCancel }: SourceFormProps)
   }, [setFocus]);
 
   const onSubmit = handleSubmit(async (source) => {
-    const preview = await mutation.mutateAsync(source).catch(() => undefined);
-    if (preview) onPreviewed(source, preview);
+    const columns = await mutation.mutateAsync(source).catch(() => undefined);
+    if (columns) onRead(source, columns);
   });
 
   const control = (name: keyof Source, id: string, hasHelp = false) => ({
@@ -149,7 +172,7 @@ const SourceForm = ({ batchId, values, onPreviewed, onCancel }: SourceFormProps)
         <div role="alert">
           <Callout
             type="issue"
-            title={reason ? "We couldn't connect to Airtable" : "We couldn't preview the import"}
+            title={reason ? "We couldn't connect to Airtable" : "We couldn't read the view"}
           >
             {reason ?? 'Something went wrong. Try again in a moment.'}
           </Callout>
@@ -197,7 +220,171 @@ const SourceForm = ({ batchId, values, onPreviewed, onCancel }: SourceFormProps)
           Cancel
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Previewing…' : 'Preview import'}
+          {isSubmitting ? 'Reading the view…' : 'Next'}
+        </Button>
+      </Footer>
+    </form>
+  );
+};
+
+const fieldLabels: Readonly<Record<MappedField, string>> = {
+  username: 'Username',
+  name: 'Name',
+  email: 'Email',
+  phone: 'Phone',
+  diplomaBranch: 'Diploma branch',
+  parentNames: "Parents' names",
+  interviewNotes: 'Interview notes',
+};
+
+const fieldId = (field: MappedField) => `import-field-${field}`;
+
+type FieldsStepProps = Readonly<{
+  batchId: string;
+  batchName: string;
+  fields: Fields;
+  onPreviewed: (previewed: Previewed) => void;
+  onBack: () => void;
+}>;
+
+/**
+ * 8.6's Fields step (not in v2; built from Kuat Field and Select): each intern field takes one of
+ * the view's columns, or for the username the email's part before the @. The batch's saved
+ * mapping (or the defaults) comes pre-filled; it's saved for the batch when the import runs.
+ */
+const FieldsStep = ({ batchId, batchName, fields, onPreviewed, onBack }: FieldsStepProps) => {
+  const { source, columns } = fields;
+  const [choices, setChoices] = useState<FieldChoices>(fields.choices);
+  const [unset, setUnset] = useState<readonly MappedField[]>([]);
+  const mutation = useMutation({
+    mutationFn: (mapping: FieldMapping) => previewImport(batchId, { ...source, mapping }),
+  });
+  const first = useRef<HTMLSelectElement>(null);
+  useEffect(() => {
+    first.current?.focus();
+  }, []);
+
+  const choose = (field: MappedField, value: string) => {
+    setChoices((current) => ({ ...current, [field]: value }));
+    setUnset((current) => current.filter((other) => other !== field));
+  };
+
+  const preview = async () => {
+    const chosen = mappingFrom(choices);
+    if (!chosen.ok) {
+      setUnset(chosen.unset);
+      const [firstUnset] = chosen.unset;
+      if (firstUnset) document.getElementById(fieldId(firstUnset))?.focus();
+      return;
+    }
+    const result = await mutation.mutateAsync(chosen.mapping).catch(() => undefined);
+    if (result) onPreviewed({ ...fields, choices, mapping: chosen.mapping, preview: result });
+  };
+
+  if (columns.columns.length === 0) {
+    return (
+      <div className="flex flex-col gap-[18px]">
+        <Callout type="info" title="This view has no records">
+          There's nothing to import. Check the view in Airtable, or go back and choose another.
+        </Callout>
+        <Footer split>
+          <Button variant="ghost" onClick={onBack}>
+            Back
+          </Button>
+        </Footer>
+      </div>
+    );
+  }
+
+  const missing = (field: MappedField) =>
+    columns.missing.find((entry) => entry.field === field)?.column;
+  const reason = mutation.error ? reasonOf(mutation.error) : undefined;
+
+  return (
+    <form
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault();
+        void preview();
+      }}
+      className="flex flex-col gap-4"
+    >
+      {mutation.error ? (
+        <div role="alert">
+          <Callout type="issue" title="We couldn't preview the import">
+            {reason ?? 'Something went wrong. Try again in a moment.'}
+          </Callout>
+        </div>
+      ) : null}
+      <p className="text-sm text-muted-foreground">
+        {`Match the view's columns to intern fields. They're saved for ${batchName} when you import.`}
+      </p>
+      <div className="flex flex-col gap-3">
+        {mappedFields.map((field, index) => {
+          const id = fieldId(field);
+          const required = requiredFields.includes(field);
+          // Once another column is chosen, the old one no longer matters.
+          const gone = choices[field] === '' ? missing(field) : undefined;
+          const error = unset.includes(field) ? 'Choose a column.' : undefined;
+          const help = gone ? `“${gone}” isn't in this view.` : undefined;
+          return (
+            <div key={field} className="grid grid-cols-[160px_minmax(0,1fr)] items-start gap-3">
+              <label
+                htmlFor={id}
+                className="inline-flex h-9 items-center gap-1 text-sm leading-[1.2] font-medium"
+              >
+                {fieldLabels[field]}
+                {required ? (
+                  <span aria-hidden className="text-destructive">
+                    *
+                  </span>
+                ) : null}
+              </label>
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <Select
+                  id={id}
+                  ref={index === 0 ? first : undefined}
+                  value={choices[field]}
+                  invalid={error !== undefined}
+                  aria-required={required || undefined}
+                  aria-describedby={error || help ? messageId(id) : undefined}
+                  onChange={(event) => choose(field, event.target.value)}
+                >
+                  {required ? (
+                    <option value="" disabled>
+                      Choose a column
+                    </option>
+                  ) : (
+                    <option value="">Not imported</option>
+                  )}
+                  {field === 'username' ? (
+                    <option value={fromEmail}>From the email (before @)</option>
+                  ) : null}
+                  {columns.columns.map((column) => (
+                    <option key={column} value={columnValue(column)}>
+                      {column}
+                    </option>
+                  ))}
+                </Select>
+                {error || help ? (
+                  <span
+                    id={messageId(id)}
+                    className={`text-xs ${error ? 'text-destructive' : 'text-muted-foreground'}`}
+                  >
+                    {error ?? help}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <Footer split>
+        <Button variant="ghost" onClick={onBack}>
+          Back
+        </Button>
+        <Button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? 'Previewing…' : 'Preview import'}
         </Button>
       </Footer>
     </form>
@@ -395,20 +582,21 @@ const FailedStep = ({ reason, onBack, onRetry }: FailedStepProps) => {
   );
 };
 
-type ImportFlowProps = Readonly<{ batchId: string; onClose: () => void }>;
+type ImportFlowProps = Readonly<{ batchId: string; batchName: string; onClose: () => void }>;
 
 /**
  * The steps, mounted only while the dialog is open: closing it drops the key with everything
- * else typed (8.5). Back keeps the values; Try again sends the same source again.
+ * else typed (8.5). Back keeps the values and the field choices; Try again sends the same source
+ * and mapping again.
  */
-const ImportFlow = ({ batchId, onClose }: ImportFlowProps) => {
+const ImportFlow = ({ batchId, batchName, onClose }: ImportFlowProps) => {
   const queryClient = useQueryClient();
   const [step, setStep] = useState<Step>({ kind: 'source' });
   const [values, setValues] = useState<Source>(emptySource);
   // The roster, the batch's counts and the batches list pick the import up, even if the dialog
   // was closed while it ran (these callbacks outlive the component; `mutate`'s don't).
   const mutation = useMutation({
-    mutationFn: (source: Source) => runImport(batchId, source),
+    mutationFn: ({ source, mapping }: Previewed) => runImport(batchId, { ...source, mapping }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: internsQuery(batchId).queryKey, exact: true });
       void queryClient.invalidateQueries({ queryKey: batchQuery(batchId).queryKey, exact: true });
@@ -416,15 +604,14 @@ const ImportFlow = ({ batchId, onClose }: ImportFlowProps) => {
     },
   });
 
-  const start = (source: Source, preview: ImportPreview) => {
-    setStep({ kind: 'importing', source, preview });
-    mutation.mutate(source, {
+  const start = (previewed: Previewed) => {
+    setStep({ ...previewed, kind: 'importing' });
+    mutation.mutate(previewed, {
       onSuccess: (result) => setStep({ kind: 'result', result }),
       onError: (error) =>
         setStep({
+          ...previewed,
           kind: 'failed',
-          source,
-          preview,
           reason: reasonOf(error) ?? "The import couldn't be saved.",
         }),
     });
@@ -437,18 +624,27 @@ const ImportFlow = ({ batchId, onClose }: ImportFlowProps) => {
         <SourceForm
           batchId={batchId}
           values={values}
-          onPreviewed={(source, preview) => {
+          onRead={(source, columns) => {
             setValues(source);
-            setStep({ kind: 'preview', source, preview });
+            setStep({ kind: 'fields', source, columns, choices: choicesFrom(columns) });
           }}
           onCancel={onClose}
+        />
+      ) : null}
+      {step.kind === 'fields' ? (
+        <FieldsStep
+          batchId={batchId}
+          batchName={batchName}
+          fields={step}
+          onPreviewed={(previewed) => setStep({ ...previewed, kind: 'preview' })}
+          onBack={() => setStep({ kind: 'source' })}
         />
       ) : null}
       {step.kind === 'preview' ? (
         <PreviewStep
           preview={step.preview}
-          onBack={() => setStep({ kind: 'source' })}
-          onImport={() => start(step.source, step.preview)}
+          onBack={() => setStep({ ...step, kind: 'fields' })}
+          onImport={() => start(step)}
         />
       ) : null}
       {step.kind === 'importing' ? (
@@ -461,8 +657,8 @@ const ImportFlow = ({ batchId, onClose }: ImportFlowProps) => {
       {step.kind === 'failed' ? (
         <FailedStep
           reason={step.reason}
-          onBack={() => setStep({ kind: 'preview', source: step.source, preview: step.preview })}
-          onRetry={() => start(step.source, step.preview)}
+          onBack={() => setStep({ ...step, kind: 'preview' })}
+          onRetry={() => start(step)}
         />
       ) : null}
     </div>
@@ -482,9 +678,9 @@ export const ImportDialog = ({ batchId, batchName, open, onClose }: ImportDialog
     open={open}
     onClose={onClose}
     title="Import interns from Airtable"
-    description={`Into ${batchName}. Interns are matched by username: new ones are added and existing ones updated.`}
+    description={`Into ${batchName}. Interns are matched by their Airtable record or username: new ones are added and existing ones updated.`}
     widthClass="max-w-[560px]"
   >
-    <ImportFlow batchId={batchId} onClose={onClose} />
+    <ImportFlow batchId={batchId} batchName={batchName} onClose={onClose} />
   </Dialog>
 );

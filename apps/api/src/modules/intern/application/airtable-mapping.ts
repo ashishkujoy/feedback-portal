@@ -1,24 +1,29 @@
-import { CreateInternRequest } from '@feedback-portal/contracts';
+import {
+  CreateInternRequest,
+  type FieldMapping,
+  type ImportColumns,
+  type MappedField,
+  mappedFields,
+} from '@feedback-portal/contracts';
 import type { DetailsInput } from '../domain/intern.ts';
 import type { AirtableRecord } from './airtable-source.ts';
 
-type DetailKey = keyof Required<DetailsInput>;
-
 /**
- * Which Airtable columns fill which intern field. Names match ignoring case, spaces and
- * apostrophes; when a record has several, the first listed wins. Your table's names go here.
+ * The columns each intern field starts from when a batch has no saved mapping (8.6): the first
+ * the view has wins, matching ignoring case, spaces and apostrophes. Without a username column,
+ * the username comes from the email.
  */
-export const columns: Readonly<Record<DetailKey, readonly string[]>> = {
+export const defaultColumns: Readonly<Record<MappedField, readonly string[]>> = {
   username: ['Username'],
   name: ['Full name', 'Name'],
-  email: ['Email'],
-  phone: ['Phone', 'Phone number'],
+  email: ['Email', 'Email ID'],
+  phone: ['Phone', 'Phone number', 'Mobile Number'],
   diplomaBranch: ['Diploma branch'],
   parentNames: ["Parents' names", 'Parent names', 'Parents names'],
   interviewNotes: ['Interview notes'],
 };
 
-const labels: Readonly<Record<DetailKey, string>> = {
+const labels: Readonly<Record<MappedField, string>> = {
   username: 'Username',
   name: 'Name',
   email: 'Email',
@@ -53,6 +58,89 @@ export type MappedRecords = Readonly<{
 
 const comparable = (name: string): string => name.toLowerCase().replaceAll(/[\s'’]/g, '');
 
+/** The view's column named `name`, ignoring case, spaces and apostrophes. */
+const columnLike = (columns: readonly string[], name: string): string | undefined =>
+  columns.find((column) => comparable(column) === comparable(name));
+
+/**
+ * The view's columns, in the order first seen. Airtable leaves empty cells out of a record, so a
+ * column appears once any record has a value in it.
+ */
+export const viewColumns = (records: readonly AirtableRecord[]): string[] => [
+  ...new Set(records.flatMap((record) => Object.keys(record.fields))),
+];
+
+type StartingMapping = ImportColumns['mapping'];
+
+/**
+ * The mapping the Fields step starts from (8.6): `saved` where the view still has its columns
+ * (the others listed as missing), or else the defaults.
+ */
+export const startingMapping = (
+  columns: readonly string[],
+  saved: FieldMapping | null,
+): Pick<ImportColumns, 'mapping' | 'missing'> => {
+  if (!saved) {
+    const suggest = (field: MappedField): string | null =>
+      defaultColumns[field]
+        .map((name) => columnLike(columns, name))
+        .find((found) => found !== undefined) ?? null;
+    const username = suggest('username');
+    return {
+      mapping: {
+        username: username ? { kind: 'column', column: username } : { kind: 'fromEmail' },
+        name: suggest('name'),
+        email: suggest('email'),
+        phone: suggest('phone'),
+        diplomaBranch: suggest('diplomaBranch'),
+        parentNames: suggest('parentNames'),
+        interviewNotes: suggest('interviewNotes'),
+      },
+      missing: [],
+    };
+  }
+  const missing: ImportColumns['missing'][number][] = [];
+  const keep = (field: MappedField, column: string | null): string | null => {
+    if (column === null) return null;
+    const found = columnLike(columns, column);
+    if (found === undefined) missing.push({ field, column });
+    return found ?? null;
+  };
+  const username = saved.username;
+  const usernameColumn = username.kind === 'column' ? keep('username', username.column) : null;
+  const mapping: StartingMapping = {
+    username:
+      username.kind === 'fromEmail'
+        ? username
+        : usernameColumn
+          ? { kind: 'column', column: usernameColumn }
+          : null,
+    name: keep('name', saved.name),
+    email: keep('email', saved.email),
+    phone: keep('phone', saved.phone),
+    diplomaBranch: keep('diplomaBranch', saved.diplomaBranch),
+    parentNames: keep('parentNames', saved.parentNames),
+    interviewNotes: keep('interviewNotes', saved.interviewNotes),
+  };
+  return { mapping, missing };
+};
+
+/** The mapping's columns, in field order (the username's only when it is one). */
+const mappedColumns = (mapping: FieldMapping): string[] =>
+  mappedFields.flatMap((field) => {
+    if (field === 'username') {
+      return mapping.username.kind === 'column' ? [mapping.username.column] : [];
+    }
+    const column = mapping[field];
+    return column === null ? [] : [column];
+  });
+
+/** Columns the mapping names that the view doesn't have (exactly as the view spells them). */
+export const unknownColumns = (
+  mapping: FieldMapping,
+  columns: readonly string[],
+): readonly string[] => mappedColumns(mapping).filter((column) => !columns.includes(column));
+
 const isText = (value: unknown): value is string => typeof value === 'string';
 
 /**
@@ -67,33 +155,23 @@ const asText = (value: unknown): string | null | undefined => {
   return null;
 };
 
-/** The first of the field's columns that the record has (empty cells are left out by Airtable). */
-const cellFor = (fields: Readonly<Record<string, unknown>>, key: DetailKey): unknown => {
-  const byName = new Map(Object.keys(fields).map((name) => [comparable(name), name]));
-  for (const column of columns[key]) {
-    const name = byName.get(comparable(column));
-    if (name !== undefined) return fields[name];
-  }
-  return undefined;
+/** The part of an email before the @, for a username taken from it; nothing without an @. */
+const beforeAt = (email: string | undefined): string | undefined => {
+  const at = email?.trim().indexOf('@') ?? -1;
+  return email && at > 0 ? email.trim().slice(0, at) : undefined;
 };
 
 const sentence = (message: string): string => (message.endsWith('.') ? message : `${message}.`);
 
-const detailKeys: readonly DetailKey[] = [
-  'username',
-  'name',
-  'email',
-  'phone',
-  'diplomaBranch',
-  'parentNames',
-  'interviewNotes',
-];
-
 /**
- * Turns Airtable's records into interns to import, or invalid rows with every reason, by the
- * same rules as Add intern (7.3). A username used by an earlier row makes the later one invalid.
+ * Turns Airtable's records into interns to import through the batch's mapping (8.6), or invalid
+ * rows with every reason, by the same rules as Add intern (7.3). A username taken from the email
+ * follows the same rules. A username used by an earlier row makes the later one invalid.
  */
-export const mapRecords = (records: readonly AirtableRecord[]): MappedRecords => {
+export const mapRecords = (
+  records: readonly AirtableRecord[],
+  mapping: FieldMapping,
+): MappedRecords => {
   const valid: MappedRow[] = [];
   const invalid: InvalidRow[] = [];
   const firstRowOf = new Map<string, number>();
@@ -101,11 +179,21 @@ export const mapRecords = (records: readonly AirtableRecord[]): MappedRecords =>
   records.forEach((record, index) => {
     const row = index + 1;
     const reasons: string[] = [];
-    const cells: Partial<Record<DetailKey, string>> = {};
-    for (const key of detailKeys) {
-      const text = asText(cellFor(record.fields, key));
-      if (text === null) reasons.push(`${labels[key]} isn't text.`);
-      else if (text !== undefined) cells[key] = text;
+    const cells: Partial<Record<MappedField, string>> = {};
+    for (const field of mappedFields) {
+      const column =
+        field === 'username'
+          ? mapping.username.kind === 'column'
+            ? mapping.username.column
+            : null
+          : mapping[field];
+      const text = column === null ? undefined : asText(record.fields[column]);
+      if (text === null) reasons.push(`${labels[field]} isn't text.`);
+      else if (text !== undefined) cells[field] = text;
+    }
+    if (mapping.username.kind === 'fromEmail') {
+      const derived = beforeAt(cells.email);
+      if (derived !== undefined) cells.username = derived;
     }
     const rawUsername = cells.username?.trim() || null;
     const parsed = CreateInternRequest.safeParse({

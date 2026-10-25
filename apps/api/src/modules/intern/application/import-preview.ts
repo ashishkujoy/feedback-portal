@@ -2,7 +2,13 @@ import type { InternStatus } from '@feedback-portal/contracts';
 import type { MappedRecords } from './airtable-mapping.ts';
 
 /** An intern already in the batch, as matching needs it. */
-export type ExistingIntern = Readonly<{ id: string; username: string; status: InternStatus }>;
+export type ExistingIntern = Readonly<{
+  id: string;
+  username: string;
+  status: InternStatus;
+  /** The Airtable record it was last imported from; `null` when added by hand. */
+  airtableRecordId: string | null;
+}>;
 
 type PreviewRow = Readonly<{ row: number; username: string; name: string }>;
 
@@ -36,9 +42,11 @@ const departure = (status: InternStatus): string | null => {
 };
 
 /**
- * What an import would do (v2 A10's preview): rows whose username is new to the batch, rows
- * matching an intern (every match counts as updated, 8.3 decision 1), and invalid rows. A match
- * with a read-only intern can't be changed, so it's invalid with the reason (decision 2).
+ * What an import would do (v2 A10's preview): new rows, rows matching an intern (every match
+ * counts as updated, 8.3 decision 1), and invalid rows. A row matches the intern imported from
+ * its Airtable record first, keeping that intern's username; otherwise an intern with its
+ * username, unless that intern came from another record (8.6). A match with a read-only intern
+ * can't be changed, so it's invalid with the reason (8.3 decision 2).
  */
 export const previewImport = (
   mapped: MappedRecords,
@@ -47,6 +55,10 @@ export const previewImport = (
 ): ImportPreviewView => {
   // Usernames are stored lower-cased (7.3), as 8.2 normalises them; compared the same way.
   const byUsername = new Map(existing.map((intern) => [intern.username.toLowerCase(), intern]));
+  const byRecord = new Map<string, ExistingIntern>();
+  for (const intern of existing) {
+    if (intern.airtableRecordId !== null) byRecord.set(intern.airtableRecordId, intern);
+  }
   const created: PreviewRow[] = [];
   const updated: (PreviewRow & { internId: string })[] = [];
   const invalid: InvalidRow[] = mapped.invalid.map(({ row, username, reasons }) => ({
@@ -55,9 +67,19 @@ export const previewImport = (
     reasons,
   }));
 
-  for (const { row, details } of mapped.valid) {
-    const username = details.username.toLowerCase();
-    const match = byUsername.get(username);
+  for (const { row, recordId, details } of mapped.valid) {
+    const sameRecord = byRecord.get(recordId);
+    const sameUsername = byUsername.get(details.username.toLowerCase());
+    if (!sameRecord && sameUsername && sameUsername.airtableRecordId !== null) {
+      invalid.push({
+        row,
+        username: details.username,
+        reasons: [`${details.username} belongs to another Airtable record.`],
+      });
+      continue;
+    }
+    const match = sameRecord ?? sameUsername;
+    const username = (match?.username ?? details.username).toLowerCase();
     const summary = { row, username, name: details.name };
     if (!match) {
       created.push(summary);

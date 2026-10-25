@@ -1,4 +1,10 @@
-import { ImportPreview, ImportResult, ImportSourceRequest } from '@feedback-portal/contracts';
+import {
+  ImportColumns,
+  ImportPreview,
+  ImportRequest,
+  ImportResult,
+  ImportSourceRequest,
+} from '@feedback-portal/contracts';
 import { getLogger } from '@logtape/logtape';
 import { type Context, Hono } from 'hono';
 import { z } from 'zod';
@@ -12,6 +18,7 @@ import { requireRole } from '../../identity/http/require-role.ts';
 import {
   type Actor,
   importInterns,
+  listImportColumns,
   type ManageInternsDeps,
   previewInternImport,
 } from '../application/manage-interns.ts';
@@ -37,17 +44,43 @@ export const importsRoutes = ({ manageInterns, ...auth }: ImportsRoutesDeps) =>
   new Hono<AuthEnv>()
     .use(authenticate(auth))
     .post(
-      '/preview',
+      '/columns',
       requireRole('admin', 'program_manager'),
       validate('param', BatchParams),
       validate('json', ImportSourceRequest),
       async (c) => {
         const actor = actorOf(c);
         const { batchId } = c.req.valid('param');
-        const preview = await previewInternImport(manageInterns, {
+        const columns = await listImportColumns(manageInterns, {
           actor,
           batchId,
           source: c.req.valid('json'),
+        }).catch((error: unknown) => {
+          throw asProblem(error);
+        });
+        logger.info('import columns read', {
+          actorId: actor.id,
+          batchId,
+          columns: columns.columns.length,
+          missing: columns.missing.length,
+        });
+        return c.json(ImportColumns.parse(columns));
+      },
+    )
+    .post(
+      '/preview',
+      requireRole('admin', 'program_manager'),
+      validate('param', BatchParams),
+      validate('json', ImportRequest),
+      async (c) => {
+        const actor = actorOf(c);
+        const { batchId } = c.req.valid('param');
+        const { mapping, ...source } = c.req.valid('json');
+        const preview = await previewInternImport(manageInterns, {
+          actor,
+          batchId,
+          source,
+          mapping,
         }).catch((error: unknown) => {
           throw asProblem(error);
         });
@@ -59,14 +92,16 @@ export const importsRoutes = ({ manageInterns, ...auth }: ImportsRoutesDeps) =>
       '/',
       requireRole('admin', 'program_manager'),
       validate('param', BatchParams),
-      validate('json', ImportSourceRequest),
+      validate('json', ImportRequest),
       async (c) => {
         const actor = actorOf(c);
         const { batchId } = c.req.valid('param');
+        const { mapping, ...source } = c.req.valid('json');
         const result = await importInterns(manageInterns, {
           actor,
           batchId,
-          source: c.req.valid('json'),
+          source,
+          mapping,
         }).catch((error: unknown) => {
           throw asProblem(error);
         });

@@ -24,6 +24,7 @@ export const ErrorCode = z.enum([
   'intern_read_only',
   'intern_username_taken',
   'airtable_source_invalid',
+  'airtable_mapping_invalid',
   'airtable_unavailable',
   'intern_not_active',
   'feedback_not_draft',

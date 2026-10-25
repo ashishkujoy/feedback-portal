@@ -1,0 +1,50 @@
+{
+  "records": [
+    {
+      "id": "recR1s2T3u4V5w6X7",
+      "createdTime": "2026-02-22T07:22:01.000Z",
+      "fields": {
+        "Name": "Arjun Mehta",
+        "Email ID": "arjun.mehta07@example.com",
+        "Mobile Number": "9800000001",
+        "Whatsapp number": "9800000001",
+        "Diploma Branch": "Information Technology ",
+        "Board ID": "E00000000000001",
+        "Batch": "Afternoon",
+        "Semester 1": 0.7657,
+        "Round 1 Positives": "* **Problem solving:** handled the edge cases.",
+        "Interview confirmation": true,
+        "Photograph": [
+          {
+            "id": "attA1b2C3d4E5f6G7",
+            "url": "https://dl.airtable.test/photo.jpg",
+            "filename": "photo.jpg",
+            "size": 1024,
+            "type": "image/jpeg"
+          }
+        ]
+      }
+    },
+    {
+      "id": "recS2t3U4v5W6x7Y8",
+      "createdTime": "2026-02-22T07:23:01.000Z",
+      "fields": {
+        "Name": "Leela Iyer",
+        "Email ID": "LeelaIyer22@example.com",
+        "Whatsapp number": "9800000002",
+        "Diploma Branch": "Mechanical Engineering",
+        "Board ID": "1234567890"
+      }
+    },
+    {
+      "id": "recT3u4V5w6X7y8Z9",
+      "createdTime": "2026-02-22T07:24:01.000Z",
+      "fields": {
+        "Name": "Rohan Das",
+        "Email ID": "rohan.das@example.com",
+        "Mobile Number": "9800000003",
+        "Diploma Branch": "Civil Engineering"
+      }
+    }
+  ]
+}

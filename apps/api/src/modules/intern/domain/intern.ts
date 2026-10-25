@@ -87,8 +87,13 @@ const Details = z.object({
     .toLowerCase()
     .pipe(
       z
-        .email({ error: 'Invalid email address' })
-        .max(254, { error: 'Email must be at most 254 characters' }),
+        .string()
+        .min(1, { error: 'Email is required', abort: true })
+        .pipe(
+          z
+            .email({ error: 'Invalid email address' })
+            .max(254, { error: 'Email must be at most 254 characters' }),
+        ),
     ),
   phone: optionalText(50, 'Phone'),
   diplomaBranch: optionalText(200, 'Diploma branch'),

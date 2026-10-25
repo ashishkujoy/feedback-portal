@@ -50,6 +50,16 @@ describe('CreateInternRequest', () => {
     ]);
   });
 
+  it('asks for a blank email rather than calling it invalid', () => {
+    expect(
+      CreateInternRequest.safeParse({
+        username: 'ishita',
+        name: 'I',
+        email: ' ',
+      }).error?.issues.map((issue) => issue.message),
+    ).toEqual(['Email is required']);
+  });
+
   it('rejects usernames with other characters', () => {
     expect(
       CreateInternRequest.safeParse({ username: 'ishita rao', name: 'I', email: 'i@example.com' })

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AirtableRecord } from './airtable-source.ts';
+import type { FieldMapping } from '@feedback-portal/contracts';
 import { mapRecords } from './airtable-mapping.ts';
 import { type ExistingIntern, previewImport } from './import-preview.ts';
 
@@ -13,13 +14,27 @@ const record = (username: string, extra: Record<string, unknown> = {}): Airtable
   };
 };
 
+const mapping: FieldMapping = {
+  username: { kind: 'column', column: 'Username' },
+  name: 'Full name',
+  email: 'Email',
+  phone: null,
+  diplomaBranch: null,
+  parentNames: null,
+  interviewNotes: null,
+};
+
+const mapped = (records: readonly AirtableRecord[]) => mapRecords(records, mapping);
+
 const existing = (
   username: string,
   status: ExistingIntern['status'] = 'active',
+  airtableRecordId: string | null = null,
 ): ExistingIntern => ({
   id: `01890a5d-ac96-774b-bcce-b30209${String(username.length).padStart(6, '0')}`,
   username,
   status,
+  airtableRecordId,
 });
 
 describe('previewImport', () => {
@@ -28,7 +43,7 @@ describe('previewImport', () => {
     const records = [record('ishita.rao'), record('zoya.ansari'), record('kabir.nair')];
     const ishita = existing('Ishita.Rao');
 
-    const preview = previewImport(mapRecords(records), [ishita], records.length);
+    const preview = previewImport(mapped(records), [ishita], records.length);
 
     expect(preview.counts).toEqual({ new: 2, updated: 1, invalid: 0 });
     expect(preview.updated).toEqual([
@@ -50,7 +65,7 @@ describe('previewImport', () => {
     ];
 
     const preview = previewImport(
-      mapRecords(records),
+      mapped(records),
       [
         existing('meera.pillai', 'graduated'),
         existing('kabir.nair', 'terminated'),
@@ -90,7 +105,7 @@ describe('previewImport', () => {
       record('zoya', { Email: 'nope' }),
     ];
 
-    const preview = previewImport(mapRecords(records), [], records.length);
+    const preview = previewImport(mapped(records), [], records.length);
 
     expect(preview.invalid.map(({ row, reasons }) => [row, reasons])).toEqual([
       [2, ['Username is required.']],
@@ -101,12 +116,44 @@ describe('previewImport', () => {
   });
 
   it('is empty for an empty view', () => {
-    expect(previewImport(mapRecords([]), [existing('ishita.rao')], 0)).toEqual({
+    expect(previewImport(mapped([]), [existing('ishita.rao')], 0)).toEqual({
       recordCount: 0,
       counts: { new: 0, updated: 0, invalid: 0 },
       new: [],
       updated: [],
       invalid: [],
     });
+  });
+
+  it('matches the intern imported from the same record first, keeping its username', () => {
+    // The email, and so the username, changed in Airtable since the last import.
+    const moved = record('ishita.rao2');
+    const ishita = existing('ishita.rao', 'active', moved.id);
+
+    const preview = previewImport(mapped([moved]), [ishita], 1);
+
+    expect(preview.updated).toEqual([
+      { row: 1, username: 'ishita.rao', name: expect.any(String), internId: ishita.id },
+    ]);
+    expect(preview.counts).toEqual({ new: 0, updated: 1, invalid: 0 });
+  });
+
+  it('claims an intern added by hand with the same username', () => {
+    const preview = previewImport(mapped([record('zoya.ansari')]), [existing('zoya.ansari')], 1);
+
+    expect(preview.counts).toEqual({ new: 0, updated: 1, invalid: 0 });
+  });
+
+  it("doesn't take over an intern imported from another record", () => {
+    const preview = previewImport(
+      mapped([record('ravi')]),
+      [existing('ravi', 'active', 'recOTHERRECORD0001')],
+      1,
+    );
+
+    expect(preview.invalid).toEqual([
+      { row: 1, username: 'ravi', reasons: ['ravi belongs to another Airtable record.'] },
+    ]);
+    expect(preview.counts).toEqual({ new: 0, updated: 0, invalid: 1 });
   });
 });

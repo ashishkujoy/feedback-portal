@@ -1,4 +1,11 @@
-import type { BatchDetail, ImportPreview, ImportResult, Role } from '@feedback-portal/contracts';
+import type {
+  BatchDetail,
+  FieldMapping,
+  ImportColumns,
+  ImportPreview,
+  ImportResult,
+  Role,
+} from '@feedback-portal/contracts';
 import { screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -65,6 +72,25 @@ const result: ImportResult = {
   invalid: preview.invalid,
 };
 
+/** The real view's columns (8.6): no username column, so the username comes from the email. */
+const mapping: FieldMapping = {
+  username: { kind: 'fromEmail' },
+  name: 'Name',
+  email: 'Email ID',
+  phone: 'Mobile Number',
+  diplomaBranch: 'Diploma Branch',
+  parentNames: null,
+  interviewNotes: null,
+};
+
+const columns: ImportColumns = {
+  recordCount: 5,
+  columns: ['Name', 'Email ID', 'Mobile Number', 'Whatsapp number', 'Diploma Branch', 'Batch'],
+  mapping,
+  missing: [],
+};
+
+const columnsPath = `POST /batches/${batchId}/imports/columns`;
 const previewPath = `POST /batches/${batchId}/imports/preview`;
 const importPath = `POST /batches/${batchId}/imports`;
 
@@ -75,14 +101,18 @@ const source = {
   view: 'Batch 2 – confirmed',
 };
 
+const request = { ...source, mapping };
+
 const stub = ({
   roles = ['program_manager'],
   detail = batch(),
+  columnsReply = { status: 200, body: columns },
   previewReply = { status: 200, body: preview },
   importReply = { status: 201, body: result },
 }: Partial<{
   roles: [Role, ...Role[]];
   detail: BatchDetail;
+  columnsReply: Reply;
   previewReply: Reply;
   importReply: Reply;
 }> = {}) => {
@@ -90,6 +120,7 @@ const stub = ({
     ...signedInWith(roles),
     [`GET /batches/${batchId}`]: { status: 200, body: detail },
     [`GET /batches/${batchId}/interns`]: { status: 200, body: [] },
+    [columnsPath]: columnsReply,
     [previewPath]: previewReply,
     [importPath]: importReply,
   };
@@ -141,13 +172,23 @@ const posts = (fetchMock: ReturnType<typeof stubApi>) =>
       body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
     }));
 
-const toPreview = async () => {
-  const stubbed = stub();
+const select = (dialog: Within, name: string) => dialog.getByRole('combobox', { name });
+
+/** Source filled in, then Next to the Fields step. */
+const toFields = async (overrides: Parameters<typeof stub>[0] = {}) => {
+  const stubbed = stub(overrides);
   const { user, dialog } = await openDialog();
   await fillSource(user, dialog);
-  await user.click(dialog.getByRole('button', { name: 'Preview import' }));
-  await dialog.findByRole('button', { name: 'Import 3 interns' });
+  await user.click(dialog.getByRole('button', { name: 'Next' }));
+  await dialog.findByRole('combobox', { name: 'Username' });
   return { ...stubbed, user, dialog };
+};
+
+const toPreview = async (overrides: Parameters<typeof stub>[0] = {}) => {
+  const reached = await toFields(overrides);
+  await reached.user.click(reached.dialog.getByRole('button', { name: 'Preview import' }));
+  await reached.dialog.findByRole('button', { name: /^Import \d+ interns?$/ });
+  return reached;
 };
 
 const currentStep = (dialog: Within) =>
@@ -200,7 +241,7 @@ describe('Source', () => {
 
     expect(
       screen.getByText(
-        'Into Batch 2027. Interns are matched by username: new ones are added and existing ones updated.',
+        'Into Batch 2027. Interns are matched by their Airtable record or username: new ones are added and existing ones updated.',
       ),
     ).toBeInTheDocument();
     expect(currentStep(dialog)).toBe('1Source');
@@ -220,7 +261,7 @@ describe('Source', () => {
     const { user, dialog } = await openDialog();
     await user.type(field(dialog, 'Table ID'), 'Interns 2026');
 
-    await user.click(dialog.getByRole('button', { name: 'Preview import' }));
+    await user.click(dialog.getByRole('button', { name: 'Next' }));
 
     expect(keyField(dialog)).toHaveAccessibleDescription('Enter an API key');
     expect(field(dialog, 'Base ID')).toHaveAccessibleDescription('Base IDs start with “app”');
@@ -229,17 +270,18 @@ describe('Source', () => {
     expect(posts(fetchMock)).toEqual([]);
   });
 
-  it('previews exactly what was typed, trimmed', async () => {
+  it('reads the view with exactly what was typed, trimmed, then previews with the mapping', async () => {
     const { fetchMock } = await toPreview();
 
     expect(posts(fetchMock)).toEqual([
-      { path: `/api/batches/${batchId}/imports/preview`, body: source },
+      { path: `/api/batches/${batchId}/imports/columns`, body: source },
+      { path: `/api/batches/${batchId}/imports/preview`, body: request },
     ]);
   });
 
   it("shows Airtable's refusal and keeps what was typed", async () => {
     stub({
-      previewReply: problem(
+      columnsReply: problem(
         422,
         'airtable_source_invalid',
         "Airtable said: INVALID_PERMISSIONS. This key can't read the base.",
@@ -248,7 +290,7 @@ describe('Source', () => {
     const { user, dialog } = await openDialog();
     await fillSource(user, dialog);
 
-    await user.click(dialog.getByRole('button', { name: 'Preview import' }));
+    await user.click(dialog.getByRole('button', { name: 'Next' }));
 
     const alert = await dialog.findByRole('alert');
     expect(alert).toHaveTextContent("We couldn't connect to Airtable");
@@ -260,14 +302,14 @@ describe('Source', () => {
   });
 
   it('says something general for any other failure', async () => {
-    stub({ previewReply: problem(500, 'internal') });
+    stub({ columnsReply: problem(400, 'validation_failed') });
     const { user, dialog } = await openDialog();
     await fillSource(user, dialog);
 
-    await user.click(dialog.getByRole('button', { name: 'Preview import' }));
+    await user.click(dialog.getByRole('button', { name: 'Next' }));
 
     expect(await dialog.findByRole('alert')).toHaveTextContent(
-      "We couldn't preview the importSomething went wrong. Try again in a moment.",
+      "We couldn't read the viewSomething went wrong. Try again in a moment.",
     );
   });
 
@@ -292,7 +334,7 @@ describe('Preview', () => {
   it('shows the counts, the invalid rows with every reason, and Import N', async () => {
     const { dialog } = await toPreview();
 
-    expect(currentStep(dialog)).toBe('2Preview');
+    expect(currentStep(dialog)).toBe('3Preview');
     const counts = dialog.getAllByRole('definition').map((cell) => cell.textContent);
     expect(counts).toEqual(['2', '1', '2']);
     const rows = within(dialog.getByRole('table'))
@@ -311,55 +353,55 @@ describe('Preview', () => {
     expect(dialog.getByRole('button', { name: 'Import 3 interns' })).toHaveFocus();
   });
 
-  it('goes Back to the source with the values kept', async () => {
-    const { user, dialog } = await toPreview();
+  it('goes Back to the fields with the choices kept, then to the source with the values kept', async () => {
+    const { user, dialog } = await toFields();
+    await user.selectOptions(select(dialog, 'Phone'), 'Whatsapp number');
+    await user.click(dialog.getByRole('button', { name: 'Preview import' }));
+    await dialog.findByRole('button', { name: 'Import 3 interns' });
 
     await user.click(dialog.getByRole('button', { name: 'Back' }));
 
+    expect(currentStep(dialog)).toBe('2Fields');
+    expect(select(dialog, 'Phone')).toHaveDisplayValue('Whatsapp number');
+    await user.click(dialog.getByRole('button', { name: 'Back' }));
     expect(keyField(dialog)).toHaveValue(source.token);
     expect(field(dialog, 'Base ID')).toHaveValue(source.baseId);
     expect(field(dialog, 'View name')).toHaveValue(source.view);
   });
 
   it('disables Import when no row can be imported', async () => {
-    stub({
+    const { dialog } = await toPreview({
       previewReply: {
         status: 200,
         body: { ...preview, counts: { new: 0, updated: 0, invalid: 2 }, new: [], updated: [] },
       },
     });
-    const { user, dialog } = await openDialog();
-    await fillSource(user, dialog);
-    await user.click(dialog.getByRole('button', { name: 'Preview import' }));
 
-    expect(await dialog.findByRole('button', { name: 'Import 0 interns' })).toBeDisabled();
+    expect(dialog.getByRole('button', { name: 'Import 0 interns' })).toBeDisabled();
     expect(dialog.getByRole('button', { name: 'Back' })).toHaveFocus();
   });
 
   it('leaves out the invalid rows when there are none', async () => {
-    stub({
+    const { dialog } = await toPreview({
       previewReply: {
         status: 200,
         body: { ...preview, counts: { new: 1, updated: 0, invalid: 0 }, updated: [], invalid: [] },
       },
     });
-    const { user, dialog } = await openDialog();
-    await fillSource(user, dialog);
-    await user.click(dialog.getByRole('button', { name: 'Preview import' }));
 
-    expect(await dialog.findByRole('button', { name: 'Import 1 intern' })).toBeEnabled();
+    expect(dialog.getByRole('button', { name: 'Import 1 intern' })).toBeEnabled();
     expect(dialog.queryByRole('table')).not.toBeInTheDocument();
   });
 });
 
 describe('Import', () => {
-  it('sends the same source again, then shows the result', async () => {
+  it('sends the same source and mapping again, then shows the result', async () => {
     const { user, dialog, fetchMock } = await toPreview();
 
     await user.click(dialog.getByRole('button', { name: 'Import 3 interns' }));
 
     const done = await dialog.findByRole('button', { name: 'Done' });
-    expect(currentStep(dialog)).toBe('3Result');
+    expect(currentStep(dialog)).toBe('4Result');
     expect(done).toHaveFocus();
     expect(done).toHaveAccessibleDescription(
       "Import completed 2 added, 1 updated, 2 skipped. Skipped rows weren't changed.",
@@ -373,7 +415,7 @@ describe('Import', () => {
     ]);
     expect(posts(fetchMock).at(-1)).toEqual({
       path: `/api/batches/${batchId}/imports`,
-      body: source,
+      body: request,
     });
   });
 
@@ -421,7 +463,7 @@ describe('Import', () => {
     expect(gets(`/batches/${batchId}`)).toBe(before.batch + 1);
   });
 
-  it('shows a failure, goes Back to the preview, and tries again with the same source', async () => {
+  it('shows a failure, goes Back to the preview, and tries again with the same request', async () => {
     const { user, dialog, fetchMock, replies } = await toPreview();
     replies[importPath] = problem(
       502,
@@ -435,7 +477,7 @@ describe('Import', () => {
     expect(alert).toHaveTextContent(
       'Import failedAirtable said: RATE_LIMIT_REACHED. Airtable is busy; try again in 30 seconds. Nothing was saved.',
     );
-    expect(currentStep(dialog)).toBe('3Result');
+    expect(currentStep(dialog)).toBe('4Result');
     expect(dialog.getByRole('button', { name: 'Try again' })).toHaveFocus();
 
     await user.click(dialog.getByRole('button', { name: 'Back' }));
@@ -449,7 +491,9 @@ describe('Import', () => {
     expect(await dialog.findByRole('button', { name: 'Done' })).toBeInTheDocument();
     const imports = posts(fetchMock).filter(({ path }) => path.endsWith('/imports'));
     expect(imports).toHaveLength(3);
-    expect(imports.every(({ body }) => JSON.stringify(body) === JSON.stringify(source))).toBe(true);
+    expect(imports.every(({ body }) => JSON.stringify(body) === JSON.stringify(request))).toBe(
+      true,
+    );
   });
 
   it("says the import couldn't be saved for a failure without Airtable's sentence", async () => {
@@ -461,5 +505,115 @@ describe('Import', () => {
     expect(await dialog.findByRole('alert')).toHaveTextContent(
       "Import failedThe import couldn't be saved. Nothing was saved.",
     );
+  });
+});
+
+describe('Fields', () => {
+  it("lists every intern field with the view's columns, pre-filled, starting on the first", async () => {
+    const { dialog } = await toFields();
+
+    expect(currentStep(dialog)).toBe('2Fields');
+    expect(
+      dialog.getByText(
+        "Match the view's columns to intern fields. They're saved for Batch 2027 when you import.",
+      ),
+    ).toBeInTheDocument();
+    const shown: Readonly<Record<string, string>> = {
+      Username: 'From the email (before @)',
+      Name: 'Name',
+      Email: 'Email ID',
+      Phone: 'Mobile Number',
+      'Diploma branch': 'Diploma Branch',
+      "Parents' names": 'Not imported',
+      'Interview notes': 'Not imported',
+    };
+    for (const [name, value] of Object.entries(shown)) {
+      expect(select(dialog, name)).toHaveDisplayValue(value);
+    }
+    expect(select(dialog, 'Username')).toHaveFocus();
+    expect(select(dialog, 'Username')).toBeRequired();
+    expect(
+      within(select(dialog, 'Phone'))
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Not imported', ...columns.columns]);
+  });
+
+  it('sends the chosen columns, a username column, and fields left out', async () => {
+    const { user, dialog, fetchMock } = await toFields();
+
+    await user.selectOptions(select(dialog, 'Username'), 'Batch');
+    await user.selectOptions(select(dialog, 'Phone'), 'Whatsapp number');
+    await user.selectOptions(select(dialog, 'Diploma branch'), 'Not imported');
+    await user.click(dialog.getByRole('button', { name: 'Preview import' }));
+    await dialog.findByRole('button', { name: 'Import 3 interns' });
+
+    expect(posts(fetchMock).at(-1)?.body.mapping).toEqual({
+      ...mapping,
+      username: { kind: 'column', column: 'Batch' },
+      phone: 'Whatsapp number',
+      diplomaBranch: null,
+    });
+  });
+
+  it('asks for the required fields that have no column, sending nothing', async () => {
+    const { user, dialog, fetchMock } = await toFields({
+      columnsReply: {
+        status: 200,
+        body: {
+          ...columns,
+          mapping: { ...mapping, username: null, email: null },
+          missing: [
+            { field: 'username', column: 'Username' },
+            { field: 'email', column: 'Email' },
+          ],
+        },
+      },
+    });
+    expect(select(dialog, 'Email')).toHaveAccessibleDescription("“Email” isn't in this view.");
+
+    await user.click(dialog.getByRole('button', { name: 'Preview import' }));
+
+    expect(select(dialog, 'Username')).toHaveAccessibleDescription('Choose a column.');
+    expect(select(dialog, 'Email')).toHaveAccessibleDescription('Choose a column.');
+    expect(select(dialog, 'Username')).toHaveFocus();
+    expect(posts(fetchMock).map(({ path }) => path)).toEqual([
+      `/api/batches/${batchId}/imports/columns`,
+    ]);
+    await user.selectOptions(select(dialog, 'Email'), 'Email ID');
+    expect(select(dialog, 'Email')).not.toHaveAccessibleDescription();
+  });
+
+  it("shows the API's refusal of a mapping", async () => {
+    const { user, dialog } = await toFields({
+      previewReply: problem(
+        422,
+        'airtable_mapping_invalid',
+        'This view has no “Mobile Number” column. Choose the fields again.',
+      ),
+    });
+
+    await user.click(dialog.getByRole('button', { name: 'Preview import' }));
+
+    expect(await dialog.findByRole('alert')).toHaveTextContent(
+      "We couldn't preview the importThis view has no “Mobile Number” column. Choose the fields again.",
+    );
+  });
+
+  it('says so when the view has no records', async () => {
+    const { user, dialog } = await (async () => {
+      stub({
+        columnsReply: { status: 200, body: { ...columns, recordCount: 0, columns: [] } },
+      });
+      const opened = await openDialog();
+      await fillSource(opened.user, opened.dialog);
+      await opened.user.click(opened.dialog.getByRole('button', { name: 'Next' }));
+      return opened;
+    })();
+
+    expect(await dialog.findByText('This view has no records')).toBeInTheDocument();
+    expect(dialog.queryByRole('button', { name: 'Preview import' })).not.toBeInTheDocument();
+    await user.click(dialog.getByRole('button', { name: 'Back' }));
+    expect(keyField(dialog)).toHaveValue(source.token);
   });
 });

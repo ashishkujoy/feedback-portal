@@ -99,6 +99,7 @@ This file is the overview. Detailed plans, reviews, findings and status for each
 | 8.3 | **Import preview API**: returns valid and invalid rows without writing anything | — |
 | 8.4 | **Import commit API**: `airtable_imports` table; adds new interns and updates existing ones matched by username; repeatable | Re-running the import creates no duplicates |
 | 8.5 | **Import UI**: enter the source, preview, confirm, and see the result | — |
+| 8.6 | **Field mapping per batch**: default Airtable column names, changeable per batch in the import; the username from a column or the email; matching by Airtable record | The real view previews with no invalid rows |
 
 ## Phase 9 — Feedback
 

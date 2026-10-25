@@ -28,7 +28,17 @@ export {
   statusActions,
   UpdateInternDetailsRequest,
 } from './intern.ts';
-export { ImportPreview, ImportResult, ImportSourceRequest } from './intern-import.ts';
+export {
+  FieldMapping,
+  ImportColumns,
+  ImportPreview,
+  ImportRequest,
+  ImportResult,
+  ImportSourceRequest,
+  type MappedField,
+  mappedFields,
+  UsernameSource,
+} from './intern-import.ts';
 export {
   InternStatus,
   finalInternStatuses,

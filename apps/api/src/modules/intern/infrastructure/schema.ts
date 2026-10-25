@@ -181,3 +181,18 @@ export const airtableImports = pgTable(
     ),
   ],
 );
+
+/**
+ * Each batch's Airtable field mapping (8.6), saved when an import runs. `mapping` holds column
+ * names only (the `FieldMapping` contract), never field values.
+ */
+export const airtableFieldMappings = pgTable('airtable_field_mappings', {
+  batchId: uuid()
+    .primaryKey()
+    .references(() => batches.id),
+  mapping: jsonb().notNull(),
+  updatedBy: uuid()
+    .notNull()
+    .references(() => users.id),
+  updatedAt: timestamp({ withTimezone: true }).notNull(),
+});

@@ -1,9 +1,15 @@
-import { maxPhotoBytes, type StatusAction } from '@feedback-portal/contracts';
+import {
+  type FieldMapping,
+  type ImportColumns,
+  maxPhotoBytes,
+  type StatusAction,
+} from '@feedback-portal/contracts';
 import {
   conflict,
   forbidden,
   notFound,
   unavailable,
+  unprocessable,
   validationFailed,
 } from '../../../shared/errors/app-error.ts';
 import type { Viewer } from '../../cohort/application/batch-scope.ts';
@@ -25,8 +31,15 @@ import {
 import { InternId, newInternId } from '../domain/intern-id.ts';
 import { newId } from '../../../shared/ids.ts';
 import { AppError } from '../../../shared/errors/app-error.ts';
+import type { AirtableRecord } from './airtable-source.ts';
 import { newStatusEventId } from '../domain/status-event-id.ts';
-import { type MappedRow, mapRecords } from './airtable-mapping.ts';
+import {
+  type MappedRow,
+  mapRecords,
+  startingMapping,
+  unknownColumns,
+  viewColumns,
+} from './airtable-mapping.ts';
 import {
   AirtableError,
   type AirtableSource,
@@ -262,8 +275,42 @@ export const updateInternDetails = (
   });
 
 /**
- * What importing this Airtable view would do (8.3), writing nothing. Access is checked first; the
- * view is read outside any database transaction, so none is held open during the network call.
+ * The view's columns and the mapping the Fields step starts from (8.6): the batch's saved one,
+ * else the latest any batch saved, else the defaults. Nothing is written.
+ */
+export const listImportColumns = async (
+  { transaction, airtable }: ManageInternsDeps,
+  {
+    actor,
+    batchId,
+    source,
+  }: Readonly<{ actor: Actor; batchId: BatchId; source: AirtableSourceInput }>,
+): Promise<ImportColumns> => {
+  const saved = await transaction(async (scope) => {
+    await ensureCanManage(scope, actor, batchId);
+    return (await scope.fieldMappings.forBatch(batchId)) ?? (await scope.fieldMappings.latest());
+  });
+  const records = await airtable.fetchRecords(source);
+  const columns = viewColumns(records);
+  return { recordCount: records.length, columns, ...startingMapping(columns, saved) };
+};
+
+/** The view's records, mapped; a mapping naming a column the view doesn't have is refused. */
+const mapView = (records: readonly AirtableRecord[], mapping: FieldMapping) => {
+  const unknown = unknownColumns(mapping, viewColumns(records));
+  if (unknown.length > 0) {
+    throw unprocessable(
+      `This view has no ${unknown.map((column) => `“${column}”`).join(', ')} column. Choose the fields again.`,
+      'airtable_mapping_invalid',
+    );
+  }
+  return mapRecords(records, mapping);
+};
+
+/**
+ * What importing this Airtable view would do (8.3), through the chosen mapping (8.6), writing
+ * nothing. Access is checked first; the view is read outside any database transaction, so none
+ * is held open during the network call.
  */
 export const previewInternImport = async (
   { transaction, airtable }: ManageInternsDeps,
@@ -271,14 +318,20 @@ export const previewInternImport = async (
     actor,
     batchId,
     source,
-  }: Readonly<{ actor: Actor; batchId: BatchId; source: AirtableSourceInput }>,
+    mapping,
+  }: Readonly<{
+    actor: Actor;
+    batchId: BatchId;
+    source: AirtableSourceInput;
+    mapping: FieldMapping;
+  }>,
 ): Promise<ImportPreviewView> => {
   const existing = await transaction(async (scope) => {
     await ensureCanManage(scope, actor, batchId);
     return scope.queries.usernamesForBatch(batchId);
   });
   const records = await airtable.fetchRecords(source);
-  return previewImport(mapRecords(records), existing, records.length);
+  return previewImport(mapView(records, mapping), existing, records.length);
 };
 
 export type ImportResultView = Readonly<{
@@ -303,9 +356,9 @@ const inTurn = async <T>(items: readonly T[], step: (item: T) => Promise<void>):
 
 /**
  * Imports an Airtable view into the batch (8.4): reads it again (decision 1), then, all or
- * nothing under the batch's import lock (decisions 2 and 4), adds the new interns and refreshes
- * the matched ones. Invalid rows are skipped. The run is recorded as pending first, then
- * completed or failed; a failed run changes no intern.
+ * nothing under the batch's import lock (decisions 2 and 4), adds the new interns, refreshes
+ * the matched ones and saves the mapping for the batch (8.6). Invalid rows are skipped. The run
+ * is recorded as pending first, then completed or failed; a failed run changes no intern.
  */
 export const importInterns = async (
   { transaction, airtable, importRuns, now }: ManageInternsDeps,
@@ -313,7 +366,13 @@ export const importInterns = async (
     actor,
     batchId,
     source,
-  }: Readonly<{ actor: Actor; batchId: BatchId; source: AirtableSourceInput }>,
+    mapping,
+  }: Readonly<{
+    actor: Actor;
+    batchId: BatchId;
+    source: AirtableSourceInput;
+    mapping: FieldMapping;
+  }>,
 ): Promise<ImportResultView> => {
   await transaction((scope) => ensureCanManage(scope, actor, batchId));
   const importId = newId();
@@ -328,7 +387,7 @@ export const importInterns = async (
   });
   try {
     const records = await airtable.fetchRecords(source);
-    const mapped = mapRecords(records);
+    const mapped = mapView(records, mapping);
     const rowsByNumber = new Map(mapped.valid.map((row) => [row.row, row]));
     const mappedRow = (row: number): MappedRow => {
       const found = rowsByNumber.get(row);
@@ -373,6 +432,8 @@ export const importInterns = async (
           }),
         );
       });
+      // The next import of this batch starts from what was used (8.6).
+      await scope.fieldMappings.save({ batchId, mapping, by: actor.id, at });
       await scope.importRuns.complete(importId, {
         recordCount: records.length,
         createdCount: plan.new.length,

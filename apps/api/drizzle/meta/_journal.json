@@ -43,6 +43,13 @@
       "when": 1792847081020,
       "tag": "0005_feedback",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792870417160,
+      "tag": "0006_airtable_field_mappings",
+      "breakpoints": true
     }
   ]
 }

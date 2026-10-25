@@ -1,4 +1,5 @@
 import type { BatchAccess } from './batch-access.ts';
+import type { FieldMappings } from './field-mappings.ts';
 import type { ImportRuns } from './import-runs.ts';
 import type { InternQueries } from './intern-queries.ts';
 import type { InternRepository } from './intern-repository.ts';
@@ -9,6 +10,8 @@ export type InternAdminScope = Readonly<{
   queries: InternQueries;
   batchAccess: BatchAccess;
   importRuns: ImportRuns;
+  /** Each batch's Airtable field mapping (8.6). */
+  fieldMappings: FieldMappings;
   /** Holds the batch's import lock until the transaction ends: one import at a time (8.4). */
   lockImports: (batchId: string) => Promise<void>;
 }>;

@@ -27,7 +27,12 @@ export const createInternQueries = (db: DbExecutor): InternQueries => ({
 
   usernamesForBatch: (batchId) =>
     db
-      .select({ id: interns.id, username: interns.username, status: interns.status })
+      .select({
+        id: interns.id,
+        username: interns.username,
+        status: interns.status,
+        airtableRecordId: interns.airtableRecordId,
+      })
       .from(interns)
       .where(eq(interns.batchId, batchId)),
 

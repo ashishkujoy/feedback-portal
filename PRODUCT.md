@@ -111,7 +111,7 @@ The original scale had only Green, Yellow, Orange, and Red. Over time, several i
 | 2 | Color code changes | A color code **changes only through a feedback entry**. There is no separate override, so every change is tied to a written reason. Feedback can also leave the code unchanged. |
 | 3 | Intern access | **Staff only.** Interns never log in. |
 | 4 | Notice & termination | Tracked as an **intern status** with a clear history. See §10. |
-| 5 | Airtable | **Repeatable import per batch**, run by an admin or the batch's PM. Interns are matched by **username**: new ones are added and existing ones are updated. Fields edited in the portal are part of the intern record, so a re-import overwrites only the fields that come from Airtable. |
+| 5 | Airtable | **Repeatable import per batch**, run by an admin or the batch's PM. Each batch keeps its own **field mapping** (which Airtable column fills which intern field; the username may come from the email), chosen before each import. Interns are matched by their **Airtable record**, then by **username** (an intern added by hand is claimed; one from another record is never overwritten): new ones are added and existing ones are updated. Fields edited in the portal are part of the intern record, so a re-import overwrites only the fields that come from Airtable. |
 | 6 | Authentication | **Google sign-in.** Only users an admin has already added (by email) can sign in. |
 | 7 | Visibility | Mentors and PMs see **only the batches they are currently assigned to**. Admins can see all batches. |
 | 8 | Deleting feedback | **Feedback cannot be deleted.** Every entry stays on the record. Context or corrections are added as comments. |

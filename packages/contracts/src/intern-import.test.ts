@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { ImportPreview, ImportSourceRequest } from './intern-import.ts';
+import {
+  FieldMapping,
+  ImportPreview,
+  ImportRequest,
+  ImportSourceRequest,
+} from './intern-import.ts';
 
 describe('ImportSourceRequest', () => {
   it('trims the source', () => {
@@ -45,5 +50,40 @@ describe('ImportPreview', () => {
       invalid: [{ row: 1, username: null, reasons: [] }],
     };
     expect(ImportPreview.safeParse(preview).success).toBe(false);
+  });
+});
+
+describe('FieldMapping', () => {
+  const mapping = {
+    username: { kind: 'fromEmail' },
+    name: ' Name ',
+    email: 'Email ID',
+    phone: 'Mobile Number',
+    diplomaBranch: null,
+    parentNames: null,
+    interviewNotes: null,
+  };
+
+  it('takes the username from a column or the email, and leaves optional fields out', () => {
+    expect(FieldMapping.parse(mapping)).toEqual({ ...mapping, name: 'Name' });
+    expect(
+      FieldMapping.parse({ ...mapping, username: { kind: 'column', column: 'Username' } }).username,
+    ).toEqual({ kind: 'column', column: 'Username' });
+  });
+
+  it('needs a column for the name and the email', () => {
+    const result = FieldMapping.safeParse({ ...mapping, name: ' ', email: null });
+    expect(result.error?.issues.map((issue) => issue.path.join('.'))).toEqual(['name', 'email']);
+  });
+
+  it('comes with the source in an import request', () => {
+    const source = {
+      token: 'pat123',
+      baseId: 'appAbCdEfGh123456',
+      tableId: 'tblX9mQ2rLk4vP8zz',
+      view: 'Batch 2',
+    };
+    expect(ImportRequest.parse({ ...source, mapping }).mapping.email).toBe('Email ID');
+    expect(ImportRequest.safeParse(source).success).toBe(false);
   });
 });
