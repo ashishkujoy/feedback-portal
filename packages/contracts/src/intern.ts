@@ -83,6 +83,8 @@ export const InternStatusEvent = z.object({
   reason: z.string().nullable(),
   noticeStartsOn: z.iso.date().nullable(),
   noticeEndsOn: z.iso.date().nullable(),
+  /** The feedback that gave this notice (Phase 9); `null` for any other change. */
+  feedbackId: z.uuid().nullable(),
   actor: Actor,
   createdAt: z.iso.datetime(),
 });

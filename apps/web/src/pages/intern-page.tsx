@@ -9,7 +9,11 @@ import { feedbackQuery } from '../api/feedback.ts';
 import { internQuery } from '../api/interns.ts';
 import { today } from '../batches/batch-dates.ts';
 import { canWriteFeedback } from '../batches/can-write-feedback.ts';
-import { GiveFeedbackDialog } from '../interns/give-feedback-dialog.tsx';
+import {
+  type FeedbackTarget,
+  GiveFeedbackDialog,
+  newFeedback,
+} from '../interns/give-feedback-dialog.tsx';
 import { DiscardDraftDialog } from '../interns/profile/discard-draft-dialog.tsx';
 import { EditDetailsDialog } from '../interns/profile/edit-details-dialog.tsx';
 import { latestColouredOn } from '../interns/profile/feedback-entry.ts';
@@ -83,12 +87,14 @@ type TimelineProps = Readonly<{
   name: string;
   feedback: Pick<UseQueryResult<FeedbackView[]>, 'data' | 'error'>;
   onGiveFeedback: (() => void) | undefined;
+  viewerId: string | undefined;
   onContinue: ((draft: FeedbackView) => void) | undefined;
   onDiscard: ((draft: FeedbackView) => void) | undefined;
+  onEdit: ((entry: FeedbackView) => void) | undefined;
 }>;
 
 /** The Timeline tab: the feedback, or A6-nofeedback when there's none. */
-const Timeline = ({ name, feedback, onGiveFeedback, onContinue, onDiscard }: TimelineProps) => {
+const Timeline = ({ name, feedback, onGiveFeedback, ...actions }: TimelineProps) => {
   if (feedback.error) {
     return (
       <Callout type="issue" title="We couldn't load the feedback">
@@ -100,7 +106,7 @@ const Timeline = ({ name, feedback, onGiveFeedback, onContinue, onDiscard }: Tim
   return feedback.data.length === 0 ? (
     <TimelinePlaceholder name={name} onGiveFeedback={onGiveFeedback} />
   ) : (
-    <FeedbackTimeline entries={feedback.data} onContinue={onContinue} onDiscard={onDiscard} />
+    <FeedbackTimeline entries={feedback.data} {...actions} />
   );
 };
 
@@ -120,8 +126,8 @@ export const InternPage = () => {
   const [changing, setChanging] = useState<StatusAction | null>(null);
   const photo = usePhotoUpload({ id: internId, batchId });
   const [editing, setEditing] = useState(false);
-  // The feedback dialog: `{}` for new feedback, `{ draft }` to carry on with one; `null` closed.
-  const [writing, setWriting] = useState<Readonly<{ draft?: FeedbackView }> | null>(null);
+  // The feedback dialog: new feedback, a draft to carry on with, or an edit; `null` closed.
+  const [writing, setWriting] = useState<FeedbackTarget | null>(null);
   const [discarding, setDiscarding] = useState<FeedbackView | null>(null);
   const feedback = useQuery(feedbackQuery(batchId, internId));
 
@@ -145,7 +151,7 @@ export const InternPage = () => {
   const canPhoto = settings?.photos === true && canEdit;
   // A read-only record takes no feedback (9.5 decision 1).
   const canFeedback = me ? canWriteFeedback(me, batch) && !isFinalStatus(intern.status) : false;
-  const giveFeedback = canFeedback ? () => setWriting({}) : undefined;
+  const giveFeedback = canFeedback ? () => setWriting(newFeedback) : undefined;
 
   return (
     <>
@@ -206,7 +212,7 @@ export const InternPage = () => {
           intern={intern}
           batch={batch}
           open={writing !== null}
-          draft={writing?.draft}
+          target={writing ?? newFeedback}
           onClose={() => setWriting(null)}
         />
       ) : null}
@@ -250,8 +256,10 @@ export const InternPage = () => {
               name={intern.name}
               feedback={feedback}
               onGiveFeedback={giveFeedback}
-              onContinue={canFeedback ? (draft) => setWriting({ draft }) : undefined}
+              viewerId={me?.id}
+              onContinue={canFeedback ? (entry) => setWriting({ kind: 'draft', entry }) : undefined}
               onDiscard={canFeedback ? setDiscarding : undefined}
+              onEdit={canFeedback ? (entry) => setWriting({ kind: 'edit', entry }) : undefined}
             />
           ) : null}
           {tab === 'details' ? (

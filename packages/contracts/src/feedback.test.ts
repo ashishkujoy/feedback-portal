@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FeedbackBodyRequest, FeedbackContentRequest, FeedbackView } from './feedback.ts';
+import { FeedbackContentRequest, FeedbackEditRequest, FeedbackView } from './feedback.ts';
 
 const messages = (result: {
   success: boolean;
@@ -36,11 +36,12 @@ describe('FeedbackContentRequest', () => {
   });
 });
 
-describe('FeedbackBodyRequest', () => {
-  it('takes the text only', () => {
-    expect(FeedbackBodyRequest.parse({ body: 'Clearer.', colorCode: 'red' })).toEqual({
-      body: 'Clearer.',
-    });
+describe('FeedbackEditRequest', () => {
+  it('takes the whole content, without submit', () => {
+    const edit = { period: '2026-09-01', body: 'Clearer.', colorCode: 'red', givesNotice: true };
+
+    expect(FeedbackEditRequest.parse({ ...edit, submit: true })).toEqual(edit);
+    expect(FeedbackEditRequest.safeParse({ body: 'Clearer.' }).success).toBe(false);
   });
 });
 
@@ -58,6 +59,7 @@ describe('FeedbackView', () => {
       author: { id: '01890a5d-ac96-774b-bcce-b30209000003', name: 'Anjali D', avatarUrl: null },
       conversationId: null,
       submittedAt: '2026-10-24T09:00:00.000Z',
+      editedAt: null,
       createdAt: '2026-10-23T09:00:00.000Z',
       updatedAt: '2026-10-24T09:00:00.000Z',
     };

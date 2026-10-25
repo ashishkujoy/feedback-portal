@@ -17,6 +17,7 @@ const entry = (overrides: Partial<FeedbackView> = {}): FeedbackView => ({
   submittedAt: '2026-10-08T12:00:00.000Z',
   createdAt: '2026-10-08T12:00:00.000Z',
   updatedAt: '2026-10-08T12:00:00.000Z',
+  editedAt: null,
   ...overrides,
 });
 
@@ -100,6 +101,7 @@ describe('where the strip ends', () => {
     reason: 'Done.',
     noticeStartsOn: null,
     noticeEndsOn: null,
+    feedbackId: null,
     actor: { id: '01890a5d-ac96-774b-bcce-b30209000004', name: 'Pat Lee' },
     createdAt: '2026-10-08T12:00:00.000Z',
   };

@@ -81,6 +81,7 @@ The original scale had only Green, Yellow, Orange, and Red. Over time, several i
 
 ### Feedback lifecycle (summary)
 1. A mentor or PM writes feedback, with an optional color code change. If it is marked as notice, the intern goes on notice when it is submitted.
+   - Until it is delivered, its **author can change anything** in it: month, text, color code and notice. The intern's color code always follows their newest coloured feedback. Switching notice on starts one from that day; switching it off withdraws the notice this feedback gave, while that notice still runs. Both are recorded in the status history, and the feedback shows "edited".
 2. The PM holds a one-on-one with the intern and delivers the feedback.
 3. The PM records how the conversation went.
 4. Mentors and the PM discuss it in a comment thread.

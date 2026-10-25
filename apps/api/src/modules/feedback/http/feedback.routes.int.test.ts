@@ -1,5 +1,6 @@
 import {
   BatchDetail,
+  type FeedbackEditRequest,
   FeedbackView,
   InternSummary,
   ProblemDetails,
@@ -169,7 +170,7 @@ describe('drafts', () => {
         writes: (
           await Promise.all([
             send(setup, 'PUT', other, path, october),
-            send(setup, 'PATCH', other, path, { body: 'Mine now' }),
+            send(setup, 'PATCH', other, path, october),
             send(setup, 'DELETE', other, path),
           ])
         ).map(({ status }) => status),
@@ -232,7 +233,7 @@ describe('submitting', () => {
     expect((await stored())?.colorCode).toBeNull();
   });
 
-  it('submits a draft; then only its text can change', async () => {
+  it('submits a draft; then it changes through PATCH, no longer as a draft', async () => {
     const { setup, mentor, base, create, stored } = await setUp();
     const draft = await viewOf(await create(mentor), 201);
     const path = `${base}/${draft.id}`;
@@ -244,11 +245,17 @@ describe('submitting', () => {
     expect(submitted).toMatchObject({ state: 'submitted', colorCode: 'orange' });
     expect((await stored())?.colorCode).toBe('orange');
 
+    expect(submitted.editedAt).toBeNull();
     const edited = await viewOf(
-      await send(setup, 'PATCH', mentor, path, { body: 'Clearer.' }),
+      await send(setup, 'PATCH', mentor, path, { ...october, body: 'Clearer.' }),
       200,
     );
-    expect(edited).toMatchObject({ body: 'Clearer.', colorCode: 'orange', state: 'submitted' });
+    expect(edited).toMatchObject({
+      body: 'Clearer.',
+      colorCode: 'orange',
+      state: 'submitted',
+      editedAt: '2026-10-24T09:00:00.000Z',
+    });
 
     const again = await problemOf(
       await send(setup, 'PUT', mentor, path, { ...october, colorCode: 'red' }),
@@ -269,6 +276,169 @@ describe('submitting', () => {
     expect(responses.map(({ status }) => status).toSorted((a, b) => a - b)).toEqual([201, 409]);
     const refused = responses.find(({ status }) => status === 409);
     expect(ProblemDetails.parse(await refused?.json()).code).toBe('intern_not_active');
+    const notices = await db()
+      .select()
+      .from(internStatusEvents)
+      .where(eq(internStatusEvents.internId, intern.id));
+    expect(notices.filter(({ toStatus }) => toStatus === 'on_notice')).toHaveLength(1);
+  });
+});
+
+/** Yellow by Mo, then a minute later Orange by Mo: the intern is Orange. */
+const twoColours = async () => {
+  const context = await setUp();
+  const { setup, mentor, create } = context;
+  const older = await viewOf(
+    await create(mentor, { ...october, period: '2026-09-01', colorCode: 'yellow', submit: true }),
+    201,
+  );
+  setup.travel(60_000);
+  const newer = await viewOf(await create(mentor, { ...october, submit: true }), 201);
+  const edit = (
+    entry: FeedbackView,
+    change: Partial<FeedbackEditRequest> = {},
+    who: Who = mentor,
+  ) =>
+    send(setup, 'PATCH', who, `${context.base}/${entry.id}`, {
+      period: entry.period,
+      body: entry.body,
+      colorCode: entry.colorCode,
+      givesNotice: entry.givesNotice,
+      ...change,
+    });
+  const previousOf = async (entry: FeedbackView) =>
+    (await context.list(mentor)).find(({ id }) => id === entry.id)?.previousColorCode;
+  return { ...context, older, newer, edit, previousOf };
+};
+
+describe('editing submitted feedback (9.8)', () => {
+  it("moves the intern's colour only when the newest coloured feedback changes", async () => {
+    const { older, newer, edit, stored, previousOf } = await twoColours();
+    expect(await previousOf(newer)).toBe('yellow');
+
+    // An older entry: the intern keeps Orange, and the next entry's previous colour follows.
+    await viewOf(await edit(older, { colorCode: 'green' }), 200);
+    expect((await stored())?.colorCode).toBe('orange');
+    expect(await previousOf(newer)).toBe('green');
+
+    // The newest entry: the intern follows it.
+    await viewOf(await edit(newer, { colorCode: 'red' }), 200);
+    expect((await stored())?.colorCode).toBe('red');
+    expect(await previousOf(newer)).toBe('green');
+  });
+
+  it('reads each colour change from the coloured feedback just before, skipping no-colour ones', async () => {
+    const { setup, mentor, create, newer, previousOf } = await twoColours();
+    setup.travel(60_000);
+    await viewOf(await create(mentor, { ...october, colorCode: null, submit: true }), 201);
+    setup.travel(60_000);
+    const third = await viewOf(
+      await create(mentor, { ...october, colorCode: 'red', submit: true }),
+      201,
+    );
+
+    expect(third.previousColorCode).toBe('orange');
+    expect(await previousOf(newer)).toBe('yellow');
+  });
+
+  it('gives back the colour from before when the newest loses its colour, even none', async () => {
+    const { older, newer, edit, stored, previousOf } = await twoColours();
+
+    const plain = await viewOf(await edit(newer, { colorCode: null }), 200);
+    expect(plain.previousColorCode).toBeNull();
+    expect((await stored())?.colorCode).toBe('yellow');
+    expect(await previousOf(older)).toBeNull();
+
+    await viewOf(await edit(older, { colorCode: null }), 200);
+    expect((await stored())?.colorCode).toBeNull();
+  });
+
+  it('gives notice from the edit day, then withdraws it, both in the status history', async () => {
+    const { setup, newer, edit, stored } = await twoColours();
+    setup.travel(24 * 60 * 60_000);
+
+    const given = await viewOf(await edit(newer, { givesNotice: true }), 200);
+    expect(given).toMatchObject({ givesNotice: true, editedAt: '2026-10-25T09:01:00.000Z' });
+    expect(await stored()).toMatchObject({ status: 'on_notice', noticeEndsOn: '2026-11-25' });
+    expect((await stored())?.statusEvents.at(-1)).toMatchObject({
+      toStatus: 'on_notice',
+      noticeStartsOn: '2026-10-25',
+      feedbackId: newer.id,
+      reason: 'Notice given by editing the October 2026 feedback.',
+    });
+
+    await viewOf(await edit(given, { givesNotice: false }), 200);
+    const intern = await stored();
+    expect(intern).toMatchObject({ status: 'active', noticeEndsOn: null });
+    expect(intern?.statusEvents.map(({ toStatus }) => toStatus)).toEqual([
+      'active',
+      'on_notice',
+      'active',
+    ]);
+    expect(intern?.statusEvents.at(-1)?.reason).toBe(
+      'Notice withdrawn by editing the October 2026 feedback.',
+    );
+  });
+
+  it('refuses to withdraw a notice once the PM lifted it', async () => {
+    const { setup, pm, batch, intern, newer, edit, stored } = await twoColours();
+    const given = await viewOf(await edit(newer, { givesNotice: true }), 200);
+    const lifted = await send(
+      setup,
+      'POST',
+      pm,
+      `/batches/${batch.id}/interns/${intern.id}/status-changes`,
+      { action: 'lift_notice', reason: 'Improved.' },
+    );
+    expect(lifted.status).toBe(200);
+
+    const problem = await problemOf(await edit(given, { givesNotice: false }), 409);
+
+    expect(problem).toMatchObject({
+      code: 'notice_not_running',
+      detail: "This feedback's notice is no longer running, so it can't be withdrawn here.",
+    });
+    expect((await stored())?.statusEvents).toHaveLength(3);
+    // With notice left on, the rest can still change.
+    await viewOf(await edit(given, { body: 'Later.' }), 200);
+  });
+
+  it('is for its author only, until delivered', async () => {
+    const { mentor2, pm, newer, edit } = await twoColours();
+
+    expect((await edit(newer, { body: 'Mine.' }, mentor2)).status).toBe(403);
+    expect((await edit(newer, { body: 'Mine.' }, pm)).status).toBe(403);
+    await db()
+      .update(feedbackTable)
+      .set({ state: 'delivered', conversationId: '01890a5d-ac96-774b-bcce-b30209000c01' })
+      .where(eq(feedbackTable.id, newer.id));
+    expect((await problemOf(await edit(newer, { body: 'Later.' }), 409)).code).toBe(
+      'feedback_delivered',
+    );
+  });
+
+  it("isn't marked edited when nothing changed, and keeps to the batch's months", async () => {
+    const { newer, edit } = await twoColours();
+
+    expect((await viewOf(await edit(newer), 200)).editedAt).toBeNull();
+    const problem = await problemOf(await edit(newer, { period: '2026-11-01' }), 400);
+    expect(problem.errors).toEqual([
+      { path: 'period', message: 'Choose a month from July 2026 to October 2026.' },
+    ]);
+  });
+
+  it('takes an edit giving notice and a new notice one after the other', async () => {
+    const { mentor2, newer, edit, create, intern } = await twoColours();
+
+    const responses = await Promise.all([
+      edit(newer, { givesNotice: true }),
+      create(mentor2, { ...october, givesNotice: true, submit: true }),
+    ]);
+
+    // Whichever takes the intern's lock first wins; the other finds the intern on notice.
+    const statuses = responses.map(({ status }) => status);
+    expect(statuses.filter((status) => status === 409)).toHaveLength(1);
+    expect(statuses.filter((status) => status === 200 || status === 201)).toHaveLength(1);
     const notices = await db()
       .select()
       .from(internStatusEvents)

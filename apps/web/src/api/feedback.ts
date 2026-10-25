@@ -1,4 +1,8 @@
-import { type FeedbackContentRequest, FeedbackView } from '@feedback-portal/contracts';
+import {
+  type FeedbackContentRequest,
+  type FeedbackEditRequest,
+  FeedbackView,
+} from '@feedback-portal/contracts';
 import { queryOptions } from '@tanstack/react-query';
 import { z } from 'zod';
 import { apiFetch, apiSend } from './api-fetch.ts';
@@ -30,6 +34,22 @@ export const updateDraft = (
 ) =>
   apiFetch(`${feedbackPath(batchId, internId)}/${feedbackId}`, {
     method: 'PUT',
+    body,
+    schema: FeedbackView,
+  });
+
+/**
+ * `PATCH …/feedback/:id` (its author, until delivered, 9.8): changes submitted feedback — month,
+ * text, colour and notice.
+ */
+export const editFeedback = (
+  batchId: string,
+  internId: string,
+  feedbackId: string,
+  body: FeedbackEditRequest,
+) =>
+  apiFetch(`${feedbackPath(batchId, internId)}/${feedbackId}`, {
+    method: 'PATCH',
     body,
     schema: FeedbackView,
   });

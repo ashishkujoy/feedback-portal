@@ -46,6 +46,7 @@ const onboarding: InternStatusEvent = {
   reason: null,
   noticeStartsOn: null,
   noticeEndsOn: null,
+  feedbackId: null,
   actor: raj,
   createdAt: '2026-07-07T09:00:00.000Z',
 };
@@ -86,6 +87,7 @@ const entry = (overrides: Partial<FeedbackView> = {}): FeedbackView => ({
   submittedAt: '2026-10-22T12:00:00.000Z',
   createdAt: '2026-10-22T12:00:00.000Z',
   updatedAt: '2026-10-22T12:00:00.000Z',
+  editedAt: null,
   ...overrides,
 });
 

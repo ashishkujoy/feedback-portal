@@ -75,6 +75,7 @@ describe('dialogCopy', () => {
         reason: 'x',
         noticeStartsOn: '2026-10-08',
         noticeEndsOn: '2026-11-08',
+        feedbackId: null,
         actor: { id: me.id, name: me.name },
         createdAt: '2026-10-08T09:00:00.000Z',
       },

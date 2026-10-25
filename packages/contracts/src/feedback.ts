@@ -23,9 +23,12 @@ export const FeedbackContentRequest = z.object({
 });
 export type FeedbackContentRequest = z.input<typeof FeedbackContentRequest>;
 
-/** The author's edit after submission: the text only. */
-export const FeedbackBodyRequest = z.object({ body: Body });
-export type FeedbackBodyRequest = z.input<typeof FeedbackBodyRequest>;
+/**
+ * `PATCH …/feedback/:id` (9.8): the author changes submitted feedback until it's delivered —
+ * month, text, colour and notice, by the same rules as submitting.
+ */
+export const FeedbackEditRequest = FeedbackContentRequest.omit({ submit: true });
+export type FeedbackEditRequest = z.input<typeof FeedbackEditRequest>;
 
 /**
  * One feedback entry as its readers see it. Times are UTC ISO strings, for the browser to show
@@ -37,6 +40,7 @@ export const FeedbackView = z.object({
   period: z.iso.date(),
   body: z.string(),
   colorCode: ColorCode.nullable(),
+  /** The colour of the coloured feedback submitted before this one; `null` without a colour. */
   previousColorCode: ColorCode.nullable(),
   givesNotice: z.boolean(),
   state: FeedbackState,
@@ -45,5 +49,7 @@ export const FeedbackView = z.object({
   submittedAt: z.iso.datetime().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
+  /** When its author last changed it after submitting (9.8); `null` if never. */
+  editedAt: z.iso.datetime().nullable(),
 });
 export type FeedbackView = z.infer<typeof FeedbackView>;

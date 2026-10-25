@@ -1,5 +1,5 @@
 import {
-  FeedbackBodyRequest,
+  FeedbackEditRequest,
   FeedbackContentRequest,
   FeedbackView,
 } from '@feedback-portal/contracts';
@@ -45,6 +45,7 @@ const toFeedbackView = (entry: FeedbackEntryView): FeedbackView =>
     submittedAt: entry.submittedAt?.toISOString() ?? null,
     createdAt: entry.createdAt.toISOString(),
     updatedAt: entry.updatedAt.toISOString(),
+    editedAt: entry.editedAt?.toISOString() ?? null,
   });
 
 /**
@@ -104,15 +105,15 @@ export const feedbackRoutes = ({ manageFeedback, ...auth }: FeedbackRoutesDeps) 
     .patch(
       '/:feedbackId',
       validate('param', EntryParams),
-      validate('json', FeedbackBodyRequest),
+      validate('json', FeedbackEditRequest),
       async (c) => {
         const actor = actorOf(c);
         const entry = await editSubmittedFeedback(manageFeedback, {
           actor,
           ...c.req.valid('param'),
-          body: c.req.valid('json').body,
+          content: c.req.valid('json'),
         });
-        logger.info('feedback text edited', { actorId: actor.id, feedbackId: entry.id });
+        logger.info('submitted feedback edited', { actorId: actor.id, feedbackId: entry.id });
         return c.json(toFeedbackView(entry));
       },
     )

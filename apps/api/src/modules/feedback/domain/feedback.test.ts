@@ -3,8 +3,10 @@ import { AppError } from '../../../shared/errors/app-error.ts';
 import { newBatchId } from '../../cohort/domain/batch-id.ts';
 import { newUserId } from '../../identity/domain/user-id.ts';
 import {
+  followColour,
   giveNotice,
   type Intern,
+  liftNotice,
   onboardIntern,
   setColorCode,
   terminate,
@@ -89,7 +91,7 @@ const submit = (feedback: Feedback, intern: Intern, actor = mentor) =>
   submitFeedback(feedback, { intern, actor, range, eventId: newStatusEventId(), now: t2 });
 
 describe('drafts', () => {
-  it('starts as a draft, with no snapshot, conversation or submission time', () => {
+  it('starts as a draft, with no conversation, submission or edit time', () => {
     const intern = newIntern();
     const feedback = draft(intern);
 
@@ -99,13 +101,13 @@ describe('drafts', () => {
       period: '2026-10-01',
       body: 'Closed `PAY-214` with tests first.',
       colorCode: 'orange',
-      previousColorCode: null,
       givesNotice: false,
       state: 'draft',
       conversationId: null,
       submittedAt: null,
       createdAt: t1,
       updatedAt: t1,
+      editedAt: null,
     });
   });
 
@@ -198,7 +200,7 @@ describe('drafts', () => {
 });
 
 describe('submitting', () => {
-  it('sets the colour and snapshots the previous one (decision 5)', () => {
+  it('sets the colour', () => {
     const intern = coloured(newIntern(), 'yellow');
 
     const result = submit(draft(intern), intern);
@@ -208,26 +210,23 @@ describe('submitting', () => {
       submittedAt: t2,
       updatedAt: t2,
       colorCode: 'orange',
-      previousColorCode: 'yellow',
+      editedAt: null,
     });
     expect(result.intern).toMatchObject({ colorCode: 'orange', status: 'active', updatedAt: t2 });
     expect(result.intern.statusEvents).toEqual(intern.statusEvents);
   });
 
-  it('snapshots "no code yet" for a first colour', () => {
+  it('gives a first colour', () => {
     const intern = newIntern();
 
-    const result = submit(draft(intern), intern);
-
-    expect([result.feedback.previousColorCode, result.intern.colorCode]).toEqual([null, 'orange']);
+    expect(submit(draft(intern), intern).intern.colorCode).toBe('orange');
   });
 
-  it('leaves the colour and snapshot alone when it sets none: never back to "no code"', () => {
+  it('leaves the colour alone when it sets none: never back to "no code"', () => {
     const intern = coloured(newIntern(), 'red');
 
     const result = submit(draft(intern, { ...content, colorCode: null }), intern);
 
-    expect(result.feedback.previousColorCode).toBeNull();
     expect(result.intern).toBe(intern);
   });
 
@@ -301,28 +300,168 @@ describe('submitting', () => {
 });
 
 /** A submitted entry and its intern. */
-const sent = () => {
-  const intern = newIntern();
-  return { intern, feedback: submit(draft(intern), intern).feedback };
+const sent = (input: ContentInput = content, before = newIntern()) => {
+  const result = submit(draft(before, input), before);
+  return { intern: result.intern, feedback: result.feedback };
 };
 
-describe('after submission', () => {
-  it('lets the author edit the text only', () => {
-    const { intern, feedback } = sent();
-
-    const edited = editSubmitted(feedback, { intern, actor: mentor, body: 'Clearer.', now: t2 });
-
-    expect(edited).toMatchObject({ body: 'Clearer.', colorCode: 'orange', state: 'submitted' });
-    expect(
-      errorOf(() => editSubmitted(feedback, { intern, actor: mentor, body: ' ', now: t2 })).issues,
-    ).toEqual([{ path: 'body', message: 'Write your feedback before submitting.' }]);
-    expect(
-      errorOf(() => editSubmitted(feedback, { intern, actor: otherMentor, body: 'Mine.', now: t2 }))
-        .kind,
-    ).toBe('forbidden');
+const edit = (feedback: Feedback, intern: Intern, change: ContentInput, actor = mentor) =>
+  editSubmitted(feedback, {
+    intern,
+    actor,
+    content: change,
+    range,
+    eventId: newStatusEventId(),
+    now: t2,
   });
 
-  it('fixes month, colour and notice: a submitted entry is no longer a draft to edit', () => {
+const t3 = new Date('2026-10-26T09:00:00Z');
+
+describe('editing submitted feedback (9.8)', () => {
+  it('changes the month, text and colour, marking it edited; the colour is left to the caller', () => {
+    const { intern, feedback } = sent();
+
+    const result = edit(feedback, intern, {
+      period: '2026-09-01',
+      body: 'Clearer.',
+      colorCode: 'red',
+    });
+
+    expect(result.feedback).toMatchObject({
+      period: '2026-09-01',
+      body: 'Clearer.',
+      colorCode: 'red',
+      givesNotice: false,
+      state: 'submitted',
+      submittedAt: t2,
+      updatedAt: t2,
+      editedAt: t2,
+    });
+    expect(result.intern).toBe(intern);
+  });
+
+  it("isn't marked edited when nothing changed", () => {
+    const { intern, feedback } = sent();
+
+    const result = edit(feedback, intern, content);
+
+    expect(result.feedback).toBe(feedback);
+    expect(result.feedback.editedAt).toBeNull();
+  });
+
+  it('follows the rules for submitting: its author, written text, a month in range', () => {
+    const { intern, feedback } = sent();
+
+    expect(errorOf(() => edit(feedback, intern, content, otherMentor)).kind).toBe('forbidden');
+    expect(errorOf(() => edit(feedback, intern, { ...content, body: ' ' })).issues).toEqual([
+      { path: 'body', message: 'Write your feedback before submitting.' },
+    ]);
+    expect(
+      errorOf(() => edit(feedback, intern, { ...content, period: '2026-11-01' })).issues?.[0]
+        ?.message,
+    ).toBe('Choose a month from July 2026 to October 2026.');
+    expect(errorOf(() => edit(draft(intern), intern, content)).message).toBe(
+      'This feedback is still a draft.',
+    );
+  });
+
+  it("can't change feedback on a read-only intern", () => {
+    const { intern, feedback } = sent();
+    const gone = terminate(onNotice(intern), {
+      eventId: newStatusEventId(),
+      reason: 'Notice period ended.',
+      actor: pm,
+      now: t2,
+    });
+
+    expect(errorOf(() => edit(feedback, gone, { ...content, body: 'Later.' })).code).toBe(
+      'intern_read_only',
+    );
+  });
+
+  it('gives notice from the day of the edit, recorded with the feedback', () => {
+    const { intern, feedback } = sent();
+
+    const result = edit(feedback, intern, { ...content, givesNotice: true });
+
+    expect(result.feedback).toMatchObject({ givesNotice: true, editedAt: t2 });
+    expect(result.intern).toMatchObject({ status: 'on_notice', noticeEndsOn: '2026-11-24' });
+    expect(result.intern.statusEvents.at(-1)).toMatchObject({
+      fromStatus: 'active',
+      toStatus: 'on_notice',
+      reason: 'Notice given by editing the October 2026 feedback.',
+      noticeStartsOn: '2026-10-24',
+      feedbackId: feedback.id,
+      actorId: mentor,
+    });
+  });
+
+  it("can't give notice to an intern already on notice", () => {
+    const { feedback, intern } = sent();
+
+    const error = errorOf(() =>
+      edit(feedback, onNotice(intern), { ...content, givesNotice: true }),
+    );
+
+    expect([error.code, error.message]).toEqual([
+      'intern_not_active',
+      'This intern is already on notice.',
+    ]);
+  });
+
+  it('withdraws the notice it gave while that notice runs, back to Active', () => {
+    const { intern, feedback } = sent({ ...content, givesNotice: true });
+
+    const result = edit(feedback, intern, { ...content, period: '2026-09-01' });
+
+    expect(result.feedback.givesNotice).toBe(false);
+    expect(result.intern).toMatchObject({ status: 'active', noticeEndsOn: null });
+    expect(result.intern.statusEvents.at(-1)).toMatchObject({
+      fromStatus: 'on_notice',
+      toStatus: 'active',
+      reason: 'Notice withdrawn by editing the September 2026 feedback.',
+      feedbackId: null,
+    });
+  });
+
+  it("can't withdraw a notice that was lifted or replaced", () => {
+    const { intern, feedback } = sent({ ...content, givesNotice: true });
+    const lifted = liftNotice(intern, {
+      eventId: newStatusEventId(),
+      reason: 'Improved.',
+      actor: pm,
+      now: t3,
+    });
+    const replaced = onNotice(lifted);
+
+    for (const later of [lifted, replaced]) {
+      const error = errorOf(() => edit(feedback, later, content));
+      expect([error.code, error.message]).toEqual([
+        'notice_not_running',
+        "This feedback's notice is no longer running, so it can't be withdrawn here.",
+      ]);
+    }
+    // Leaving notice on still lets the rest change.
+    expect(
+      edit(feedback, lifted, { ...content, givesNotice: true, body: 'Later.' }).feedback.body,
+    ).toBe('Later.');
+  });
+});
+
+describe("the intern's colour after an edit", () => {
+  it('follows the newest coloured feedback, back to none when there is none', () => {
+    const intern = coloured(newIntern(), 'red');
+
+    expect(followColour(intern, { colorCode: 'red', now: t2 })).toBe(intern);
+    expect(followColour(intern, { colorCode: null, now: t2 })).toMatchObject({
+      colorCode: null,
+      updatedAt: t2,
+    });
+  });
+});
+
+describe('after submission', () => {
+  it('is no longer a draft to edit or discard', () => {
     const { intern, feedback } = sent();
 
     const error = errorOf(() =>
@@ -349,7 +488,7 @@ describe('after submission', () => {
 
     expect(delivered).toMatchObject({ state: 'delivered', conversationId });
     const attempts = [
-      () => editSubmitted(delivered, { intern, actor: mentor, body: 'Later.', now: t2 }),
+      () => edit(delivered, intern, { ...content, body: 'Later.' }),
       () => editDraft(delivered, { intern, actor: mentor, content, range, now: t2 }),
       () => discardDraft(delivered, mentor),
       () => deliverFeedback(delivered, { conversationId, now: t2 }),

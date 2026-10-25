@@ -1,0 +1,2 @@
+ALTER TABLE "feedback" ADD COLUMN "edited_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "feedback" ADD CONSTRAINT "feedback_edited_check" CHECK ("feedback"."state" <> 'draft' or "feedback"."edited_at" is null);

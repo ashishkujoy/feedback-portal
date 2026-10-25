@@ -93,7 +93,7 @@ describe('feedback', () => {
       state: 'draft',
       givesNotice: false,
       colorCode: null,
-      previousColorCode: null,
+      editedAt: null,
       conversationId: null,
       submittedAt: null,
     });
@@ -131,13 +131,11 @@ describe('feedback', () => {
     );
   });
 
-  it('only snapshots the previous colour on submission', async () => {
-    await insertFeedback({ ...submitted, colorCode: 'red', previousColorCode: 'orange' });
-    // An intern without a code yet: nothing to snapshot.
-    await insertFeedback({ ...submitted, colorCode: 'green', previousColorCode: null });
+  it('is only marked edited once submitted', async () => {
+    await insertFeedback({ ...submitted, editedAt: new Date() });
 
-    expect(await failure(insertFeedback({ previousColorCode: 'orange' }))).toMatchObject(
-      checkFailure('feedback_previous_color_check'),
+    expect(await failure(insertFeedback({ editedAt: new Date() }))).toMatchObject(
+      checkFailure('feedback_edited_check'),
     );
   });
 

@@ -28,9 +28,20 @@ export const dayAndMonth = (isoDateTime: string): string => {
   return `${date.getDate()} ${shortMonths[date.getMonth()] ?? ''}`;
 };
 
-/** "gave feedback · 22 Oct 2026 · period Oct 2026", after the author's name. */
-export const feedbackLine = (entry: Pick<FeedbackView, 'submittedAt' | 'period'>): string =>
-  `gave feedback · ${entry.submittedAt ? formatDay(entry.submittedAt) : ''} · period ${shortPeriod(entry.period)}`;
+/**
+ * "gave feedback · 22 Oct 2026 · period Oct 2026", after the author's name, with " · edited" once
+ * its author changed it (9.8), as v2 marks edited comments.
+ */
+export const feedbackLine = (
+  entry: Pick<FeedbackView, 'submittedAt' | 'period' | 'editedAt'>,
+): string =>
+  `gave feedback · ${entry.submittedAt ? formatDay(entry.submittedAt) : ''} · period ${shortPeriod(entry.period)}${entry.editedAt ? ' · edited' : ''}`;
+
+/** Its author changes submitted feedback until it's delivered (9.8). */
+export const isEditableBy = (
+  entry: Pick<FeedbackView, 'state' | 'author'>,
+  viewerId: string,
+): boolean => entry.state === 'submitted' && entry.author.id === viewerId;
 
 export type ColourChange =
   | Readonly<{ kind: 'changed'; from: ColorCode; to: ColorCode }>

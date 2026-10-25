@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, ne } from 'drizzle-orm';
 import type { DbExecutor } from '../../../shared/db/client.ts';
 import { UserId } from '../../identity/domain/user-id.ts';
 import { InternId } from '../../intern/domain/intern-id.ts';
@@ -18,13 +18,13 @@ const toFeedback = (row: FeedbackRow): Feedback => ({
   period: row.period,
   body: row.body,
   colorCode: row.colorCode,
-  previousColorCode: row.previousColorCode,
   givesNotice: row.givesNotice,
   state: row.state,
   conversationId: row.conversationId,
   submittedAt: row.submittedAt,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
+  editedAt: row.editedAt,
 });
 
 export const createFeedbackRepository = (db: DbExecutor): FeedbackRepository => ({
@@ -44,6 +44,22 @@ export const createFeedbackRepository = (db: DbExecutor): FeedbackRepository => 
         .onConflictDoUpdate({ target: feedbackTable.id, set: changeable });
       if (intern) await createInternRepository(tx).save(intern);
     }),
+
+  newestColour: async (internId) => {
+    const [row] = await db
+      .select({ colorCode: feedbackTable.colorCode })
+      .from(feedbackTable)
+      .where(
+        and(
+          eq(feedbackTable.internId, internId),
+          ne(feedbackTable.state, 'draft'),
+          isNotNull(feedbackTable.colorCode),
+        ),
+      )
+      .orderBy(desc(feedbackTable.submittedAt), desc(feedbackTable.id))
+      .limit(1);
+    return row?.colorCode ?? null;
+  },
 
   // The database also refuses to delete anything but a draft (9.1's trigger).
   deleteDraft: async (id) => {

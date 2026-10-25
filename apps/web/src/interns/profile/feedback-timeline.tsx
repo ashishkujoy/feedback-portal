@@ -1,11 +1,18 @@
 import type { FeedbackView } from '@feedback-portal/contracts';
-import { ArrowRight, MessageSquare, PenLine, type LucideIcon } from 'lucide-react';
+import { ArrowRight, MessageSquare, PenLine, Pencil, type LucideIcon } from 'lucide-react';
 import { Button } from '../../ui/button.tsx';
 import { Markdown } from '../../ui/markdown.tsx';
 import { Skeleton } from '../../ui/skeleton.tsx';
 import { StatusBadge } from '../../ui/status-badge.tsx';
 import { ColourChip } from '../colour-chip.tsx';
-import { colourChange, dayAndMonth, excerpt, feedbackLine, stateBadge } from './feedback-entry.ts';
+import {
+  colourChange,
+  dayAndMonth,
+  excerpt,
+  feedbackLine,
+  isEditableBy,
+  stateBadge,
+} from './feedback-entry.ts';
 
 /** v2's rail: a 32px tinted circle with the entry's icon, and a line down to the next entry. */
 const Rail = ({
@@ -47,8 +54,17 @@ const ColourRow = ({ entry }: Readonly<{ entry: FeedbackView }>) => {
   );
 };
 
-/** v2 P6's feedback card: who and when, the state, the colour change and notice, the text. */
-const FeedbackCard = ({ entry }: Readonly<{ entry: FeedbackView }>) => {
+type FeedbackCardProps = Readonly<{
+  entry: FeedbackView;
+  /** The author's Edit, while it's awaiting delivery (9.8). */
+  onEdit: (() => void) | undefined;
+}>;
+
+/**
+ * v2 P6's feedback card: who and when, the state, the colour change and notice, the text, and
+ * for its author an Edit button at the bottom left (9.8).
+ */
+const FeedbackCard = ({ entry, onEdit }: FeedbackCardProps) => {
   const badge = stateBadge(entry);
   return (
     <article
@@ -66,6 +82,14 @@ const FeedbackCard = ({ entry }: Readonly<{ entry: FeedbackView }>) => {
       <div className="px-4 pt-3 pb-3.5">
         <Markdown>{entry.body}</Markdown>
       </div>
+      {onEdit ? (
+        <div className="flex px-4 pb-3">
+          <Button variant="ghost-muted" size="sm" onClick={onEdit}>
+            <Pencil aria-hidden size={14} strokeWidth={2} />
+            Edit
+          </Button>
+        </div>
+      ) : null}
     </article>
   );
 };
@@ -116,16 +140,25 @@ const DraftCard = ({ draft, onContinue, onDiscard }: DraftCardProps) => {
 
 type FeedbackTimelineProps = Readonly<{
   entries: readonly FeedbackView[];
+  /** Who is looking: their own submitted feedback gets Edit. */
+  viewerId: string | undefined;
   /** Absent when the viewer can't write feedback here any more (9.6 decision 3). */
   onContinue: ((draft: FeedbackView) => void) | undefined;
   onDiscard: ((draft: FeedbackView) => void) | undefined;
+  onEdit: ((entry: FeedbackView) => void) | undefined;
 }>;
 
 /**
  * P6's timeline, feedback only for now (9.6 decision 1): the viewer's drafts, then submitted
  * feedback newest first, in the API's order.
  */
-export const FeedbackTimeline = ({ entries, onContinue, onDiscard }: FeedbackTimelineProps) => (
+export const FeedbackTimeline = ({
+  entries,
+  viewerId,
+  onContinue,
+  onDiscard,
+  onEdit,
+}: FeedbackTimelineProps) => (
   <ol aria-label="Timeline" className="flex flex-col">
     {entries.map((entry, index) => {
       const draft = entry.state === 'draft';
@@ -144,7 +177,14 @@ export const FeedbackTimeline = ({ entries, onContinue, onDiscard }: FeedbackTim
                 onDiscard={onDiscard ? () => onDiscard(entry) : undefined}
               />
             ) : (
-              <FeedbackCard entry={entry} />
+              <FeedbackCard
+                entry={entry}
+                onEdit={
+                  onEdit && viewerId && isEditableBy(entry, viewerId)
+                    ? () => onEdit(entry)
+                    : undefined
+                }
+              />
             )}
           </div>
         </li>

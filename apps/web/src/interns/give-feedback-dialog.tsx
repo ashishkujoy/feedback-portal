@@ -10,7 +10,7 @@ import { useId, useRef } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { batchesQuery, batchQuery } from '../api/batches.ts';
 import { isApiError } from '../api/errors.ts';
-import { createFeedback, feedbackQuery, updateDraft } from '../api/feedback.ts';
+import { createFeedback, editFeedback, feedbackQuery, updateDraft } from '../api/feedback.ts';
 import { internQuery, internsQuery } from '../api/interns.ts';
 import { utcToday } from '../batches/batch-dates.ts';
 import { Button } from '../ui/button.tsx';
@@ -24,6 +24,8 @@ import { colourTones } from './colour-chip.tsx';
 import {
   colourHelp,
   colourOptions,
+  editColourHelp,
+  editNoticeSwitch,
   feedbackMonths,
   monthLabel,
   noticeDescription,
@@ -45,14 +47,25 @@ const periodId = 'feedback-period';
 const bodyId = 'feedback-body';
 const colourId = 'feedback-colour';
 
+/** A new entry, a draft carried on with (9.6), or submitted feedback being changed (9.8). */
+export type FeedbackTarget =
+  | Readonly<{ kind: 'new' }>
+  | Readonly<{ kind: 'draft'; entry: FeedbackView }>
+  | Readonly<{ kind: 'edit'; entry: FeedbackView }>;
+
+/** The dialog for new feedback, as one shared value. */
+export const newFeedback: FeedbackTarget = { kind: 'new' };
+
 type FormProps = Readonly<{
   intern: InternDetail;
   batch: BatchDetail;
-  draft: FeedbackView | undefined;
+  target: FeedbackTarget;
   onClose: () => void;
 }>;
 
-const GiveFeedbackForm = ({ intern, batch, draft, onClose }: FormProps) => {
+const GiveFeedbackForm = ({ intern, batch, target, onClose }: FormProps) => {
+  const editing = target.kind === 'edit';
+  const existing = target.kind === 'new' ? undefined : target.entry;
   const queryClient = useQueryClient();
   const noticeLabelId = useId();
   const noticeDescriptionId = useId();
@@ -69,25 +82,34 @@ const GiveFeedbackForm = ({ intern, batch, draft, onClose }: FormProps) => {
   } = useForm({
     resolver: zodResolver(FeedbackForm),
     defaultValues: {
-      period: draft?.period ?? months.options[0]?.value ?? '',
-      body: draft?.body ?? '',
-      colorCode: draft?.colorCode ?? null,
-      givesNotice: !onNotice && (draft?.givesNotice ?? false),
+      period: existing?.period ?? months.options[0]?.value ?? '',
+      body: existing?.body ?? '',
+      colorCode: existing?.colorCode ?? null,
+      // Feedback whose notice is running keeps it on; anyone else on notice can't get another.
+      givesNotice: editing
+        ? (existing?.givesNotice ?? false)
+        : !onNotice && (existing?.givesNotice ?? false),
       submit: false,
     },
   });
   const refresh = (queryKey: readonly unknown[]) =>
     queryClient.invalidateQueries({ queryKey, exact: true });
   const mutation = useMutation({
-    mutationFn: (body: FeedbackContentRequest) =>
-      draft
-        ? updateDraft(intern.batchId, intern.id, draft.id, body)
-        : createFeedback(intern.batchId, intern.id, body),
+    mutationFn: ({ submit, ...content }: FeedbackContentRequest) => {
+      if (target.kind === 'edit') {
+        return editFeedback(intern.batchId, intern.id, target.entry.id, content);
+      }
+      const body = submit === true ? { ...content, submit } : content;
+      return target.kind === 'draft'
+        ? updateDraft(intern.batchId, intern.id, target.entry.id, body)
+        : createFeedback(intern.batchId, intern.id, body);
+    },
     onSuccess: async (_entry, body) => {
       // Exact keys: a prefix match on the profile would refetch everything under it.
       await Promise.all([
         refresh(feedbackQuery(intern.batchId, intern.id).queryKey),
-        // Submitting may set the colour and start a notice: the profile, roster and counts change.
+        // Submitting or editing may set the colour and start or withdraw a notice: the profile,
+        // roster and counts change.
         ...(body.submit === true
           ? [
               refresh(internQuery(intern.batchId, intern.id).queryKey),
@@ -118,6 +140,13 @@ const GiveFeedbackForm = ({ intern, batch, draft, onClose }: FormProps) => {
 
   const givesNotice = useWatch({ control, name: 'givesNotice' });
   const colorCode = useWatch({ control, name: 'colorCode' });
+  const notice =
+    target.kind === 'edit'
+      ? editNoticeSwitch(intern, target.entry, givesNotice, today, batch.programManager.name)
+      : {
+          description: noticeDescription(intern, givesNotice, today, batch.programManager.name),
+          disabled: onNotice,
+        };
   const submitting = mutation.isPending && mutation.variables?.submit === true;
   const saving = mutation.isPending && mutation.variables?.submit !== true;
   const blocked = mutation.isPending || months.notStarted;
@@ -143,9 +172,11 @@ const GiveFeedbackForm = ({ intern, batch, draft, onClose }: FormProps) => {
           <Callout
             type="issue"
             title={
-              mutation.variables?.submit === true
-                ? "We couldn't submit your feedback"
-                : "We couldn't save your draft"
+              editing
+                ? "We couldn't save your changes"
+                : mutation.variables?.submit === true
+                  ? "We couldn't submit your feedback"
+                  : "We couldn't save your draft"
             }
           >
             Your text is still here. Try again in a moment.
@@ -189,12 +220,12 @@ const GiveFeedbackForm = ({ intern, batch, draft, onClose }: FormProps) => {
                   id={noticeDescriptionId}
                   className="text-xs leading-[17px] text-muted-foreground"
                 >
-                  {noticeDescription(intern, givesNotice, today, batch.programManager.name)}
+                  {notice.description}
                 </span>
               </div>
               <Switch
                 checked={givesNotice}
-                disabled={onNotice}
+                disabled={notice.disabled}
                 aria-labelledby={noticeLabelId}
                 aria-describedby={noticeDescriptionId}
                 onChange={(on) => {
@@ -254,7 +285,7 @@ const GiveFeedbackForm = ({ intern, batch, draft, onClose }: FormProps) => {
             })}
           </div>
           <span id={messageId(colourId)} className="text-xs text-muted-foreground">
-            {colourHelp(intern.colorCode)}
+            {editing ? editColourHelp(intern.colorCode) : colourHelp(intern.colorCode)}
           </span>
         </fieldset>
         <Field id={bodyId} label="Feedback" required error={errors.body?.message}>
@@ -281,14 +312,20 @@ const GiveFeedbackForm = ({ intern, batch, draft, onClose }: FormProps) => {
         <Button variant="ghost" onClick={onClose}>
           Cancel
         </Button>
-        <div className="flex gap-2">
-          <Button variant="outline" disabled={blocked} onClick={() => send(false)}>
-            {saving ? 'Saving…' : 'Save draft'}
-          </Button>
+        {editing ? (
           <Button type="submit" disabled={blocked}>
-            {submitting ? 'Submitting…' : 'Submit feedback'}
+            {submitting ? 'Saving…' : 'Save changes'}
           </Button>
-        </div>
+        ) : (
+          <div className="flex gap-2">
+            <Button variant="outline" disabled={blocked} onClick={() => send(false)}>
+              {saving ? 'Saving…' : 'Save draft'}
+            </Button>
+            <Button type="submit" disabled={blocked}>
+              {submitting ? 'Submitting…' : 'Submit feedback'}
+            </Button>
+          </div>
+        )}
       </div>
     </form>
   );
@@ -299,25 +336,36 @@ type GiveFeedbackDialogProps = Readonly<{
   batch: BatchDetail;
   open: boolean;
   onClose: () => void;
-  /** A draft to carry on with (9.6's "Continue editing"); saving replaces it. */
-  draft?: FeedbackView | undefined;
+  /** What's written: a new entry, a draft (9.6's "Continue editing"), or an edit (9.8). */
+  target?: FeedbackTarget;
 }>;
 
-/** A7 · Give feedback: a new entry, or an existing draft, saved as a draft or submitted (9.5). */
+/**
+ * A7 · Give feedback: a new entry, or an existing draft, saved as a draft or submitted (9.5).
+ * The same dialog edits submitted feedback as "Edit feedback for …" with Save changes (9.8).
+ */
 export const GiveFeedbackDialog = ({
   intern,
   batch,
   open,
   onClose,
-  draft,
+  target = newFeedback,
 }: GiveFeedbackDialogProps) => (
   <Dialog
     open={open}
     onClose={onClose}
-    title={`Give feedback to ${intern.name}`}
-    description={`Visible to all mentors in ${batch.name} once submitted. Drafts are visible only to you.`}
+    title={
+      target.kind === 'edit'
+        ? `Edit feedback for ${intern.name}`
+        : `Give feedback to ${intern.name}`
+    }
+    description={
+      target.kind === 'edit'
+        ? `Visible to all mentors in ${batch.name}. Saving marks it as edited.`
+        : `Visible to all mentors in ${batch.name} once submitted. Drafts are visible only to you.`
+    }
     widthClass="max-w-[560px]"
   >
-    <GiveFeedbackForm intern={intern} batch={batch} draft={draft} onClose={onClose} />
+    <GiveFeedbackForm intern={intern} batch={batch} target={target} onClose={onClose} />
   </Dialog>
 );

@@ -111,6 +111,17 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 - **The side panel** says "From the latest coloured feedback, 8 Oct 2026." (decision 4).
 - **Editing submitted feedback** is task 9.8 (decision 5).
 
+### Editing submitted feedback (A7, P6) as built in 9.8 — not in v2
+- **Edit** (ghost-muted, sm, `pencil`) at the bottom left of the viewer's own Awaiting-delivery cards, when they can still write feedback in the batch and the intern isn't read-only.
+- **A7 in edit mode:** "Edit feedback for \<name\>", "Visible to all mentors in \<batch\>. Saving marks it as edited.", filled in, with **Cancel** and **Save changes** (no Save draft). A refusal reads "We couldn't save your changes".
+- **The colour help** reads "Current code: Red. The code follows the newest coloured feedback, so changing an older one leaves it."
+- **The notice switch:**
+  - without notice, "Starts a one-month notice when you save.";
+  - with its own notice running, "Runs until \<date\>. Switching it off withdraws it." (off: "Saving withdraws the notice this feedback gave.");
+  - once that notice was lifted or replaced, it is **locked on**, with "This notice was lifted on \<date\>, so it can't be withdrawn here." or "A later notice replaced this one." (decision 2).
+- **"· edited"** ends the card's header once its author changed it (decision 3; v2 marks edited comments this way).
+- **The previous colour** in each card's chip is the colour of the coloured feedback before it, worked out when read (decision 1), so editing an older entry updates the next card's chip.
+
 ### Colour history (A6 side panel) as built in 9.7
 - **Between Colour code and Mentors**, only once the intern has coloured feedback (v2 hides it for Zoya), and not while the feedback loads or after it fails to load. Built from the feedback list: no API of its own (9.7 decision 1).
 - **The strip:** v2's 10px bar with 1px gaps, each colour as wide as the days it lasted, grey "No colour" before the first coloured feedback, a colour given again merged into one run. **From the batch's start to today, or to the day the intern graduated, was terminated or withdrew** (that day replaces "Today"); hidden before the batch starts (decision 2).

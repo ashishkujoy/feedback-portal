@@ -40,8 +40,6 @@ export const feedback = pgTable(
     body: text().notNull(),
     // `NULL` leaves the intern's code unchanged.
     colorCode: colorCodeEnum(),
-    // The intern's code just before submission, so history reads "orange → borderline_red".
-    previousColorCode: colorCodeEnum(),
     // Submitting it puts the intern on notice for one month, in the same transaction.
     givesNotice: boolean().notNull().default(false),
     state: feedbackStateEnum().notNull().default('draft'),
@@ -53,6 +51,8 @@ export const feedback = pgTable(
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
+    // When its author last changed it after submitting (9.8); delivery doesn't count.
+    editedAt: timestamp({ withTimezone: true }),
   },
   (table) => [
     index('feedback_intern_period_index').on(table.internId, table.period),
@@ -71,10 +71,7 @@ export const feedback = pgTable(
       'feedback_delivered_check',
       sql`(${table.state} = 'delivered') = (${table.conversationId} is not null)`,
     ),
-    check(
-      'feedback_previous_color_check',
-      sql`${table.state} <> 'draft' or ${table.previousColorCode} is null`,
-    ),
+    check('feedback_edited_check', sql`${table.state} <> 'draft' or ${table.editedAt} is null`),
     // Some non-space character; Postgres' trim() only strips spaces, not tabs or newlines.
     check('feedback_body_check', sql`${table.state} = 'draft' or ${table.body} ~ '[^[:space:]]'`),
   ],

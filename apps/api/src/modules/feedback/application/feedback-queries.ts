@@ -7,6 +7,7 @@ export type FeedbackEntryView = Readonly<{
   period: string;
   body: string;
   colorCode: ColorCode | null;
+  /** The colour of the coloured feedback submitted before this one; `null` without a colour. */
   previousColorCode: ColorCode | null;
   givesNotice: boolean;
   state: FeedbackState;
@@ -15,6 +16,7 @@ export type FeedbackEntryView = Readonly<{
   submittedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  editedAt: Date | null;
 }>;
 
 /** Read models for feedback. */

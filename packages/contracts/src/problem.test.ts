@@ -59,6 +59,7 @@ describe('ProblemDetails', () => {
       'intern_not_active',
       'feedback_not_draft',
       'feedback_delivered',
+      'notice_not_running',
     ]);
   });
 });

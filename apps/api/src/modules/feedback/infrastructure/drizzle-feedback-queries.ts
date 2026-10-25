@@ -1,8 +1,27 @@
 import { and, desc, eq, ne, or, sql } from 'drizzle-orm';
+import type { ColorCode } from '@feedback-portal/contracts';
 import type { DbExecutor } from '../../../shared/db/client.ts';
 import { users } from '../../identity/infrastructure/schema.ts';
 import type { FeedbackEntryView, FeedbackQueries } from '../application/feedback-queries.ts';
 import { feedback } from './schema.ts';
+
+/**
+ * The colour of the coloured feedback submitted just before this one (9.8 decision 1), worked
+ * out when read so that edits to older feedback keep the chain right. `null` for feedback
+ * without a colour, and for drafts. Written out in full: the subquery needs its own alias, and
+ * the outer row's columns qualified by table.
+ */
+const previousColorCode = sql<ColorCode | null>`case
+  when "feedback"."state" <> 'draft' and "feedback"."color_code" is not null then (
+    select "earlier"."color_code" from "feedback" as "earlier"
+    where "earlier"."intern_id" = "feedback"."intern_id"
+      and "earlier"."state" <> 'draft'
+      and "earlier"."color_code" is not null
+      and ("earlier"."submitted_at", "earlier"."id") < ("feedback"."submitted_at", "feedback"."id")
+    order by "earlier"."submitted_at" desc, "earlier"."id" desc
+    limit 1
+  )
+end`;
 
 const columns = {
   id: feedback.id,
@@ -10,13 +29,14 @@ const columns = {
   period: feedback.period,
   body: feedback.body,
   colorCode: feedback.colorCode,
-  previousColorCode: feedback.previousColorCode,
+  previousColorCode,
   givesNotice: feedback.givesNotice,
   state: feedback.state,
   conversationId: feedback.conversationId,
   submittedAt: feedback.submittedAt,
   createdAt: feedback.createdAt,
   updatedAt: feedback.updatedAt,
+  editedAt: feedback.editedAt,
   authorId: users.id,
   authorName: users.name,
   authorAvatarUrl: users.avatarUrl,

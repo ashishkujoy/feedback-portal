@@ -47,6 +47,7 @@ const onboarding: InternStatusEvent = {
   reason: null,
   noticeStartsOn: null,
   noticeEndsOn: null,
+  feedbackId: null,
   actor: pat,
   createdAt: '2026-07-07T09:00:00.000Z',
 };

@@ -25,6 +25,8 @@ export type InternStatusEventView = Readonly<{
   reason: string | null;
   noticeStartsOn: string | null;
   noticeEndsOn: string | null;
+  /** The feedback that gave this notice; `null` for any other change. */
+  feedbackId: string | null;
   actor: ActorRef;
   createdAt: Date;
 }>;

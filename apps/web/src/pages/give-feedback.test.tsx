@@ -10,7 +10,7 @@ import { render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../app/query-client.ts';
-import { GiveFeedbackDialog } from '../interns/give-feedback-dialog.tsx';
+import { type FeedbackTarget, GiveFeedbackDialog } from '../interns/give-feedback-dialog.tsx';
 import { noInternCounts } from '../test/fixtures.ts';
 import { renderApp } from '../test/render-app.tsx';
 import { problem, type Reply, signedInWith, stubApi, userWith } from '../test/stub-api.ts';
@@ -57,6 +57,7 @@ const onboarding: InternStatusEvent = {
   reason: null,
   noticeStartsOn: null,
   noticeEndsOn: null,
+  feedbackId: null,
   actor: pat,
   createdAt: '2026-07-07T09:00:00.000Z',
 };
@@ -96,6 +97,7 @@ const entry = (overrides: Partial<FeedbackView> = {}): FeedbackView => ({
   submittedAt: null,
   createdAt: '2026-10-20T09:00:00.000Z',
   updatedAt: '2026-10-20T09:00:00.000Z',
+  editedAt: null,
   ...overrides,
 });
 
@@ -158,6 +160,9 @@ const gets = (fetchMock: ReturnType<typeof stubApi>, path: string) =>
 
 const editor = (dialog: ReturnType<typeof within>) =>
   dialog.getByRole('textbox', { name: 'Feedback' });
+
+/** A draft that gave notice, carried on with (9.6). */
+const continuing: FeedbackTarget = { kind: 'draft', entry: entry({ givesNotice: true }) };
 
 describe('Give feedback', () => {
   it("is in the header and the empty timeline for the batch's PM", async () => {
@@ -383,7 +388,7 @@ describe('an existing draft', () => {
           batch={batch()}
           open
           onClose={onClose}
-          draft={entry({ givesNotice: true })}
+          target={continuing}
         />
       </QueryClientProvider>,
     );

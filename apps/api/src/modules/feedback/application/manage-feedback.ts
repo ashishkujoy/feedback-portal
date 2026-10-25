@@ -3,7 +3,7 @@ import { utcToday } from '../../../shared/calendar-date.ts';
 import type { Viewer } from '../../cohort/application/batch-scope.ts';
 import type { BatchId } from '../../cohort/domain/batch-id.ts';
 import type { BatchAccessGrant } from '../../intern/application/batch-access.ts';
-import type { Intern } from '../../intern/domain/intern.ts';
+import { followColour, type Intern } from '../../intern/domain/intern.ts';
 import type { InternId } from '../../intern/domain/intern-id.ts';
 import { newStatusEventId } from '../../intern/domain/status-event-id.ts';
 import {
@@ -169,18 +169,33 @@ export const updateDraft = (
     return viewOf(scope, entry.id);
   });
 
-/** The author's text edit after submission. */
+/**
+ * The author's change to submitted feedback until it's delivered (9.8). The intern is locked, as
+ * on submit; the feedback is saved first (with any notice change), then the intern's colour
+ * follows the newest coloured feedback, which may be this one or another.
+ */
 export const editSubmittedFeedback = (
   { transaction, now }: ManageFeedbackDeps,
-  { body, ...target }: EntryTarget & Readonly<{ body: string }>,
+  { content, ...target }: EntryTarget & Readonly<{ content: ContentInput }>,
 ): Promise<FeedbackEntryView> =>
   transaction(async (scope) => {
-    ensureCanWrite(await ensureCanSee(scope, target.actor, target.batchId));
-    const intern = await internIn(scope, target, false);
+    const access = await ensureCanSee(scope, target.actor, target.batchId);
+    ensureCanWrite(access);
+    const intern = await internIn(scope, target, true);
     const entry = await entryFor(scope, target);
-    await scope.feedback.save(
-      editSubmitted(entry, { intern, actor: target.actor.id, body, now: now() }),
-    );
+    const at = now();
+    const edited = editSubmitted(entry, {
+      intern,
+      actor: target.actor.id,
+      content,
+      range: rangeOf(access, at),
+      eventId: newStatusEventId(),
+      now: at,
+    });
+    await scope.feedback.save(edited.feedback, edited.intern);
+    const colour = await scope.feedback.newestColour(intern.id);
+    const followed = followColour(edited.intern, { colorCode: colour, now: at });
+    if (followed !== edited.intern) await scope.interns.save(followed);
     return viewOf(scope, entry.id);
   });
 

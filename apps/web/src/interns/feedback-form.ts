@@ -1,5 +1,5 @@
-import type { ColorCode, InternDetail } from '@feedback-portal/contracts';
-import { addMonths, formatDate } from '../batches/batch-dates.ts';
+import type { ColorCode, FeedbackView, InternDetail } from '@feedback-portal/contracts';
+import { addMonths, formatDate, formatDay } from '../batches/batch-dates.ts';
 import { colourSummary, firstName } from './profile.ts';
 import { type ColourKey, filterLabels } from './roster.ts';
 
@@ -85,4 +85,59 @@ export const noticeDescription = (
   return on
     ? `Ends ${formatDate(addMonths(today, 1))}. ${programManager} then lifts it or terminates. Nothing happens automatically.`
     : 'Starts a one-month notice when you submit.';
+};
+
+/** The colour help when editing (9.8): the intern's code follows the newest coloured feedback. */
+export const editColourHelp = (current: ColorCode | null): string =>
+  `${current === null ? 'No colour yet' : `Current code: ${filterLabels[current]}`}. The code follows the newest coloured feedback, so changing an older one leaves it.`;
+
+type NoticeSwitch = Readonly<{ description: string; disabled: boolean }>;
+
+type EditedIntern = Pick<InternDetail, 'name' | 'status' | 'noticeEndsOn' | 'statusEvents'>;
+
+/**
+ * The notice switch when editing submitted feedback (9.8). Feedback that gave notice can withdraw
+ * it only while that notice runs; otherwise the switch stays on and says why (decision 2).
+ * Feedback without notice can give one, as when submitting, from the day it's saved.
+ */
+export const editNoticeSwitch = (
+  intern: EditedIntern,
+  entry: Pick<FeedbackView, 'id' | 'givesNotice'>,
+  on: boolean,
+  today: string,
+  programManager: string,
+): NoticeSwitch => {
+  if (!entry.givesNotice) {
+    if (intern.status === 'on_notice') {
+      return { description: noticeDescription(intern, on, today, programManager), disabled: true };
+    }
+    return {
+      description: on
+        ? `Ends ${formatDate(addMonths(today, 1))}. ${programManager} then lifts it or terminates. Nothing happens automatically.`
+        : 'Starts a one-month notice when you save.',
+      disabled: false,
+    };
+  }
+  // Events are newest first: the one just before the notice's own is what came after it.
+  const events = intern.statusEvents;
+  const given = events.findIndex(
+    (event) => event.toStatus === 'on_notice' && event.feedbackId === entry.id,
+  );
+  const running = intern.status === 'on_notice' && given === 0;
+  if (running) {
+    return {
+      description: on
+        ? `Runs until ${intern.noticeEndsOn ? formatDate(intern.noticeEndsOn) : 'its end'}. Switching it off withdraws it.`
+        : 'Saving withdraws the notice this feedback gave.',
+      disabled: false,
+    };
+  }
+  const next = given > 0 ? events[given - 1] : undefined;
+  let description = "This notice is no longer running, so it can't be withdrawn here.";
+  if (next?.toStatus === 'active') {
+    description = `This notice was lifted on ${formatDay(next.createdAt)}, so it can't be withdrawn here.`;
+  } else if (next?.toStatus === 'on_notice') {
+    description = 'A later notice replaced this one.';
+  }
+  return { description, disabled: true };
 };

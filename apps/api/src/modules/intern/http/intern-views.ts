@@ -36,6 +36,7 @@ export const toInternDetail = (intern: InternDetailView, photoUrl: PhotoUrl): In
     reason: event.reason,
     noticeStartsOn: event.noticeStartsOn,
     noticeEndsOn: event.noticeEndsOn,
+    feedbackId: event.feedbackId,
     actor: event.actor,
     createdAt: event.createdAt.toISOString(),
   })),

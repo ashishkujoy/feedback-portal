@@ -58,6 +58,7 @@ export const createInternQueries = (db: DbExecutor): InternQueries => ({
         reason: internStatusEvents.reason,
         noticeStartsOn: internStatusEvents.noticeStartsOn,
         noticeEndsOn: internStatusEvents.noticeEndsOn,
+        feedbackId: internStatusEvents.feedbackId,
         createdAt: internStatusEvents.createdAt,
         actorId: users.id,
         actorName: users.name,
@@ -73,6 +74,7 @@ export const createInternQueries = (db: DbExecutor): InternQueries => ({
       reason: event.reason,
       noticeStartsOn: event.noticeStartsOn,
       noticeEndsOn: event.noticeEndsOn,
+      feedbackId: event.feedbackId,
       createdAt: event.createdAt,
       actor: { id: event.actorId, name: event.actorName },
     }));

@@ -112,6 +112,7 @@ describe('InternDetail', () => {
         reason: null,
         noticeStartsOn: null,
         noticeEndsOn: null,
+        feedbackId: null,
         actor,
         createdAt: '2027-01-11T09:00:00.000Z',
       },

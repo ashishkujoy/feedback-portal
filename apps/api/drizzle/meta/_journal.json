@@ -50,6 +50,20 @@
       "when": 1792870417160,
       "tag": "0006_airtable_field_mappings",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792926454524,
+      "tag": "0007_drop_previous_color",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792926454821,
+      "tag": "0008_feedback_edited_at",
+      "breakpoints": true
     }
   ]
 }

@@ -306,6 +306,18 @@ export const setColorCode = (
   return { ...intern, colorCode, updatedAt: now };
 };
 
+/**
+ * The colour of the intern's newest coloured feedback, after an edit changed it (9.8): unlike
+ * `setColorCode`, it can go back to none when no coloured feedback is left.
+ */
+export const followColour = (
+  intern: Intern,
+  { colorCode, now }: Readonly<{ colorCode: ColorCode | null; now: Date }>,
+): Intern => {
+  ensureEditable(intern);
+  return intern.colorCode === colorCode ? intern : { ...intern, colorCode, updatedAt: now };
+};
+
 /** The notice that is running, if the intern is on notice. */
 export const currentNotice = (intern: Intern): StatusEvent | undefined =>
   intern.status === 'on_notice'

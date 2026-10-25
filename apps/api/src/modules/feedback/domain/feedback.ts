@@ -4,9 +4,11 @@ import { conflict, forbidden, validationFailed } from '../../../shared/errors/ap
 import { fieldIssues } from '../../../shared/errors/field-issues.ts';
 import type { UserId } from '../../identity/domain/user-id.ts';
 import {
+  currentNotice,
   ensureEditable,
   giveNotice,
   type Intern,
+  liftNotice,
   setColorCode,
 } from '../../intern/domain/intern.ts';
 import type { InternId } from '../../intern/domain/intern-id.ts';
@@ -15,8 +17,8 @@ import type { FeedbackId } from './feedback-id.ts';
 
 /**
  * One mentor's feedback on one intern for one month: a draft only its author sees, then
- * submitted (visible to the batch, and setting the intern's colour code and notice), then
- * delivered in a conversation, after which it never changes.
+ * submitted (visible to the batch, and setting the intern's colour code and notice; its author
+ * can still change it, 9.8), then delivered in a conversation, after which it never changes.
  */
 export type Feedback = Readonly<{
   id: FeedbackId;
@@ -28,8 +30,6 @@ export type Feedback = Readonly<{
   body: string;
   /** `null` leaves the intern's code unchanged. */
   colorCode: ColorCode | null;
-  /** The intern's code just before this feedback changed it; `null` when it sets no colour. */
-  previousColorCode: ColorCode | null;
   givesNotice: boolean;
   state: FeedbackState;
   /** The conversation that delivered it. */
@@ -37,6 +37,8 @@ export type Feedback = Readonly<{
   submittedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  /** When its author last changed it after submitting (9.8); delivery moves only `updatedAt`. */
+  editedAt: Date | null;
 }>;
 
 /** What the author writes; the same fields for a new draft and an edit. */
@@ -158,12 +160,12 @@ export const draftFeedback = ({
     internId: intern.id,
     authorId: author,
     ...parsed,
-    previousColorCode: null,
     state: 'draft',
     conversationId: null,
     submittedAt: null,
     createdAt: now,
     updatedAt: now,
+    editedAt: null,
   };
 };
 
@@ -239,7 +241,6 @@ export const submitFeedback = (
   return {
     feedback: {
       ...feedback,
-      previousColorCode: content.colorCode ? intern.colorCode : null,
       state: 'submitted',
       submittedAt: now,
       updatedAt: now,
@@ -248,20 +249,74 @@ export const submitFeedback = (
   };
 };
 
-/** The author's edits after submission: the text only. Month, colour and notice are fixed. */
+/** Withdrawing notice is only for the notice this feedback gave, while it's still running. */
+const ensureOwnNoticeRunning = (feedback: Feedback, intern: Intern): void => {
+  if (currentNotice(intern)?.feedbackId !== feedback.id) {
+    throw conflict(
+      "This feedback's notice is no longer running, so it can't be withdrawn here.",
+      'notice_not_running',
+    );
+  }
+};
+
+export type EditSubmittedInput = ChangeContext &
+  Readonly<{
+    content: ContentInput;
+    range: MonthRange;
+    /** The status event's id, used when the edit gives or withdraws notice. */
+    eventId: StatusEventId;
+  }>;
+
+/**
+ * The author's change to submitted feedback until it's delivered (9.8): month, text, colour and
+ * notice, by the same rules as submitting. Switching notice on starts one from `range.today`;
+ * switching it off withdraws the notice this feedback gave, back to Active. Both are recorded in
+ * the status history. The intern's colour is left to the caller, which recalculates it from the
+ * newest coloured feedback once this one is saved. Nothing changed, nothing is marked edited.
+ */
 export const editSubmitted = (
   feedback: Feedback,
-  { intern, actor, body, now }: ChangeContext & { body: string },
-): Feedback => {
+  { intern, actor, content, range, eventId, now }: EditSubmittedInput,
+): Readonly<{ feedback: Feedback; intern: Intern }> => {
   ensureNotDelivered(feedback);
   if (feedback.state !== 'submitted') throw conflict('This feedback is still a draft.');
   ensureAuthor(feedback, actor);
   ensureSameIntern(feedback, intern);
   ensureEditable(intern);
-  const parsed = Content.shape.body.safeParse(body);
-  if (!parsed.success) throw validationFailed(fieldIssues(parsed.error, 'body'));
-  ensureWritten(parsed.data);
-  return { ...feedback, body: parsed.data, updatedAt: now };
+  const parsed = parseContent(content, range);
+  ensureWritten(parsed.body);
+  const unchanged =
+    parsed.period === feedback.period &&
+    parsed.body === feedback.body &&
+    parsed.colorCode === feedback.colorCode &&
+    parsed.givesNotice === feedback.givesNotice;
+  if (unchanged) return { feedback, intern };
+
+  const month = monthLabel(parsed.period);
+  let updated = intern;
+  if (parsed.givesNotice && !feedback.givesNotice) {
+    ensureCanGiveNotice(intern);
+    updated = giveNotice(intern, {
+      eventId,
+      reason: `Notice given by editing the ${month} feedback.`,
+      actor,
+      now,
+      startsOn: range.today,
+      feedbackId: feedback.id,
+    });
+  } else if (!parsed.givesNotice && feedback.givesNotice) {
+    ensureOwnNoticeRunning(feedback, intern);
+    updated = liftNotice(intern, {
+      eventId,
+      reason: `Notice withdrawn by editing the ${month} feedback.`,
+      actor,
+      now,
+    });
+  }
+  return {
+    feedback: { ...feedback, ...parsed, updatedAt: now, editedAt: now },
+    intern: updated,
+  };
 };
 
 /** Delivered in a conversation (10.2); from then on it never changes. */
