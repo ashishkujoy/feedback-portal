@@ -191,56 +191,58 @@ Checks: counts ≥ 0; `completed_at` set exactly when not `pending`; `failure_re
 | period | date | First day of the month the feedback covers (checked); from the batch's start month to the current month (9.2 decision 4) |
 | body | text | Markdown. May be blank while a draft, not once submitted |
 | color_code | `color_code` null | `NULL` means "leave unchanged" |
-| previous_color_code | `color_code` null | The intern's code just before submission, **only when this feedback sets a code**, so history reads as "orange → borderline_red" (9.2 decision 5) |
 | gives_notice | boolean | Default `false`. When `true`, submitting the feedback puts the intern `on_notice` for one month from the day it's submitted, in the same transaction. Only for an `active` intern; any colour code (or none) can go with it (9.2 decisions 1 and 2). |
 | state | `feedback_state` | `draft` → `submitted` → `delivered` |
-| conversation_id | uuid null | Set exactly when the feedback is delivered. Its foreign key comes with `conversations` (10.1) |
+| conversation_id | uuid FK null → conversations | Set exactly when the feedback is delivered. **Unique:** one conversation delivers one feedback (10.1 decision 1) |
 | submitted_at | timestamptz null | Set exactly when the feedback is no longer a draft |
 | created_at / updated_at | timestamptz | |
+| edited_at | timestamptz null | When its author last changed it after submitting (9.8); never on a draft. Delivery moves only `updated_at` |
 
-Indexes: (`intern_id`, `period`); (`intern_id`, `submitted_at`) where `color_code IS NOT NULL`; (`author_id`, `state`) for an author's drafts.
+The colour before each entry ("orange → borderline_red") isn't stored: it's the colour of the coloured, non-draft feedback submitted just before, worked out when read (9.8 decision 1), so an edit to older feedback keeps the chain right.
 
-Checks: `period` is the first of a month; `submitted_at` exactly when not `draft`; `conversation_id` exactly when `delivered`; no `previous_color_code` on a draft; a non-blank body once submitted. **A trigger rejects deleting anything but a draft, and any update of delivered feedback** (9.1 decisions 1 and 2).
+Indexes: (`intern_id`, `period`); (`intern_id`, `submitted_at`) where `color_code IS NOT NULL`; (`author_id`, `state`) for an author's drafts; unique (`conversation_id`).
 
-**`conversations`**: a one-on-one in which the PM delivers one or more feedback entries.
+Checks: `period` is the first of a month; `submitted_at` exactly when not `draft`; `conversation_id` exactly when `delivered`; no `edited_at` on a draft; a non-blank body once submitted. **A trigger rejects deleting anything but a draft, and any update of delivered feedback** (9.1 decisions 1 and 2).
+
+**`conversations`**: a one-on-one in which the PM delivers **one** feedback entry (v2 A8; 10.1 decision 1).
 | Column | Type | Notes |
 |---|---|---|
 | id | uuid PK | |
 | intern_id | uuid FK → interns | |
-| recorded_by | uuid FK → users | The PM |
-| held_on | date | |
-| notes | text | Markdown: how it went and what new information came up |
+| recorded_by | uuid FK → users | The PM, shown as "Delivered by" |
+| held_on | date | "Date delivered" |
+| notes | text | Markdown, required (checked non-blank): how it went and what new information came up |
 | created_at / updated_at | timestamptz | |
+| edited_at | timestamptz null | When the notes or date were changed after recording (10.1 decision 2) |
 
-**`comments`**: a flat thread on **either** a feedback entry or a conversation.
+Index: (`intern_id`, `held_on`). **A trigger refuses deleting a conversation** (10.1 decision 2), so delivered feedback always keeps it.
+
+**`comments`**: a flat thread on **either** a feedback entry or a conversation (10.1 decision 4).
 | Column | Type | Notes |
 |---|---|---|
 | id | uuid PK | |
 | feedback_id | uuid FK null → feedback | Set when the comment is on a feedback entry |
 | conversation_id | uuid FK null → conversations | Set when the comment is on a conversation |
 | author_id | uuid FK → users | |
-| body | text | Markdown |
-| created_at | timestamptz | |
-| edited_at | timestamptz null | |
-| deleted_at | timestamptz null | Soft delete. The UI shows "comment removed". |
+| body | text | Non-blank, except once deleted |
+| created_at / updated_at | timestamptz | |
+| edited_at | timestamptz null | "· edited" |
+| deleted_at | timestamptz null | Soft delete: the body is cleared and the UI shows "This comment was deleted." (10.1 decision 3) |
 
-Constraint: `CHECK (num_nonnulls(feedback_id, conversation_id) = 1)`, so each comment belongs to exactly one parent. Indexes: (`feedback_id`, `created_at`) and (`conversation_id`, `created_at`).
+Checks: `num_nonnulls(feedback_id, conversation_id) = 1`, so each comment belongs to exactly one parent; a non-blank body unless deleted. Indexes: (`feedback_id`, `created_at`) and (`conversation_id`, `created_at`), each where its column is set. **A trigger refuses deleting a comment and any change to one already deleted.**
 
 ## 4. Domain rules (enforced in the domain layer)
 
 **Color codes**
-- A color code changes only when a feedback entry with a non-null `color_code` is **submitted**.
-- On submit, the domain layer does three things in one transaction:
-  - snapshots `previous_color_code`;
-  - updates `interns.color_code`;
-  - keeps the history derivable from `feedback`.
-- An intern cannot be set back to "no code" once they have one.
+- A color code changes only through feedback: when an entry with a non-null `color_code` is **submitted**, or when its author **edits** submitted feedback (9.8).
+- `interns.color_code` is the colour of the newest submitted coloured feedback, updated in the same transaction; the history is derived from `feedback`.
+- Feedback with no colour leaves the code alone, so submitting can't set it back to "no code". Only an edit that takes the colour off the only coloured feedback does.
 
 **Feedback lifecycle**
 - `draft`: visible and editable only by the author, who can also discard it.
-- `submitted`: visible to all current mentors and the PM of the batch. The author can still edit the text; the color code is fixed once submitted.
+- `submitted`: visible to all current mentors and the PM of the batch. Until delivery, **its author can change anything**: month, text, color code and notice (9.8). The intern's color code then follows their newest coloured feedback (it can go back to none). Switching notice on starts one from that day; switching it off withdraws the notice this feedback gave, only while it still runs. Both are recorded in the status history.
 - `delivered`: immutable (the database refuses any change). Attached to a conversation.
-- Several mentors can submit feedback for the same intern and month. The PM delivers them together in one conversation.
+- Several mentors can submit feedback for the same intern and month. The PM delivers each in its own conversation (10.1 decision 1).
 - Comments on feedback are allowed once it is `submitted`, and they stay open after delivery. A comment adds context without changing the original entry. Drafts cannot be commented on.
 
 **Conversations**

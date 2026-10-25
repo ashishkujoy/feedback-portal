@@ -138,7 +138,7 @@ Update the status in both `PLAN.md` and the board below whenever it changes.
 
 | Task | Folder | Status |
 |---|---|---|
-| 10.1 Schema | [`phase/10-conversations-comments/01-schema`](phase/10-conversations-comments/01-schema/PLAN.md) | Not started |
+| 10.1 Schema | [`phase/10-conversations-comments/01-schema`](phase/10-conversations-comments/01-schema/PLAN.md) | Done |
 | 10.2 Conversation domain | [`phase/10-conversations-comments/02-conversation-domain`](phase/10-conversations-comments/02-conversation-domain/PLAN.md) | Not started |
 | 10.3 Conversation API + UI | [`phase/10-conversations-comments/03-conversation-api-ui`](phase/10-conversations-comments/03-conversation-api-ui/PLAN.md) | Not started |
 | 10.4 Comments API | [`phase/10-conversations-comments/04-comments-api`](phase/10-conversations-comments/04-comments-api/PLAN.md) | Not started |

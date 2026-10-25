@@ -5,14 +5,13 @@ import { pgErrorCodes, pgErrorOf, type PgErrorInfo } from '../../../shared/db/pg
 import { batches } from '../../cohort/infrastructure/schema.ts';
 import { users } from '../../identity/infrastructure/schema.ts';
 import { internStatusEvents, interns } from '../../intern/infrastructure/schema.ts';
-import { feedback } from './schema.ts';
+import { comments, conversations, feedback } from './schema.ts';
 
 const testDb = useTestDb();
 const db = () => testDb.handle.db;
 
 const uuidV7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const missingId = '01890a5d-ac96-774b-bcce-b302099a8057';
-const conversationId = '01890a5d-ac96-774b-bcce-b30209000c01';
 const { foreignKeyViolation, invalidTextRepresentation, checkViolation, restrictViolation } =
   pgErrorCodes;
 
@@ -81,8 +80,29 @@ const insertFeedback = async (values: Partial<typeof feedback.$inferInsert> = {}
   return row;
 };
 
+const insertConversation = async (values: Partial<typeof conversations.$inferInsert> = {}) => {
+  const [row] = await db()
+    .insert(conversations)
+    .values({
+      internId: values.internId ?? (await insertIntern()).id,
+      recordedBy: values.recordedBy ?? (await insertUser()),
+      heldOn: '2027-03-30',
+      notes: 'Delivered in the weekly 1:1.',
+      ...values,
+    })
+    .returning();
+  if (!row) throw new Error('insert returned no row');
+  return row;
+};
+
 const submitted = { state: 'submitted', submittedAt: new Date('2027-03-28T10:00:00Z') } as const;
-const delivered = { ...submitted, state: 'delivered', conversationId } as const;
+
+/** Delivered in a conversation of its own (one conversation delivers one feedback). */
+const delivered = async () => ({
+  ...submitted,
+  state: 'delivered' as const,
+  conversationId: (await insertConversation()).id,
+});
 
 describe('feedback', () => {
   it('fills id (uuid v7), state, notice and timestamps from defaults', async () => {
@@ -121,11 +141,12 @@ describe('feedback', () => {
   });
 
   it('has a conversation exactly when delivered', async () => {
-    await insertFeedback(delivered);
+    await insertFeedback(await delivered());
 
     expect(await failure(insertFeedback({ ...submitted, state: 'delivered' }))).toMatchObject(
       checkFailure('feedback_delivered_check'),
     );
+    const { id: conversationId } = await insertConversation();
     expect(await failure(insertFeedback({ ...submitted, conversationId }))).toMatchObject(
       checkFailure('feedback_delivered_check'),
     );
@@ -169,7 +190,7 @@ describe('feedback', () => {
   it('lets a draft be discarded, but never deletes submitted or delivered feedback', async () => {
     const draft = await insertFeedback();
     const sent = await insertFeedback(submitted);
-    const done = await insertFeedback(delivered);
+    const done = await insertFeedback(await delivered());
 
     await db().delete(feedback).where(eq(feedback.id, draft.id));
     const removeSent = await failure(db().delete(feedback).where(eq(feedback.id, sent.id)));
@@ -183,6 +204,7 @@ describe('feedback', () => {
   it('lets submitted feedback be edited and delivered, then never changes it', async () => {
     const row = await insertFeedback({ ...submitted, colorCode: 'orange' });
     const byId = eq(feedback.id, row.id);
+    const { id: conversationId } = await insertConversation({ internId: row.internId });
 
     await db().update(feedback).set({ body: 'Closed `PAY-214`, with tests first.' }).where(byId);
     await db().update(feedback).set({ state: 'delivered', conversationId }).where(byId);
@@ -265,5 +287,144 @@ describe('intern_status_events.feedback_id', () => {
         }),
       ),
     ).toMatchObject(checkFailure('intern_status_events_feedback_check'));
+  });
+});
+
+describe('conversations', () => {
+  it('fills id (uuid v7) and timestamps from defaults, with no edit yet', async () => {
+    const row = await insertConversation();
+
+    expect(row.id).toMatch(uuidV7);
+    expect(row).toMatchObject({ heldOn: '2027-03-30', editedAt: null });
+    expect(row.createdAt).toBeInstanceOf(Date);
+  });
+
+  it('needs written notes', async () => {
+    expect(await failure(insertConversation({ notes: ' \n\t' }))).toMatchObject(
+      checkFailure('conversations_notes_check'),
+    );
+  });
+
+  it('can be edited, marked with when (decision 2)', async () => {
+    const row = await insertConversation();
+    const byId = eq(conversations.id, row.id);
+
+    await db()
+      .update(conversations)
+      .set({ notes: 'Agreed a daily check-in.', heldOn: '2027-03-29', editedAt: new Date() })
+      .where(byId);
+
+    expect((await db().select().from(conversations).where(byId))[0]).toMatchObject({
+      notes: 'Agreed a daily check-in.',
+      heldOn: '2027-03-29',
+      editedAt: expect.any(Date),
+    });
+  });
+
+  it('is never deleted', async () => {
+    const row = await insertConversation();
+
+    const removed = await failure(db().delete(conversations).where(eq(conversations.id, row.id)));
+
+    expect(removed?.code).toBe(restrictViolation);
+    expect(await db().select().from(conversations)).toHaveLength(1);
+  });
+
+  it('belongs to a real intern and user', async () => {
+    expect((await failure(insertConversation({ internId: missingId })))?.code).toBe(
+      foreignKeyViolation,
+    );
+    expect((await failure(insertConversation({ recordedBy: missingId })))?.code).toBe(
+      foreignKeyViolation,
+    );
+  });
+
+  it('delivers one feedback, and the feedback a real conversation (decision 1)', async () => {
+    const { id: conversationId } = await insertConversation();
+    await insertFeedback({ ...submitted, state: 'delivered', conversationId });
+
+    expect(
+      await failure(insertFeedback({ ...submitted, state: 'delivered', conversationId })),
+    ).toMatchObject({
+      code: pgErrorCodes.uniqueViolation,
+      constraint: 'feedback_conversation_unique',
+    });
+    expect(
+      (
+        await failure(
+          insertFeedback({ ...submitted, state: 'delivered', conversationId: missingId }),
+        )
+      )?.code,
+    ).toBe(foreignKeyViolation);
+  });
+});
+
+const insertComment = async (values: Partial<typeof comments.$inferInsert>) => {
+  const [row] = await db()
+    .insert(comments)
+    .values({ authorId: values.authorId ?? (await insertUser()), body: 'Agreed.', ...values })
+    .returning();
+  if (!row) throw new Error('insert returned no row');
+  return row;
+};
+
+describe('comments', () => {
+  it('goes on exactly one parent: a feedback entry or a conversation', async () => {
+    const entry = await insertFeedback(submitted);
+    const conversation = await insertConversation();
+
+    const onFeedback = await insertComment({ feedbackId: entry.id });
+    const onConversation = await insertComment({ conversationId: conversation.id });
+
+    expect(onFeedback.id).toMatch(uuidV7);
+    expect(onConversation).toMatchObject({ editedAt: null, deletedAt: null });
+    const refused = await Promise.all(
+      [{}, { feedbackId: entry.id, conversationId: conversation.id }].map(async (parents) =>
+        failure(insertComment(parents)),
+      ),
+    );
+    expect(refused).toEqual([
+      expect.objectContaining(checkFailure('comments_parent_check')),
+      expect.objectContaining(checkFailure('comments_parent_check')),
+    ]);
+  });
+
+  it('has text, unless it was deleted', async () => {
+    const { id: feedbackId } = await insertFeedback(submitted);
+
+    expect(await failure(insertComment({ feedbackId, body: ' \n' }))).toMatchObject(
+      checkFailure('comments_body_check'),
+    );
+    await insertComment({ feedbackId, body: '', deletedAt: new Date() });
+  });
+
+  it('is deleted by clearing it, and never changes afterwards (decision 3)', async () => {
+    const { id: feedbackId } = await insertFeedback(submitted);
+    const row = await insertComment({ feedbackId });
+    const byId = eq(comments.id, row.id);
+
+    await db()
+      .update(comments)
+      .set({ body: 'Agreed, with tests.', editedAt: new Date() })
+      .where(byId);
+    await db().update(comments).set({ body: '', deletedAt: new Date() }).where(byId);
+
+    expect(
+      (await failure(db().update(comments).set({ body: 'Back again' }).where(byId)))?.code,
+    ).toBe(restrictViolation);
+    expect((await failure(db().delete(comments).where(byId)))?.code).toBe(restrictViolation);
+    expect((await db().select().from(comments).where(byId))[0]).toMatchObject({ body: '' });
+  });
+
+  it('points at real feedback, conversations and authors', async () => {
+    const { id: feedbackId } = await insertFeedback(submitted);
+    const codes = await Promise.all(
+      [
+        { feedbackId: missingId },
+        { conversationId: missingId },
+        { feedbackId, authorId: missingId },
+      ].map(async (values) => (await failure(insertComment(values)))?.code),
+    );
+    expect(codes).toEqual([foreignKeyViolation, foreignKeyViolation, foreignKeyViolation]);
   });
 });

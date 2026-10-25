@@ -16,7 +16,7 @@ import { InternId } from '../../intern/domain/intern-id.ts';
 import { newStatusEventId } from '../../intern/domain/status-event-id.ts';
 import { createInternRepository } from '../../intern/infrastructure/drizzle-intern-repository.ts';
 import { internStatusEvents } from '../../intern/infrastructure/schema.ts';
-import { feedback as feedbackTable } from '../infrastructure/schema.ts';
+import { conversations, feedback as feedbackTable } from '../infrastructure/schema.ts';
 
 const testDb = useTestDb();
 const db = () => testDb.handle.db;
@@ -408,9 +408,18 @@ describe('editing submitted feedback (9.8)', () => {
 
     expect((await edit(newer, { body: 'Mine.' }, mentor2)).status).toBe(403);
     expect((await edit(newer, { body: 'Mine.' }, pm)).status).toBe(403);
+    const [conversation] = await db()
+      .insert(conversations)
+      .values({
+        internId: newer.internId,
+        recordedBy: pm.user.id,
+        heldOn: '2026-10-24',
+        notes: 'Delivered.',
+      })
+      .returning();
     await db()
       .update(feedbackTable)
-      .set({ state: 'delivered', conversationId: '01890a5d-ac96-774b-bcce-b30209000c01' })
+      .set({ state: 'delivered', conversationId: conversation?.id })
       .where(eq(feedbackTable.id, newer.id));
     expect((await problemOf(await edit(newer, { body: 'Later.' }), 409)).code).toBe(
       'feedback_delivered',
