@@ -1,5 +1,5 @@
-import type { ColorCode, FeedbackView } from '@feedback-portal/contracts';
-import { formatDay } from '../../batches/batch-dates.ts';
+import type { ColorCode, ConversationView, FeedbackView } from '@feedback-portal/contracts';
+import { formatDate, formatDay, today } from '../../batches/batch-dates.ts';
 
 const shortMonths = [
   'Jan',
@@ -58,13 +58,68 @@ export const colourChange = (
   return from === null ? { kind: 'first', to } : { kind: 'changed', from, to };
 };
 
-/** v2's state badge: "Awaiting delivery" until a conversation delivers it (Phase 10). */
+/** "10 Oct" for a calendar date (`YYYY-MM-DD`), as v2's "Delivered 10 Oct". */
+export const shortDay = (isoDate: string): string => formatDate(isoDate).replace(/ \d+$/, '');
+
+/** v2's state badge: "Awaiting delivery" until a conversation delivers it, then "Delivered 10 Oct". */
 export const stateBadge = (
-  entry: Pick<FeedbackView, 'state'>,
-): Readonly<{ type: 'info' | 'success'; label: string }> =>
-  entry.state === 'delivered'
-    ? { type: 'success', label: 'Delivered' }
-    : { type: 'info', label: 'Awaiting delivery' };
+  entry: Pick<FeedbackView, 'state' | 'deliveredOn'>,
+): Readonly<{ type: 'info' | 'success'; label: string }> => {
+  if (entry.state !== 'delivered') return { type: 'info', label: 'Awaiting delivery' };
+  return {
+    type: 'success',
+    label: entry.deliveredOn ? `Delivered ${shortDay(entry.deliveredOn)}` : 'Delivered',
+  };
+};
+
+/** "Anjali Deshpande’s feedback (8 Oct)": what a conversation delivered, as v2 links it. */
+export const deliveredLabel = (conversation: Pick<ConversationView, 'feedback'>): string =>
+  `${conversation.feedback.author.name}’s feedback (${dayAndMonth(conversation.feedback.submittedAt)})`;
+
+/** One timeline entry: feedback (or a draft) or a conversation (10.3 decision 2). */
+export type TimelineEntry =
+  | Readonly<{ kind: 'feedback'; id: string; entry: FeedbackView }>
+  | Readonly<{ kind: 'conversation'; id: string; conversation: ConversationView }>;
+
+type Keyed = Readonly<{ item: TimelineEntry; day: string; rank: number; time: string }>;
+
+/**
+ * The viewer's drafts first (9.6), then feedback and conversations newest first: by day where
+ * the viewer is (a conversation's is the day it was held), a conversation before feedback on the
+ * same day, then the newest moment.
+ */
+export const timelineEntries = (
+  feedback: readonly FeedbackView[],
+  conversations: readonly ConversationView[],
+): TimelineEntry[] => {
+  const drafts = feedback.filter((entry) => entry.state === 'draft');
+  const dated: Keyed[] = [
+    ...feedback
+      .filter((entry) => entry.state !== 'draft')
+      .map((entry): Keyed => {
+        const at = entry.submittedAt ?? entry.updatedAt;
+        return {
+          item: { kind: 'feedback', id: entry.id, entry },
+          day: today(new Date(at)),
+          rank: 1,
+          time: at,
+        };
+      }),
+    ...conversations.map((conversation): Keyed => ({
+      item: { kind: 'conversation', id: conversation.id, conversation },
+      day: conversation.heldOn,
+      rank: 0,
+      time: conversation.createdAt,
+    })),
+  ];
+  const sorted = dated.toSorted(
+    (a, b) => b.day.localeCompare(a.day) || a.rank - b.rank || b.time.localeCompare(a.time),
+  );
+  return [
+    ...drafts.map((entry): TimelineEntry => ({ kind: 'feedback', id: entry.id, entry })),
+    ...sorted.map(({ item }) => item),
+  ];
+};
 
 const excerptLength = 160;
 

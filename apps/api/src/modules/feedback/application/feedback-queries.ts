@@ -17,6 +17,8 @@ export type FeedbackEntryView = Readonly<{
   createdAt: Date;
   updatedAt: Date;
   editedAt: Date | null;
+  /** The day its conversation was held; `null` until delivered (10.3). */
+  deliveredOn: string | null;
 }>;
 
 /** Read models for feedback. */

@@ -60,6 +60,7 @@ describe('FeedbackView', () => {
       conversationId: null,
       submittedAt: '2026-10-24T09:00:00.000Z',
       editedAt: null,
+      deliveredOn: null,
       createdAt: '2026-10-23T09:00:00.000Z',
       updatedAt: '2026-10-24T09:00:00.000Z',
     };

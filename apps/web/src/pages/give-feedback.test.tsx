@@ -98,6 +98,7 @@ const entry = (overrides: Partial<FeedbackView> = {}): FeedbackView => ({
   createdAt: '2026-10-20T09:00:00.000Z',
   updatedAt: '2026-10-20T09:00:00.000Z',
   editedAt: null,
+  deliveredOn: null,
   ...overrides,
 });
 
@@ -122,6 +123,7 @@ const stub = ({
     [`GET /batches/${batchId}`]: { status: 200, body: detail },
     [`GET ${profilePath}`]: { status: 200, body: profile },
     [`GET ${feedbackPath}`]: { status: 200, body: [] },
+    [`GET /batches/${batchId}/interns/${internId}/conversations`]: { status: 200, body: [] },
     [`POST ${feedbackPath}`]: answer,
     [`PUT ${feedbackPath}/${draftId}`]: { status: 200, body: entry() },
   });

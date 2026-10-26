@@ -1,4 +1,4 @@
-import type { FeedbackView } from '@feedback-portal/contracts';
+import type { ConversationView, FeedbackView } from '@feedback-portal/contracts';
 import { describe, expect, it } from 'vitest';
 import {
   colourChange,
@@ -8,6 +8,7 @@ import {
   latestColouredOn,
   shortPeriod,
   stateBadge,
+  timelineEntries,
 } from './feedback-entry.ts';
 
 const entry = (overrides: Partial<FeedbackView> = {}): FeedbackView => ({
@@ -25,6 +26,7 @@ const entry = (overrides: Partial<FeedbackView> = {}): FeedbackView => ({
   createdAt: '2026-10-08T12:00:00.000Z',
   updatedAt: '2026-10-08T12:00:00.000Z',
   editedAt: null,
+  deliveredOn: null,
   ...overrides,
 });
 
@@ -85,5 +87,46 @@ describe('the latest coloured feedback', () => {
       ]),
     ).toBe('8 Oct 2026');
     expect(latestColouredOn([entry()])).toBeNull();
+  });
+});
+
+const conversationOn = (heldOn: string, createdAt: string): ConversationView => ({
+  id: `01890a5d-ac96-774b-bcce-b3020900c${heldOn.slice(8)}${createdAt.slice(11, 13)}`
+    .padEnd(36, '0')
+    .slice(0, 36),
+  internId: '01890a5d-ac96-774b-bcce-b30209000002',
+  recordedBy: { id: '01890a5d-ac96-774b-bcce-b30209000005', name: 'Raj', avatarUrl: null },
+  heldOn,
+  notes: 'Notes',
+  createdAt,
+  updatedAt: createdAt,
+  editedAt: null,
+  feedback: {
+    id: '01890a5d-ac96-774b-bcce-b30209000003',
+    author: { id: '01890a5d-ac96-774b-bcce-b30209000004', name: 'Pat Lee', avatarUrl: null },
+    submittedAt: '2026-10-08T12:00:00.000Z',
+  },
+});
+
+describe('the timeline order', () => {
+  it('puts drafts first, then feedback and conversations newest first, a conversation first on its day', () => {
+    const draft = entry({ id: 'draft', state: 'draft', submittedAt: null });
+    const morning = entry({ id: 'morning', submittedAt: '2026-10-10T06:00:00.000Z' });
+    const earlier = entry({ id: 'earlier', submittedAt: '2026-10-08T12:00:00.000Z' });
+    const later = entry({ id: 'later', submittedAt: '2026-10-12T12:00:00.000Z' });
+    const sameDay = conversationOn('2026-10-10', '2026-10-10T05:00:00.000Z');
+
+    expect(
+      timelineEntries([later, draft, morning, earlier], [sameDay]).map((item) =>
+        item.kind === 'feedback' ? item.entry.id : 'conversation',
+      ),
+    ).toEqual(['draft', 'later', 'conversation', 'morning', 'earlier']);
+  });
+
+  it('dates delivered feedback by its conversation', () => {
+    expect(stateBadge(entry({ state: 'delivered', deliveredOn: '2026-10-10' }))).toEqual({
+      type: 'success',
+      label: 'Delivered 10 Oct',
+    });
   });
 });

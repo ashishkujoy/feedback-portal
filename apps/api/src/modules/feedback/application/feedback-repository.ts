@@ -6,6 +6,8 @@ import type { FeedbackId } from '../domain/feedback-id.ts';
 /** Persistence for the `Feedback` aggregate. Only drafts are ever deleted (9.1 decision 1). */
 export type FeedbackRepository = Readonly<{
   findById: (id: FeedbackId) => Promise<Feedback | null>;
+  /** The same, locking the row until the transaction ends: one conversation delivers it (10.3). */
+  findByIdForUpdate: (id: FeedbackId) => Promise<Feedback | null>;
   /**
    * Creates or updates the feedback and, when given, the intern it changed (colour, notice), in
    * one transaction: both are saved or neither is.

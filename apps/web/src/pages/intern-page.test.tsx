@@ -108,6 +108,7 @@ const stub = (detail: InternDetail = intern()) =>
     [`GET /batches/${batchId}`]: { status: 200, body: batch },
     [`GET /batches/${batchId}/interns/${internId}`]: { status: 200, body: detail },
     [`GET /batches/${batchId}/interns/${internId}/feedback`]: { status: 200, body: [] },
+    [`GET /batches/${batchId}/interns/${internId}/conversations`]: { status: 200, body: [] },
   });
 
 const open = async (search = '') => {

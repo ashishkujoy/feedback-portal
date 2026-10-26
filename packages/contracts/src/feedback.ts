@@ -51,5 +51,7 @@ export const FeedbackView = z.object({
   updatedAt: z.iso.datetime(),
   /** When its author last changed it after submitting (9.8); `null` if never. */
   editedAt: z.iso.datetime().nullable(),
+  /** The day the conversation that delivered it was held (10.3); `null` until delivered. */
+  deliveredOn: z.iso.date().nullable(),
 });
 export type FeedbackView = z.infer<typeof FeedbackView>;

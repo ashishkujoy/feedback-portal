@@ -2,6 +2,8 @@ import type { Database, DbExecutor } from '../../../shared/db/client.ts';
 import type { BatchAccess } from '../../intern/application/batch-access.ts';
 import { createInternRepository } from '../../intern/infrastructure/drizzle-intern-repository.ts';
 import type { FeedbackTransaction } from '../application/feedback-admin.ts';
+import { createConversationQueries } from './drizzle-conversation-queries.ts';
+import { createConversationRepository } from './drizzle-conversation-repository.ts';
 import { createFeedbackQueries } from './drizzle-feedback-queries.ts';
 import { createFeedbackRepository } from './drizzle-feedback-repository.ts';
 
@@ -16,6 +18,8 @@ export const createFeedbackTransaction =
       work({
         feedback: createFeedbackRepository(tx),
         queries: createFeedbackQueries(tx),
+        conversations: createConversationRepository(tx),
+        conversationQueries: createConversationQueries(tx),
         interns: createInternRepository(tx),
         batchAccess: batchAccess(tx),
       }),

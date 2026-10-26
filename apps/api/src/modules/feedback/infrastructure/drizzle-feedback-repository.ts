@@ -33,6 +33,15 @@ export const createFeedbackRepository = (db: DbExecutor): FeedbackRepository => 
     return row ? toFeedback(row) : null;
   },
 
+  findByIdForUpdate: async (id) => {
+    const [row] = await db
+      .select()
+      .from(feedbackTable)
+      .where(eq(feedbackTable.id, id))
+      .for('update');
+    return row ? toFeedback(row) : null;
+  },
+
   // A savepoint when `db` is already a transaction. The feedback goes first: a notice's status
   // event refers to it.
   save: (feedback, intern) =>

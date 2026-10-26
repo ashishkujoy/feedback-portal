@@ -3,7 +3,7 @@ import type { ColorCode } from '@feedback-portal/contracts';
 import type { DbExecutor } from '../../../shared/db/client.ts';
 import { users } from '../../identity/infrastructure/schema.ts';
 import type { FeedbackEntryView, FeedbackQueries } from '../application/feedback-queries.ts';
-import { feedback } from './schema.ts';
+import { conversations, feedback } from './schema.ts';
 
 /**
  * The colour of the coloured feedback submitted just before this one (9.8 decision 1), worked
@@ -37,6 +37,7 @@ const columns = {
   createdAt: feedback.createdAt,
   updatedAt: feedback.updatedAt,
   editedAt: feedback.editedAt,
+  deliveredOn: conversations.heldOn,
   authorId: users.id,
   authorName: users.name,
   authorAvatarUrl: users.avatarUrl,
@@ -52,7 +53,11 @@ const toView = ({ authorId, authorName, authorAvatarUrl, ...entry }: Row): Feedb
 
 export const createFeedbackQueries = (db: DbExecutor): FeedbackQueries => {
   const select = () =>
-    db.select(columns).from(feedback).innerJoin(users, eq(users.id, feedback.authorId));
+    db
+      .select(columns)
+      .from(feedback)
+      .innerJoin(users, eq(users.id, feedback.authorId))
+      .leftJoin(conversations, eq(conversations.id, feedback.conversationId));
 
   return {
     listForIntern: async (internId, viewerId) => {

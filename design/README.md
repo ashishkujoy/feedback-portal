@@ -129,6 +129,23 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 - **Dates:** always "24 Jul", with the full date as the tooltip (decision 4; v2 uses month names for Meera).
 - **Screen readers** get a hidden list ("Yellow, 24 Jul 2026", every entry); the strip and chart are hidden from them.
 
+### Conversations (A8, P6) as built in 10.3
+- **Record conversation** (outline, sm) sits on each **Awaiting delivery** card, for the batch's PM only, on a record that isn't read-only, in a batch that isn't archived. v2 puts it on A24 and P26, which wait for Phase 11 (10.3 decision 1). It opens A8 with that feedback chosen.
+- **A8 as drawn:**
+  - 560px, with the description "\<intern\> · 2 submitted feedback awaiting delivery.";
+  - **Feedback delivered:** radio cards ("\<author\> · submitted 22 Oct 2026", the colour chip, a one-line excerpt; the chosen one ee-blue-50 with a primary border), with the help "Choose the feedback you went through in the 1:1.";
+  - **Date delivered** (the UTC date by default) beside **Delivered by** (disabled);
+  - **Conversation notes** in **the Markdown editor A7 uses** (decision 4; v2 draws a plain monospace textarea);
+  - **Cancel** and **Save conversation**.
+- **A8's other states:** **A8-empty** "No feedback is waiting to be delivered"; **A8-servererror** "We couldn't save the conversation" with the API's sentence, for example "This feedback has already been delivered.".
+- **The conversation entry** (decision 2):
+  - a teal rail with `circle-check-big`;
+  - a slate-50 card: "\<PM\> recorded a conversation · 10 Oct 2026" (with "· edited"), "Delivers \<Author\>’s feedback (8 Oct)" linking to that card, and the notes as Markdown;
+  - mixed newest first with feedback by day, a conversation first on its day.
+
+  Delivered feedback shows **Delivered 10 Oct**.
+- **Editing** (decision 3, not in v2): the PM's **Edit** (ghost-muted, sm, `pencil`) on the card opens A8 as **Edit conversation**. The delivered feedback is one fixed card ("The feedback a conversation delivered can't change."), with **Save changes**.
+
 ### Import from Airtable (A10) as built in 8.5
 - **Where:** an outline **Import from Airtable** (`download`) between Add intern and Assign mentors, and as the primary button in the managers' empty roster ("Import interns from Airtable, or add them one at a time.", then Add intern). Admins and the batch's PM only, not on an archived batch.
 - **A Base ID field** (8.5 decision 1, asked for in 8.1): the API key on its own row, then **Base ID and Table ID side by side** (mono, "Starts with “app”." / "Starts with “tbl”."), then View name full width. The key is a password field with autocomplete off; it lives only in the dialog and is gone once it closes.

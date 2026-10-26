@@ -25,11 +25,11 @@ export type ManageFeedbackDeps = Readonly<{ transaction: FeedbackTransaction; no
 /** Who is acting. */
 export type Actor = Viewer;
 
-type InternTarget = Readonly<{ actor: Actor; batchId: BatchId; internId: InternId }>;
+export type InternTarget = Readonly<{ actor: Actor; batchId: BatchId; internId: InternId }>;
 type EntryTarget = InternTarget & Readonly<{ feedbackId: FeedbackId }>;
 
 /** A batch the actor can't see is a 404, as everywhere else. */
-const ensureCanSee = async (
+export const ensureCanSee = async (
   { batchAccess }: FeedbackScope,
   actor: Actor,
   batchId: BatchId,
@@ -51,7 +51,7 @@ const ensureCanWrite = (access: BatchAccessGrant): void => {
 };
 
 /** The intern, if they're in this batch (an intern of another batch is a 404). */
-const internIn = async (
+export const internIn = async (
   { interns }: FeedbackScope,
   { batchId, internId }: InternTarget,
   lock: boolean,

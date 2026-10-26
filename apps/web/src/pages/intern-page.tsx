@@ -1,10 +1,16 @@
 import { type UseQueryResult, useQuery } from '@tanstack/react-query';
-import { type FeedbackView, isFinalStatus, type StatusAction } from '@feedback-portal/contracts';
+import {
+  type ConversationView,
+  type FeedbackView,
+  isFinalStatus,
+  type StatusAction,
+} from '@feedback-portal/contracts';
 import { getRouteApi } from '@tanstack/react-router';
 import { MessageSquare } from 'lucide-react';
 import { useState } from 'react';
 import { batchQuery } from '../api/batches.ts';
 import { isApiError } from '../api/errors.ts';
+import { conversationsQuery } from '../api/conversations.ts';
 import { feedbackQuery } from '../api/feedback.ts';
 import { internQuery } from '../api/interns.ts';
 import { today } from '../batches/batch-dates.ts';
@@ -15,6 +21,10 @@ import {
   newFeedback,
 } from '../interns/give-feedback-dialog.tsx';
 import { DiscardDraftDialog } from '../interns/profile/discard-draft-dialog.tsx';
+import {
+  type ConversationTarget,
+  RecordConversationDialog,
+} from '../interns/profile/record-conversation-dialog.tsx';
 import { EditDetailsDialog } from '../interns/profile/edit-details-dialog.tsx';
 import { latestColouredOn } from '../interns/profile/feedback-entry.ts';
 import {
@@ -47,6 +57,10 @@ const route = getRouteApi('/app/batches/$batchId/interns/$internId');
 type Tab = 'timeline' | 'details' | 'history';
 
 const panelId = 'intern-panel';
+
+// Stable empty lists, for while a query hasn't answered.
+const noFeedback: readonly FeedbackView[] = [];
+const noConversations: readonly ConversationView[] = [];
 
 const tabItems = (changes: number): TabItem<Tab>[] => [
   { value: 'timeline', label: 'Timeline' },
@@ -86,15 +100,21 @@ const TimelinePlaceholder = ({ name, onGiveFeedback }: TimelinePlaceholderProps)
 type TimelineProps = Readonly<{
   name: string;
   feedback: Pick<UseQueryResult<FeedbackView[]>, 'data' | 'error'>;
+  conversations: Pick<UseQueryResult<ConversationView[]>, 'data' | 'error'>;
   onGiveFeedback: (() => void) | undefined;
   viewerId: string | undefined;
   onContinue: ((draft: FeedbackView) => void) | undefined;
   onDiscard: ((draft: FeedbackView) => void) | undefined;
   onEdit: ((entry: FeedbackView) => void) | undefined;
+  onRecord: ((entry: FeedbackView) => void) | undefined;
+  onEditConversation: ((conversation: ConversationView) => void) | undefined;
 }>;
 
-/** The Timeline tab: the feedback, or A6-nofeedback when there's none. */
-const Timeline = ({ name, feedback, onGiveFeedback, ...actions }: TimelineProps) => {
+/**
+ * The Timeline tab: feedback and conversations (10.3), or A6-nofeedback when there's none. The
+ * feedback stays readable if only the conversations fail to load.
+ */
+const Timeline = ({ name, feedback, conversations, onGiveFeedback, ...actions }: TimelineProps) => {
   if (feedback.error) {
     return (
       <Callout type="issue" title="We couldn't load the feedback">
@@ -102,11 +122,25 @@ const Timeline = ({ name, feedback, onGiveFeedback, ...actions }: TimelineProps)
       </Callout>
     );
   }
-  if (!feedback.data) return <FeedbackTimelineSkeleton />;
-  return feedback.data.length === 0 ? (
-    <TimelinePlaceholder name={name} onGiveFeedback={onGiveFeedback} />
-  ) : (
-    <FeedbackTimeline entries={feedback.data} {...actions} />
+  if (!feedback.data || (!conversations.data && !conversations.error)) {
+    return <FeedbackTimelineSkeleton />;
+  }
+  if (feedback.data.length === 0) {
+    return <TimelinePlaceholder name={name} onGiveFeedback={onGiveFeedback} />;
+  }
+  return (
+    <>
+      {conversations.error ? (
+        <Callout type="issue" title="We couldn't load the conversations">
+          {isApiError(conversations.error) ? conversations.error.detail : undefined}
+        </Callout>
+      ) : null}
+      <FeedbackTimeline
+        feedback={feedback.data}
+        conversations={conversations.data ?? noConversations}
+        {...actions}
+      />
+    </>
   );
 };
 
@@ -129,7 +163,9 @@ export const InternPage = () => {
   // The feedback dialog: new feedback, a draft to carry on with, or an edit; `null` closed.
   const [writing, setWriting] = useState<FeedbackTarget | null>(null);
   const [discarding, setDiscarding] = useState<FeedbackView | null>(null);
+  const [conversing, setConversing] = useState<ConversationTarget | null>(null);
   const feedback = useQuery(feedbackQuery(batchId, internId));
+  const conversations = useQuery(conversationsQuery(batchId, internId));
 
   if (error) {
     return (
@@ -152,6 +188,9 @@ export const InternPage = () => {
   // A read-only record takes no feedback (9.5 decision 1).
   const canFeedback = me ? canWriteFeedback(me, batch) && !isFinalStatus(intern.status) : false;
   const giveFeedback = canFeedback ? () => setWriting(newFeedback) : undefined;
+  // Conversations are the batch's current PM's (10.2), not on a read-only record or archived batch.
+  const canConverse =
+    me?.id === batch.programManager.id && !batch.isArchived && !isFinalStatus(intern.status);
 
   return (
     <>
@@ -217,6 +256,15 @@ export const InternPage = () => {
         />
       ) : null}
       <DiscardDraftDialog intern={intern} draft={discarding} onClose={() => setDiscarding(null)} />
+      {canConverse ? (
+        <RecordConversationDialog
+          intern={intern}
+          batch={batch}
+          entries={feedback.data ?? noFeedback}
+          target={conversing}
+          onClose={() => setConversing(null)}
+        />
+      ) : null}
       {canEdit ? (
         <EditDetailsDialog
           intern={intern}
@@ -255,11 +303,22 @@ export const InternPage = () => {
             <Timeline
               name={intern.name}
               feedback={feedback}
+              conversations={conversations}
               onGiveFeedback={giveFeedback}
               viewerId={me?.id}
               onContinue={canFeedback ? (entry) => setWriting({ kind: 'draft', entry }) : undefined}
               onDiscard={canFeedback ? setDiscarding : undefined}
               onEdit={canFeedback ? (entry) => setWriting({ kind: 'edit', entry }) : undefined}
+              onRecord={
+                canConverse
+                  ? (entry) => setConversing({ kind: 'record', feedbackId: entry.id })
+                  : undefined
+              }
+              onEditConversation={
+                canConverse
+                  ? (conversation) => setConversing({ kind: 'edit', conversation })
+                  : undefined
+              }
             />
           ) : null}
           {tab === 'details' ? (

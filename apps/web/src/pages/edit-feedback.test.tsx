@@ -90,6 +90,7 @@ const entry = (overrides: Partial<FeedbackView> = {}): FeedbackView => ({
   createdAt: '2026-10-22T12:00:00.000Z',
   updatedAt: '2026-10-22T12:00:00.000Z',
   editedAt: null,
+  deliveredOn: null,
   ...overrides,
 });
 
@@ -132,6 +133,7 @@ const stub = ({
     [`GET /batches/${batchId}`]: { status: 200, body: batch },
     [`GET ${profilePath}`]: { status: 200, body: profile },
     [`GET ${feedbackPath}`]: list,
+    [`GET ${profilePath}/conversations`]: { status: 200, body: [] },
     [`PUT ${feedbackPath}/${draft.id}`]: { status: 200, body: { ...draft, state: 'submitted' } },
     [`DELETE ${feedbackPath}/${draft.id}`]: discard,
   };
@@ -194,6 +196,7 @@ describe('editing submitted feedback (9.8)', () => {
       author: pat,
       state: 'delivered',
       conversationId: '01890a5d-ac96-774b-bcce-b30209000c01',
+      submittedAt: '2026-10-19T12:00:00.000Z',
     });
     stub({ list: { status: 200, body: [draft, mine, delivered, notice] } });
     await open();
