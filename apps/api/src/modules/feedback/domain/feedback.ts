@@ -13,6 +13,7 @@ import {
 } from '../../intern/domain/intern.ts';
 import type { InternId } from '../../intern/domain/intern-id.ts';
 import type { StatusEventId } from '../../intern/domain/status-event-id.ts';
+import type { ConversationId } from './conversation-id.ts';
 import type { FeedbackId } from './feedback-id.ts';
 
 /**
@@ -322,7 +323,7 @@ export const editSubmitted = (
 /** Delivered in a conversation (10.2); from then on it never changes. */
 export const deliverFeedback = (
   feedback: Feedback,
-  { conversationId, now }: Readonly<{ conversationId: string; now: Date }>,
+  { conversationId, now }: Readonly<{ conversationId: ConversationId; now: Date }>,
 ): Feedback => {
   ensureNotDelivered(feedback);
   if (feedback.state !== 'submitted') throw conflict("A draft can't be delivered.");

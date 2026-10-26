@@ -20,3 +20,24 @@ export const addMonths = (isoDate: string, count: number): string => {
 
 /** The calendar date in UTC (9.3 decision 3): the server's "today" for notices and months. */
 export const utcToday = (now: Date): string => now.toISOString().slice(0, 10);
+
+const shortMonths = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+/** "12 Oct 2026", as the web shows dates, for messages people read. */
+export const dayLabel = (isoDate: string): string => {
+  const [year = 0, month = 1, day = 1] = isoDate.split('-').map(Number);
+  return `${day} ${shortMonths[month - 1] ?? ''} ${year}`;
+};

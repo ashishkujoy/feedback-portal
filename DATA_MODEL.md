@@ -246,7 +246,10 @@ Checks: `num_nonnulls(feedback_id, conversation_id) = 1`, so each comment belong
 - Comments on feedback are allowed once it is `submitted`, and they stay open after delivery. A comment adds context without changing the original entry. Drafts cannot be commented on.
 
 **Conversations**
-- Only the batch's current PM can record a conversation. The PM picks which submitted feedback entries were delivered.
+- Only the batch's current PM can record a conversation (10.2 decision 1). It delivers **one** submitted feedback entry, which becomes `delivered` in the same transaction.
+- "Date delivered" is a day from the feedback's submission to today, in UTC (decision 2). The notes are required.
+- The batch's current PM can change the notes and date later, whoever recorded it, marking it edited (decision 3). The feedback it delivered never changes.
+- Nothing is recorded or changed for a read-only intern or in an archived batch (decision 4).
 - Every current mentor and the PM of the batch can comment.
 
 **Status transitions**

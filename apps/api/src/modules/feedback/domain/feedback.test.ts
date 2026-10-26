@@ -25,6 +25,7 @@ import {
   monthLabel,
   submitFeedback,
 } from './feedback.ts';
+import { newConversationId } from './conversation-id.ts';
 import { newFeedbackId } from './feedback-id.ts';
 
 const t0 = new Date('2026-07-06T09:00:00Z');
@@ -33,7 +34,7 @@ const t2 = new Date('2026-10-25T09:00:00Z');
 const pm = newUserId();
 const mentor = newUserId();
 const otherMentor = newUserId();
-const conversationId = '01890a5d-ac96-774b-bcce-b30209000c01';
+const conversationId = newConversationId();
 
 const range: MonthRange = { batchStartsOn: '2026-07-06', today: '2026-10-24' };
 
