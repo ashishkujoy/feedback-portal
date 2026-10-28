@@ -1,4 +1,9 @@
-import type { ColorCode, ConversationView, FeedbackView } from '@feedback-portal/contracts';
+import type {
+  ColorCode,
+  CommentView,
+  ConversationView,
+  FeedbackView,
+} from '@feedback-portal/contracts';
 import { formatDate, formatDay, today } from '../../batches/batch-dates.ts';
 
 const shortMonths = [
@@ -76,21 +81,26 @@ export const stateBadge = (
 export const deliveredLabel = (conversation: Pick<ConversationView, 'feedback'>): string =>
   `${conversation.feedback.author.name}’s feedback (${dayAndMonth(conversation.feedback.submittedAt)})`;
 
-/** One timeline entry: feedback (or a draft) or a conversation (10.3 decision 2). */
+/**
+ * One timeline entry: feedback (or a draft), a conversation (10.3 decision 2), or a comment (10.5
+ * decision 1).
+ */
 export type TimelineEntry =
   | Readonly<{ kind: 'feedback'; id: string; entry: FeedbackView }>
-  | Readonly<{ kind: 'conversation'; id: string; conversation: ConversationView }>;
+  | Readonly<{ kind: 'conversation'; id: string; conversation: ConversationView }>
+  | Readonly<{ kind: 'comment'; id: string; comment: CommentView }>;
 
 type Keyed = Readonly<{ item: TimelineEntry; day: string; rank: number; time: string }>;
 
 /**
- * The viewer's drafts first (9.6), then feedback and conversations newest first: by day where
- * the viewer is (a conversation's is the day it was held), a conversation before feedback on the
- * same day, then the newest moment.
+ * The viewer's drafts first (9.6), then everything else newest first: by day where the viewer is
+ * (a conversation's is the day it was held), then on the same day a comment, a conversation, then
+ * feedback (a comment always follows what it's on), then the newest moment.
  */
 export const timelineEntries = (
   feedback: readonly FeedbackView[],
   conversations: readonly ConversationView[],
+  comments: readonly CommentView[],
 ): TimelineEntry[] => {
   const drafts = feedback.filter((entry) => entry.state === 'draft');
   const dated: Keyed[] = [
@@ -101,15 +111,21 @@ export const timelineEntries = (
         return {
           item: { kind: 'feedback', id: entry.id, entry },
           day: today(new Date(at)),
-          rank: 1,
+          rank: 2,
           time: at,
         };
       }),
     ...conversations.map((conversation): Keyed => ({
       item: { kind: 'conversation', id: conversation.id, conversation },
       day: conversation.heldOn,
-      rank: 0,
+      rank: 1,
       time: conversation.createdAt,
+    })),
+    ...comments.map((comment): Keyed => ({
+      item: { kind: 'comment', id: comment.id, comment },
+      day: today(new Date(comment.createdAt)),
+      rank: 0,
+      time: comment.createdAt,
     })),
   ];
   const sorted = dated.toSorted(
@@ -120,6 +136,31 @@ export const timelineEntries = (
     ...sorted.map(({ item }) => item),
   ];
 };
+
+/** How many comments each feedback entry or conversation has, deleted ones included. */
+export const commentCounts = (comments: readonly CommentView[]): ReadonlyMap<string, number> => {
+  const counts = new Map<string, number>();
+  for (const { parent } of comments) counts.set(parent.id, (counts.get(parent.id) ?? 0) + 1);
+  return counts;
+};
+
+/**
+ * The card's note: "No comments", or where they are. A comment always follows what it's on, so on
+ * the newest-first timeline it sits above the card (10.5 decision 2; v2 writes "below").
+ */
+export const commentNote = (count: number): string => {
+  if (count === 0) return 'No comments';
+  return `${count} ${count === 1 ? 'comment' : 'comments'} above`;
+};
+
+/** "Rajesh Menon’s conversation (10 Oct)": a conversation, as a comment links to it. */
+export const conversationLabel = (
+  conversation: Pick<ConversationView, 'recordedBy' | 'heldOn'>,
+): string => `${conversation.recordedBy.name}’s conversation (${shortDay(conversation.heldOn)})`;
+
+/** "Vikram Shetty’s feedback (22 Oct)": feedback, as a comment or a conversation links to it. */
+export const feedbackLabel = (entry: Pick<FeedbackView, 'author' | 'submittedAt'>): string =>
+  `${entry.author.name}’s feedback (${entry.submittedAt ? dayAndMonth(entry.submittedAt) : ''})`;
 
 const excerptLength = 160;
 

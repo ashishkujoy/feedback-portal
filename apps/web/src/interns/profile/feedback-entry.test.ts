@@ -1,9 +1,13 @@
-import type { ConversationView, FeedbackView } from '@feedback-portal/contracts';
+import type { CommentView, ConversationView, FeedbackView } from '@feedback-portal/contracts';
 import { describe, expect, it } from 'vitest';
 import {
   colourChange,
+  commentCounts,
+  commentNote,
+  conversationLabel,
   dayAndMonth,
   excerpt,
+  feedbackLabel,
   feedbackLine,
   latestColouredOn,
   shortPeriod,
@@ -108,6 +112,45 @@ const conversationOn = (heldOn: string, createdAt: string): ConversationView => 
   },
 });
 
+const commentOn = (parentId: string, id: string, createdAt: string): CommentView => ({
+  id,
+  parent: { kind: parentId === 'feedback' ? 'feedback' : 'conversation', id: parentId },
+  author: { id: '01890a5d-ac96-774b-bcce-b30209000006', name: 'Joel', avatarUrl: null },
+  body: 'Agree.',
+  createdAt,
+  editedAt: null,
+  deletedAt: null,
+});
+
+describe('comments on cards', () => {
+  it("counts each parent's comments, deleted ones included", () => {
+    const deleted = { ...commentOn('a', '1', '2026-10-10T08:00:00.000Z'), deletedAt: 'x' };
+    const counts = commentCounts([
+      deleted,
+      commentOn('a', '2', '2026-10-11T08:00:00.000Z'),
+      commentOn('b', '3', '2026-10-11T08:00:00.000Z'),
+    ]);
+    expect([counts.get('a'), counts.get('b'), counts.get('c')]).toEqual([2, 1, undefined]);
+  });
+
+  it('says how many there are, and that they sit above the card', () => {
+    expect([commentNote(0), commentNote(1), commentNote(3)]).toEqual([
+      'No comments',
+      '1 comment above',
+      '3 comments above',
+    ]);
+  });
+
+  it('names what a comment is on', () => {
+    expect(feedbackLabel(entry({ submittedAt: '2026-10-22T12:00:00.000Z' }))).toBe(
+      'Pat Lee’s feedback (22 Oct)',
+    );
+    expect(conversationLabel(conversationOn('2026-10-10', '2026-10-10T05:00:00.000Z'))).toBe(
+      'Raj’s conversation (10 Oct)',
+    );
+  });
+});
+
 describe('the timeline order', () => {
   it('puts drafts first, then feedback and conversations newest first, a conversation first on its day', () => {
     const draft = entry({ id: 'draft', state: 'draft', submittedAt: null });
@@ -117,10 +160,24 @@ describe('the timeline order', () => {
     const sameDay = conversationOn('2026-10-10', '2026-10-10T05:00:00.000Z');
 
     expect(
-      timelineEntries([later, draft, morning, earlier], [sameDay]).map((item) =>
+      timelineEntries([later, draft, morning, earlier], [sameDay], []).map((item) =>
         item.kind === 'feedback' ? item.entry.id : 'conversation',
       ),
     ).toEqual(['draft', 'later', 'conversation', 'morning', 'earlier']);
+  });
+
+  it('puts comments newest first by their day, before what they follow on the same day', () => {
+    const feedback = entry({ id: 'feedback', submittedAt: '2026-10-10T12:00:00.000Z' });
+    const held = conversationOn('2026-10-12', '2026-10-12T09:00:00.000Z');
+    const onFeedback = commentOn('feedback', 'same-day', '2026-10-10T08:00:00.000Z');
+    const onConversation = commentOn(held.id, 'on-conversation', '2026-10-12T07:00:00.000Z');
+    const latest = commentOn('feedback', 'latest', '2026-10-14T09:00:00.000Z');
+
+    expect(
+      timelineEntries([feedback], [held], [onFeedback, onConversation, latest]).map((item) =>
+        item.kind === 'conversation' ? 'conversation' : item.id,
+      ),
+    ).toEqual(['latest', 'on-conversation', 'conversation', 'same-day', 'feedback']);
   });
 
   it('dates delivered feedback by its conversation', () => {

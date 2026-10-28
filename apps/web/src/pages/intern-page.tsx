@@ -1,5 +1,6 @@
 import { type UseQueryResult, useQuery } from '@tanstack/react-query';
 import {
+  type CommentView,
   type ConversationView,
   type FeedbackView,
   isFinalStatus,
@@ -7,8 +8,9 @@ import {
 } from '@feedback-portal/contracts';
 import { getRouteApi } from '@tanstack/react-router';
 import { MessageSquare } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { batchQuery } from '../api/batches.ts';
+import { commentsQuery } from '../api/comments.ts';
 import { isApiError } from '../api/errors.ts';
 import { conversationsQuery } from '../api/conversations.ts';
 import { feedbackQuery } from '../api/feedback.ts';
@@ -20,6 +22,8 @@ import {
   GiveFeedbackDialog,
   newFeedback,
 } from '../interns/give-feedback-dialog.tsx';
+import { DeleteCommentDialog } from '../interns/profile/comment-entry.tsx';
+import type { InternRef } from '../interns/profile/comment-row.tsx';
 import { DiscardDraftDialog } from '../interns/profile/discard-draft-dialog.tsx';
 import {
   type ConversationTarget,
@@ -61,6 +65,7 @@ const panelId = 'intern-panel';
 // Stable empty lists, for while a query hasn't answered.
 const noFeedback: readonly FeedbackView[] = [];
 const noConversations: readonly ConversationView[] = [];
+const noComments: readonly CommentView[] = [];
 
 const tabItems = (changes: number): TabItem<Tab>[] => [
   { value: 'timeline', label: 'Timeline' },
@@ -101,6 +106,7 @@ type TimelineProps = Readonly<{
   name: string;
   feedback: Pick<UseQueryResult<FeedbackView[]>, 'data' | 'error'>;
   conversations: Pick<UseQueryResult<ConversationView[]>, 'data' | 'error'>;
+  comments: Pick<UseQueryResult<CommentView[]>, 'data' | 'error'>;
   onGiveFeedback: (() => void) | undefined;
   viewerId: string | undefined;
   onContinue: ((draft: FeedbackView) => void) | undefined;
@@ -108,13 +114,23 @@ type TimelineProps = Readonly<{
   onEdit: ((entry: FeedbackView) => void) | undefined;
   onRecord: ((entry: FeedbackView) => void) | undefined;
   onEditConversation: ((conversation: ConversationView) => void) | undefined;
+  intern: InternRef;
+  canComment: boolean;
+  onDeleteComment: (comment: CommentView) => void;
 }>;
 
 /**
- * The Timeline tab: feedback and conversations (10.3), or A6-nofeedback when there's none. The
- * feedback stays readable if only the conversations fail to load.
+ * The Timeline tab: feedback, conversations (10.3) and comments (10.5), or A6-nofeedback when
+ * there's none. The feedback stays readable if only the conversations or comments fail to load.
  */
-const Timeline = ({ name, feedback, conversations, onGiveFeedback, ...actions }: TimelineProps) => {
+const Timeline = ({
+  name,
+  feedback,
+  conversations,
+  comments,
+  onGiveFeedback,
+  ...actions
+}: TimelineProps) => {
   if (feedback.error) {
     return (
       <Callout type="issue" title="We couldn't load the feedback">
@@ -122,7 +138,11 @@ const Timeline = ({ name, feedback, conversations, onGiveFeedback, ...actions }:
       </Callout>
     );
   }
-  if (!feedback.data || (!conversations.data && !conversations.error)) {
+  if (
+    !feedback.data ||
+    (!conversations.data && !conversations.error) ||
+    (!comments.data && !comments.error)
+  ) {
     return <FeedbackTimelineSkeleton />;
   }
   if (feedback.data.length === 0) {
@@ -135,9 +155,15 @@ const Timeline = ({ name, feedback, conversations, onGiveFeedback, ...actions }:
           {isApiError(conversations.error) ? conversations.error.detail : undefined}
         </Callout>
       ) : null}
+      {comments.error ? (
+        <Callout type="issue" title="We couldn't load the comments">
+          {isApiError(comments.error) ? comments.error.detail : undefined}
+        </Callout>
+      ) : null}
       <FeedbackTimeline
         feedback={feedback.data}
         conversations={conversations.data ?? noConversations}
+        comments={comments.data ?? noComments}
         {...actions}
       />
     </>
@@ -166,6 +192,9 @@ export const InternPage = () => {
   const [conversing, setConversing] = useState<ConversationTarget | null>(null);
   const feedback = useQuery(feedbackQuery(batchId, internId));
   const conversations = useQuery(conversationsQuery(batchId, internId));
+  const comments = useQuery(commentsQuery(batchId, internId));
+  const internRef = useMemo((): InternRef => ({ batchId, internId }), [batchId, internId]);
+  const [deletingComment, setDeletingComment] = useState<CommentView | null>(null);
 
   if (error) {
     return (
@@ -256,6 +285,11 @@ export const InternPage = () => {
         />
       ) : null}
       <DiscardDraftDialog intern={intern} draft={discarding} onClose={() => setDiscarding(null)} />
+      <DeleteCommentDialog
+        intern={internRef}
+        comment={deletingComment}
+        onClose={() => setDeletingComment(null)}
+      />
       {canConverse ? (
         <RecordConversationDialog
           intern={intern}
@@ -304,6 +338,7 @@ export const InternPage = () => {
               name={intern.name}
               feedback={feedback}
               conversations={conversations}
+              comments={comments}
               onGiveFeedback={giveFeedback}
               viewerId={me?.id}
               onContinue={canFeedback ? (entry) => setWriting({ kind: 'draft', entry }) : undefined}
@@ -319,6 +354,10 @@ export const InternPage = () => {
                   ? (conversation) => setConversing({ kind: 'edit', conversation })
                   : undefined
               }
+              intern={internRef}
+              // Comments follow feedback's rule: the batch's mentors and PM (10.5 decision 3).
+              canComment={canFeedback}
+              onDeleteComment={setDeletingComment}
             />
           ) : null}
           {tab === 'details' ? (

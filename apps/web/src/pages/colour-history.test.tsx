@@ -118,6 +118,7 @@ const stub = ({
     [`GET ${profilePath}`]: { status: 200, body: profile },
     [`GET ${profilePath}/feedback`]: list,
     [`GET ${profilePath}/conversations`]: { status: 200, body: [] },
+    [`GET ${profilePath}/comments`]: { status: 200, body: [] },
   });
 
 const open = async () => {

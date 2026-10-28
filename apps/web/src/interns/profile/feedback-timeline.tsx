@@ -1,7 +1,8 @@
-import type { ConversationView, FeedbackView } from '@feedback-portal/contracts';
+import type { CommentView, ConversationView, FeedbackView } from '@feedback-portal/contracts';
 import {
   ArrowRight,
   CircleCheckBig,
+  MessageCircle,
   MessageSquare,
   PenLine,
   Pencil,
@@ -13,11 +14,16 @@ import { Skeleton } from '../../ui/skeleton.tsx';
 import { StatusBadge } from '../../ui/status-badge.tsx';
 import { ColourChip } from '../colour-chip.tsx';
 import { formatDate } from '../../batches/batch-dates.ts';
+import { type CommentTarget, CommentEntry } from './comment-entry.tsx';
+import { CommentRow, type InternRef } from './comment-row.tsx';
 import {
   colourChange,
+  commentCounts,
+  conversationLabel,
   dayAndMonth,
   deliveredLabel,
   excerpt,
+  feedbackLabel,
   feedbackLine,
   isEditableBy,
   stateBadge,
@@ -70,16 +76,25 @@ type FeedbackCardProps = Readonly<{
   onEdit: (() => void) | undefined;
   /** The batch's PM's Record conversation, while it's awaiting delivery (10.3 decision 1). */
   onRecord: (() => void) | undefined;
+  /** The comment row (10.5). */
+  comments: CommentsProps;
 }>;
 
-/** The id a conversation's "Delivers …" link points at. */
+/** What a card's comment row needs. */
+type CommentsProps = Readonly<{ intern: InternRef; count: number; canComment: boolean }>;
+
+/** The id a conversation's "Delivers …" link, or a comment's, points at. */
 export const feedbackAnchor = (id: string) => `feedback-${id}`;
+
+/** The id a comment's link points at. */
+export const conversationAnchor = (id: string) => `conversation-${id}`;
 
 /**
  * v2 P6's feedback card: who and when, the state, the colour change and notice, the text, and
- * for its author an Edit button at the bottom left (9.8).
+ * its foot: the author's Edit (9.8), the PM's Record conversation (10.3), then the comment row
+ * (10.5), in one row.
  */
-const FeedbackCard = ({ entry, onEdit, onRecord }: FeedbackCardProps) => {
+const FeedbackCard = ({ entry, onEdit, onRecord, comments }: FeedbackCardProps) => {
   const badge = stateBadge(entry);
   return (
     <article
@@ -98,21 +113,19 @@ const FeedbackCard = ({ entry, onEdit, onRecord }: FeedbackCardProps) => {
       <div className="px-4 pt-3 pb-3.5">
         <Markdown>{entry.body}</Markdown>
       </div>
-      {onEdit || onRecord ? (
-        <div className="flex gap-2 px-4 pb-3">
-          {onEdit ? (
-            <Button variant="ghost-muted" size="sm" onClick={onEdit}>
-              <Pencil aria-hidden size={14} strokeWidth={2} />
-              Edit
-            </Button>
-          ) : null}
-          {onRecord ? (
-            <Button variant="outline" size="sm" onClick={onRecord}>
-              Record conversation
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
+      <CommentRow {...comments} parentKind="feedback" parentId={entry.id} className="px-2.5 pb-2.5">
+        {onEdit ? (
+          <Button variant="ghost-muted" size="sm" onClick={onEdit}>
+            <Pencil aria-hidden size={14} strokeWidth={2} />
+            Edit
+          </Button>
+        ) : null}
+        {onRecord ? (
+          <Button variant="outline" size="sm" onClick={onRecord}>
+            Record conversation
+          </Button>
+        ) : null}
+      </CommentRow>
     </article>
   );
 };
@@ -121,14 +134,17 @@ type ConversationCardProps = Readonly<{
   conversation: ConversationView;
   /** The batch's PM's Edit (10.3 decision 3). */
   onEdit: (() => void) | undefined;
+  /** The comment row (10.5 decision 5; not in v2). */
+  comments: CommentsProps;
 }>;
 
 /**
  * v2 P6's conversation entry: a slate-50 card, "<PM> recorded a conversation · 10 Oct 2026", the
  * feedback it delivered (linked to its card) and the notes.
  */
-const ConversationCard = ({ conversation, onEdit }: ConversationCardProps) => (
+const ConversationCard = ({ conversation, onEdit, comments }: ConversationCardProps) => (
   <article
+    id={conversationAnchor(conversation.id)}
     aria-label={`Conversation recorded by ${conversation.recordedBy.name}`}
     className="flex flex-col gap-2 border border-border bg-(--slate-50) px-4 py-3"
   >
@@ -148,14 +164,19 @@ const ConversationCard = ({ conversation, onEdit }: ConversationCardProps) => (
       </a>
     </p>
     <Markdown>{conversation.notes}</Markdown>
-    {onEdit ? (
-      <div className="flex">
+    <CommentRow
+      {...comments}
+      parentKind="conversation"
+      parentId={conversation.id}
+      className="-mx-1.5"
+    >
+      {onEdit ? (
         <Button variant="ghost-muted" size="sm" onClick={onEdit}>
           <Pencil aria-hidden size={14} strokeWidth={2} />
           Edit
         </Button>
-      </div>
-    ) : null}
+      ) : null}
+    </CommentRow>
   </article>
 );
 
@@ -215,11 +236,34 @@ type FeedbackTimelineProps = Readonly<{
   /** Only for the batch's PM, while the record isn't read-only (10.2). */
   onRecord: ((entry: FeedbackView) => void) | undefined;
   onEditConversation: ((conversation: ConversationView) => void) | undefined;
+  /** Every comment on the intern's feedback and conversations (10.5). */
+  comments: readonly CommentView[];
+  intern: InternRef;
+  /** The batch's current mentors and PM, on a record that can change (10.5 decision 3). */
+  canComment: boolean;
+  onDeleteComment: (comment: CommentView) => void;
 }>;
 
+/** Where a comment's link goes, if what it's on is loaded. */
+const targetOf = (
+  comment: CommentView,
+  feedback: readonly FeedbackView[],
+  conversations: readonly ConversationView[],
+): CommentTarget | null => {
+  const { kind, id } = comment.parent;
+  if (kind === 'conversation') {
+    const conversation = conversations.find((each) => each.id === id);
+    return conversation
+      ? { label: conversationLabel(conversation), href: `#${conversationAnchor(id)}` }
+      : null;
+  }
+  const entry = feedback.find((each) => each.id === id);
+  return entry ? { label: feedbackLabel(entry), href: `#${feedbackAnchor(id)}` } : null;
+};
+
 /**
- * P6's timeline: the viewer's drafts, then feedback and conversations newest first (10.3
- * decision 2). Comments and status changes join in 10.6.
+ * P6's timeline: the viewer's drafts, then feedback, conversations (10.3 decision 2) and comments
+ * (10.5 decision 1) newest first. Status changes join in 10.6.
  */
 export const FeedbackTimeline = ({
   feedback,
@@ -230,12 +274,42 @@ export const FeedbackTimeline = ({
   onEdit,
   onRecord,
   onEditConversation,
+  comments,
+  intern,
+  canComment,
+  onDeleteComment,
 }: FeedbackTimelineProps) => {
-  const items = timelineEntries(feedback, conversations);
+  const items = timelineEntries(feedback, conversations, comments);
+  const counts = commentCounts(comments);
+  const commentsOn = (id: string): CommentsProps => ({
+    intern,
+    count: counts.get(id) ?? 0,
+    canComment,
+  });
   return (
     <ol aria-label="Timeline" className="flex flex-col">
       {items.map((item, index) => {
         const last = index === items.length - 1;
+        if (item.kind === 'comment') {
+          const { comment } = item;
+          return (
+            <li key={item.id} className="flex gap-3.5">
+              <Rail icon={MessageCircle} tone="bg-(--slate-100) text-(--slate-600)" last={last} />
+              <div className="min-w-0 flex-1 pb-4">
+                <CommentEntry
+                  intern={intern}
+                  comment={comment}
+                  on={targetOf(comment, feedback, conversations)}
+                  onDelete={
+                    canComment && comment.author.id === viewerId
+                      ? () => onDeleteComment(comment)
+                      : undefined
+                  }
+                />
+              </div>
+            </li>
+          );
+        }
         if (item.kind === 'conversation') {
           return (
             <li key={item.id} className="flex gap-3.5">
@@ -250,6 +324,7 @@ export const FeedbackTimeline = ({
                   onEdit={
                     onEditConversation ? () => onEditConversation(item.conversation) : undefined
                   }
+                  comments={commentsOn(item.id)}
                 />
               </div>
             </li>
@@ -284,6 +359,7 @@ export const FeedbackTimeline = ({
                   onRecord={
                     onRecord && entry.state === 'submitted' ? () => onRecord(entry) : undefined
                   }
+                  comments={commentsOn(entry.id)}
                 />
               )}
             </div>

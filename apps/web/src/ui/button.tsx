@@ -1,12 +1,14 @@
 import type { ComponentProps } from 'react';
 
-type ButtonVariant = 'primary' | 'outline' | 'ghost' | 'ghost-muted' | 'destructive';
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'ghost-muted' | 'destructive';
 type ButtonSize = 'sm' | 'md';
 
 // Kuat's ee-blue skin, from kuat-core's button-variables.css.
 const variants: Readonly<Record<ButtonVariant, string>> = {
   primary:
     'border-transparent bg-(--kuat-button-ee-blue-primary-background) text-(--kuat-button-ee-blue-primary-foreground) not-disabled:hover:bg-(--kuat-button-ee-blue-primary-background--hover) not-disabled:active:bg-(--kuat-button-ee-blue-primary-background--active) disabled:bg-(--kuat-button-ee-blue-primary-background--disabled) disabled:text-(--kuat-button-ee-blue-primary-foreground--disabled)',
+  secondary:
+    'border-transparent bg-(--kuat-button-ee-blue-secondary-background) text-(--kuat-button-ee-blue-secondary-foreground) not-disabled:hover:bg-(--kuat-button-ee-blue-secondary-background--hover) not-disabled:active:bg-(--kuat-button-ee-blue-secondary-background--active) disabled:bg-(--kuat-button-ee-blue-secondary-background--disabled) disabled:text-(--kuat-button-ee-blue-secondary-foreground--disabled)',
   outline:
     'border-(--kuat-button-ee-blue-outline-border) bg-transparent text-(--kuat-button-ee-blue-outline-foreground) not-disabled:hover:bg-(--kuat-button-ee-blue-outline-background--hover) not-disabled:active:bg-(--kuat-button-ee-blue-outline-background--active) disabled:border-(--slate-300) disabled:text-(--slate-500)',
   ghost:

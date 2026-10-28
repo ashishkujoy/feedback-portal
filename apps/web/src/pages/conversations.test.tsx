@@ -162,6 +162,7 @@ const stub = ({
     [`GET ${profilePath}`]: { status: 200, body: profile },
     [`GET ${profilePath}/feedback`]: { status: 200, body: list },
     [`GET ${conversationsPath}`]: conversations,
+    [`GET ${profilePath}/comments`]: { status: 200, body: [] },
     [`POST ${conversationsPath}`]: record,
     [`PATCH ${conversationsPath}/${conversationId}`]: {
       status: 200,
@@ -226,7 +227,12 @@ describe('conversations on the timeline (10.3)', () => {
         .queryAllByRole('button')
         .map((button) => button.textContent),
     );
-    expect(buttons).toEqual([['Record conversation'], ['Record conversation'], ['Edit'], []]);
+    expect(buttons).toEqual([
+      ['Record conversation', 'Comment'],
+      ['Record conversation', 'Comment'],
+      ['Edit', 'Comment'],
+      ['Comment'],
+    ]);
   });
 
   it('gives mentors no conversation buttons', async () => {
@@ -235,7 +241,7 @@ describe('conversations on the timeline (10.3)', () => {
 
     expect(screen.queryByRole('button', { name: 'Record conversation' })).not.toBeInTheDocument();
     expect(
-      card('Conversation recorded by Ada Lovelace').queryByRole('button'),
+      card('Conversation recorded by Ada Lovelace').queryByRole('button', { name: 'Edit' }),
     ).not.toBeInTheDocument();
   });
 

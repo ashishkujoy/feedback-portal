@@ -104,7 +104,7 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 - **Cancel** closes without asking (decision 4). The same dialog opens an existing draft (for 9.6).
 
 ### Feedback on the timeline (P6, A26) as built in 9.6
-- **Feedback and the viewer's own drafts only** (9.6 decision 1): conversations, comments and status changes join in 10.6, with v2's "Show earlier activity". All entries show; no paging yet. The card's Comment row waits for 10.5.
+- **Feedback and the viewer's own drafts only** (9.6 decision 1). Conversations joined in 10.3 and comments in 10.5; status changes and v2's "Show earlier activity" come in 10.6. All entries show; no paging yet.
 - **v2's rail** (32px: `message-square` on ee-blue-50 for feedback, `pen-line` on slate-100 for a draft) with the line down to the next entry; none after the last.
 - **The feedback card:** "\<author\> gave feedback · \<day\> · period Oct 2026" (the day in the viewer's time zone) and **Awaiting delivery** / **Delivered** (no date until Phase 10 records conversations). The colours: previous → new; **a first colour alone**; "No colour · Colour code unchanged"; **the same colour again as one chip with "Colour code unchanged"** (decision 2). **Notice** badge when it gave notice. The text through the sanitized renderer.
 - **The draft card:** "Your draft · only you can see this · edited 23 Oct", Draft, a plain-text excerpt (about 160 characters; **"No text yet."** for a blank draft, not in v2), **Continue editing** (opens A7 on the draft) and **Discard** (A26). **No buttons when the viewer can't write feedback there any more** (archived, read-only, no longer a mentor; decision 3).
@@ -145,6 +145,21 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 
   Delivered feedback shows **Delivered 10 Oct**.
 - **Editing** (decision 3, not in v2): the PM's **Edit** (ghost-muted, sm, `pencil`) on the card opens A8 as **Edit conversation**. The delivered feedback is one fixed card ("The feedback a conversation delivered can't change."), with **Save changes**.
+
+### Comments (P6) as built in 10.5
+- **Comments are timeline entries,** as v2 desktop draws them (10.5 decision 1), not a thread inside the card (MM5, mobile):
+  - a `message-circle` rail on slate-100;
+  - "\<author\> commented on **\<Author\>’s feedback (22 Oct)**" or "**\<PM\>’s conversation (10 Oct)**", linking to that card, then "· 23 Oct 2026" and "· edited";
+  - the text as plain text with its line breaks, or "This comment was deleted." in muted italics;
+  - newest first by the day written; on the same day a comment comes before what it follows.
+- **The card's foot is one row:** the card's own buttons (the author's **Edit**, the PM's **Record conversation**), **Comment** (ghost, sm), then the count. The count reads "No comments", "1 comment above" or "3 comments above", deleted comments included. v2 writes "below", but a comment always sits above its card on a newest-first timeline (decision 2).
+- **The composer** (v2): Comment opens "Add a comment" (Input) and a **secondary** Comment, with focus in the Input. Enter or the button posts, and posting closes it. "Write a comment." is shown when the text is blank; a refusal shows the API's sentence there and keeps the text. Escape closes it.
+- **Who:** the batch's current mentors and PM (an admin only when assigned), not in an archived batch or on a read-only record (decision 3). The comments still show there.
+- **Conversation cards** have the same row (decision 5; v2 draws none).
+- **Edit and Delete** (ghost-muted, sm) appear on your own live comments only; v2 draws the buttons but neither flow (decision 4):
+  - **Edit** puts the text in place in a **Textarea**, so a comment's line breaks survive. **Save** (secondary, sm) and **Cancel** (ghost-muted, sm) follow. Saving unchanged text sends nothing.
+  - **Delete** asks first, in a 460px dialog: "Delete this comment?", "It will show as “This comment was deleted.” to everyone in the batch.", **Cancel** and a destructive **Delete**.
+- **If the comments fail to load,** "We couldn't load the comments" is shown and the rest of the timeline stays.
 
 ### Import from Airtable (A10) as built in 8.5
 - **Where:** an outline **Import from Airtable** (`download`) between Add intern and Assign mentors, and as the primary button in the managers' empty roster ("Import interns from Airtable, or add them one at a time.", then Add intern). Admins and the batch's PM only, not on an archived batch.

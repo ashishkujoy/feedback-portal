@@ -124,6 +124,7 @@ const stub = ({
     [`GET ${profilePath}`]: { status: 200, body: profile },
     [`GET ${feedbackPath}`]: { status: 200, body: [] },
     [`GET /batches/${batchId}/interns/${internId}/conversations`]: { status: 200, body: [] },
+    [`GET /batches/${batchId}/interns/${internId}/comments`]: { status: 200, body: [] },
     [`POST ${feedbackPath}`]: answer,
     [`PUT ${feedbackPath}/${draftId}`]: { status: 200, body: entry() },
   });

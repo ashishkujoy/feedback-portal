@@ -134,6 +134,7 @@ const stub = ({
     [`GET ${profilePath}`]: { status: 200, body: profile },
     [`GET ${feedbackPath}`]: list,
     [`GET ${profilePath}/conversations`]: { status: 200, body: [] },
+    [`GET ${profilePath}/comments`]: { status: 200, body: [] },
     [`PUT ${feedbackPath}/${draft.id}`]: { status: 200, body: { ...draft, state: 'submitted' } },
     [`DELETE ${feedbackPath}/${draft.id}`]: discard,
   };
