@@ -53,9 +53,17 @@ const components: Components = {
 const remarkPlugins = [remarkGfm];
 const rehypePlugins = [rehypeSanitize];
 
-/** Stored Markdown (interview notes, reasons, later feedback), rendered sanitized. */
-export const Markdown = ({ children }: Readonly<{ children: string }>) => (
-  <div className="text-sm leading-[22px] text-foreground [&>*:last-child]:mb-0">
+/**
+ * Stored Markdown (interview notes, reasons, later feedback), rendered sanitized. `muted` is v2's
+ * 13px note under a timeline entry.
+ */
+export const Markdown = ({
+  children,
+  muted = false,
+}: Readonly<{ children: string; muted?: boolean }>) => (
+  <div
+    className={`${muted ? 'text-[13px] leading-5 text-muted-foreground' : 'text-sm leading-[22px] text-foreground'} [&>*:last-child]:mb-0`}
+  >
     <ReactMarkdown
       remarkPlugins={remarkPlugins}
       rehypePlugins={rehypePlugins}

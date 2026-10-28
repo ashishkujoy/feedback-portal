@@ -3,6 +3,7 @@ import {
   type CommentView,
   type ConversationView,
   type FeedbackView,
+  type InternStatusEvent,
   isFinalStatus,
   type StatusAction,
 } from '@feedback-portal/contracts';
@@ -30,7 +31,7 @@ import {
   RecordConversationDialog,
 } from '../interns/profile/record-conversation-dialog.tsx';
 import { EditDetailsDialog } from '../interns/profile/edit-details-dialog.tsx';
-import { latestColouredOn } from '../interns/profile/feedback-entry.ts';
+import { latestColouredOn, statusChanges } from '../interns/profile/feedback-entry.ts';
 import {
   FeedbackTimeline,
   FeedbackTimelineSkeleton,
@@ -117,11 +118,12 @@ type TimelineProps = Readonly<{
   intern: InternRef;
   canComment: boolean;
   onDeleteComment: (comment: CommentView) => void;
+  statusEvents: readonly InternStatusEvent[];
 }>;
 
 /**
- * The Timeline tab: feedback, conversations (10.3) and comments (10.5), or A6-nofeedback when
- * there's none. The feedback stays readable if only the conversations or comments fail to load.
+ * The Timeline tab: feedback, conversations (10.3), comments (10.5) and status changes (10.6), or
+ * A6-nofeedback when there's none. The feedback stays readable if only the conversations or comments fail to load.
  */
 const Timeline = ({
   name,
@@ -145,7 +147,8 @@ const Timeline = ({
   ) {
     return <FeedbackTimelineSkeleton />;
   }
-  if (feedback.data.length === 0) {
+  // A6-nofeedback only when there's nothing to show; onboarding doesn't count (10.6 decision 1).
+  if (feedback.data.length === 0 && statusChanges(actions.statusEvents).length === 0) {
     return <TimelinePlaceholder name={name} onGiveFeedback={onGiveFeedback} />;
   }
   return (
@@ -358,6 +361,7 @@ export const InternPage = () => {
               // Comments follow feedback's rule: the batch's mentors and PM (10.5 decision 3).
               canComment={canFeedback}
               onDeleteComment={setDeletingComment}
+              statusEvents={intern.statusEvents}
             />
           ) : null}
           {tab === 'details' ? (

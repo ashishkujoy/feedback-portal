@@ -1,4 +1,9 @@
-import type { CommentView, ConversationView, FeedbackView } from '@feedback-portal/contracts';
+import type {
+  CommentView,
+  ConversationView,
+  FeedbackView,
+  InternStatusEvent,
+} from '@feedback-portal/contracts';
 import { describe, expect, it } from 'vitest';
 import {
   colourChange,
@@ -10,8 +15,12 @@ import {
   feedbackLabel,
   feedbackLine,
   latestColouredOn,
+  pagesShowing,
+  pageSize,
   shortPeriod,
+  shownEntries,
   stateBadge,
+  statusNote,
   timelineEntries,
 } from './feedback-entry.ts';
 
@@ -160,7 +169,7 @@ describe('the timeline order', () => {
     const sameDay = conversationOn('2026-10-10', '2026-10-10T05:00:00.000Z');
 
     expect(
-      timelineEntries([later, draft, morning, earlier], [sameDay], []).map((item) =>
+      timelineEntries([later, draft, morning, earlier], [sameDay], [], []).map((item) =>
         item.kind === 'feedback' ? item.entry.id : 'conversation',
       ),
     ).toEqual(['draft', 'later', 'conversation', 'morning', 'earlier']);
@@ -174,7 +183,7 @@ describe('the timeline order', () => {
     const latest = commentOn('feedback', 'latest', '2026-10-14T09:00:00.000Z');
 
     expect(
-      timelineEntries([feedback], [held], [onFeedback, onConversation, latest]).map((item) =>
+      timelineEntries([feedback], [held], [onFeedback, onConversation, latest], []).map((item) =>
         item.kind === 'conversation' ? 'conversation' : item.id,
       ),
     ).toEqual(['latest', 'on-conversation', 'conversation', 'same-day', 'feedback']);
@@ -185,5 +194,95 @@ describe('the timeline order', () => {
       type: 'success',
       label: 'Delivered 10 Oct',
     });
+  });
+});
+
+const event = (
+  overrides: Partial<InternStatusEvent> & Pick<InternStatusEvent, 'id'>,
+): InternStatusEvent => ({
+  fromStatus: 'active',
+  toStatus: 'on_notice',
+  reason: 'Notice given in the October 2026 feedback.',
+  noticeStartsOn: '2026-10-08',
+  noticeEndsOn: '2026-11-08',
+  feedbackId: null,
+  actor: { id: '01890a5d-ac96-774b-bcce-b30209000004', name: 'Pat Lee' },
+  createdAt: '2026-10-08T12:00:00.000Z',
+  ...overrides,
+});
+
+describe('status changes on the timeline (10.6)', () => {
+  it('puts a status change above the feedback that caused it, and leaves out onboarding', () => {
+    const gave = entry({ id: 'feedback', submittedAt: '2026-10-08T12:00:00.000Z' });
+    const notice = event({ id: 'notice', feedbackId: 'feedback' });
+    const lifted = event({
+      id: 'lifted',
+      fromStatus: 'on_notice',
+      toStatus: 'active',
+      reason: 'Back on track.',
+      createdAt: '2026-10-20T09:00:00.000Z',
+    });
+    const onboarding = event({
+      id: 'onboarding',
+      fromStatus: null,
+      toStatus: 'active',
+      createdAt: '2026-07-07T09:00:00.000Z',
+    });
+    const sameDayComment = commentOn('feedback', 'comment', '2026-10-08T15:00:00.000Z');
+
+    expect(
+      timelineEntries([gave], [], [sameDayComment], [lifted, notice, onboarding]).map(
+        ({ id }) => id,
+      ),
+    ).toEqual(['lifted', 'comment', 'notice', 'feedback']);
+  });
+
+  it('notes the reason, and when a notice runs until', () => {
+    expect(statusNote(event({ id: 'notice' }))).toBe(
+      'Notice given in the October 2026 feedback. Runs until 8 Nov 2026.',
+    );
+    expect(
+      statusNote(
+        event({
+          id: 'lift',
+          toStatus: 'active',
+          reason: 'Back on track.',
+          noticeEndsOn: '2026-11-08',
+        }),
+      ),
+    ).toBe('Back on track.');
+  });
+});
+
+describe('showing earlier activity (10.6)', () => {
+  const dated = Array.from({ length: 25 }, (_, index) =>
+    entry({
+      id: `entry-${index}`,
+      submittedAt: `2026-09-${String(30 - index).padStart(2, '0')}T12:00:00.000Z`,
+    }),
+  );
+  const drafts = [1, 2].map((n) => entry({ id: `draft-${n}`, state: 'draft', submittedAt: null }));
+  const all = timelineEntries([...drafts, ...dated], [], [], []);
+
+  it('shows the drafts and ten entries per page, and counts the rest', () => {
+    expect(pageSize).toBe(10);
+    const first = shownEntries(all, 1);
+    expect(first.shown.map(({ id }) => id)).toEqual([
+      'draft-1',
+      'draft-2',
+      ...dated.slice(0, 10).map(({ id }) => id),
+    ]);
+    expect(first.hidden).toBe(15);
+    expect(shownEntries(all, 2).hidden).toBe(5);
+    expect(shownEntries(all, 3)).toEqual({ shown: all, hidden: 0 });
+  });
+
+  it('finds how many pages show an entry, never fewer than already shown', () => {
+    expect(pagesShowing(all, 'entry-9', 1)).toBe(1);
+    expect(pagesShowing(all, 'entry-10', 1)).toBe(2);
+    expect(pagesShowing(all, 'entry-24', 1)).toBe(3);
+    expect(pagesShowing(all, 'entry-0', 3)).toBe(3);
+    expect(pagesShowing(all, 'draft-2', 1)).toBe(1);
+    expect(pagesShowing(all, 'unknown', 2)).toBe(2);
   });
 });

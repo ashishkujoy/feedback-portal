@@ -1,19 +1,28 @@
-import type { CommentView, ConversationView, FeedbackView } from '@feedback-portal/contracts';
+import type {
+  CommentView,
+  ConversationView,
+  FeedbackView,
+  InternStatusEvent,
+} from '@feedback-portal/contracts';
 import {
   ArrowRight,
   CircleCheckBig,
+  Clock,
   MessageCircle,
   MessageSquare,
   PenLine,
   Pencil,
   type LucideIcon,
 } from 'lucide-react';
+import { useState } from 'react';
+import { flushSync } from 'react-dom';
 import { Button } from '../../ui/button.tsx';
 import { Markdown } from '../../ui/markdown.tsx';
 import { Skeleton } from '../../ui/skeleton.tsx';
 import { StatusBadge } from '../../ui/status-badge.tsx';
 import { ColourChip } from '../colour-chip.tsx';
-import { formatDate } from '../../batches/batch-dates.ts';
+import { formatDate, formatDay } from '../../batches/batch-dates.ts';
+import { statusBadges } from '../profile.ts';
 import { type CommentTarget, CommentEntry } from './comment-entry.tsx';
 import { CommentRow, type InternRef } from './comment-row.tsx';
 import {
@@ -26,7 +35,10 @@ import {
   feedbackLabel,
   feedbackLine,
   isEditableBy,
+  pagesShowing,
+  shownEntries,
   stateBadge,
+  statusNote,
   timelineEntries,
 } from './feedback-entry.ts';
 
@@ -136,13 +148,15 @@ type ConversationCardProps = Readonly<{
   onEdit: (() => void) | undefined;
   /** The comment row (10.5 decision 5; not in v2). */
   comments: CommentsProps;
+  /** Shows the delivered feedback first if the timeline hides it (10.6 decision 4). */
+  onReveal: () => void;
 }>;
 
 /**
  * v2 P6's conversation entry: a slate-50 card, "<PM> recorded a conversation · 10 Oct 2026", the
  * feedback it delivered (linked to its card) and the notes.
  */
-const ConversationCard = ({ conversation, onEdit, comments }: ConversationCardProps) => (
+const ConversationCard = ({ conversation, onEdit, comments, onReveal }: ConversationCardProps) => (
   <article
     id={conversationAnchor(conversation.id)}
     aria-label={`Conversation recorded by ${conversation.recordedBy.name}`}
@@ -158,6 +172,7 @@ const ConversationCard = ({ conversation, onEdit, comments }: ConversationCardPr
       Delivers{' '}
       <a
         href={`#${feedbackAnchor(conversation.feedback.id)}`}
+        onClick={onReveal}
         className="text-primary underline-offset-2 hover:underline"
       >
         {deliveredLabel(conversation)}
@@ -179,6 +194,34 @@ const ConversationCard = ({ conversation, onEdit, comments }: ConversationCardPr
     </CommentRow>
   </article>
 );
+
+/**
+ * v2 P6's status entry: "Status changed [Active] → [On notice] · <who> · 8 Oct 2026", then the
+ * reason in 13px muted text (10.6 decision 2).
+ */
+const StatusEntry = ({ event }: Readonly<{ event: InternStatusEvent }>) => {
+  const to = statusBadges[event.toStatus];
+  const from = event.fromStatus ? statusBadges[event.fromStatus] : null;
+  return (
+    <article aria-label="Status change" className="flex flex-col gap-1.5 pt-[5px]">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="font-semibold">Status changed</span>
+        {from ? (
+          <>
+            <StatusBadge type={from.type}>{from.label}</StatusBadge>
+            <ArrowRight aria-hidden size={14} strokeWidth={2} className="text-muted-foreground" />
+            <span className="sr-only">to</span>
+          </>
+        ) : null}
+        <StatusBadge type={to.type}>{to.label}</StatusBadge>
+        <span className="text-muted-foreground">
+          · {event.actor.name} · {formatDay(event.createdAt)}
+        </span>
+      </div>
+      <Markdown muted>{statusNote(event)}</Markdown>
+    </article>
+  );
+};
 
 type DraftCardProps = Readonly<{
   draft: FeedbackView;
@@ -242,6 +285,8 @@ type FeedbackTimelineProps = Readonly<{
   /** The batch's current mentors and PM, on a record that can change (10.5 decision 3). */
   canComment: boolean;
   onDeleteComment: (comment: CommentView) => void;
+  /** The intern's status history, newest first; onboarding is left out (10.6 decision 1). */
+  statusEvents: readonly InternStatusEvent[];
 }>;
 
 /** Where a comment's link goes, if what it's on is loaded. */
@@ -249,21 +294,25 @@ const targetOf = (
   comment: CommentView,
   feedback: readonly FeedbackView[],
   conversations: readonly ConversationView[],
+  reveal: (id: string) => void,
 ): CommentTarget | null => {
   const { kind, id } = comment.parent;
-  if (kind === 'conversation') {
-    const conversation = conversations.find((each) => each.id === id);
-    return conversation
-      ? { label: conversationLabel(conversation), href: `#${conversationAnchor(id)}` }
-      : null;
-  }
-  const entry = feedback.find((each) => each.id === id);
-  return entry ? { label: feedbackLabel(entry), href: `#${feedbackAnchor(id)}` } : null;
+  const label =
+    kind === 'conversation'
+      ? conversations.find((each) => each.id === id)
+      : feedback.find((each) => each.id === id);
+  if (!label) return null;
+  return {
+    label: 'recordedBy' in label ? conversationLabel(label) : feedbackLabel(label),
+    href: `#${kind === 'conversation' ? conversationAnchor(id) : feedbackAnchor(id)}`,
+    reveal: () => reveal(id),
+  };
 };
 
 /**
- * P6's timeline: the viewer's drafts, then feedback, conversations (10.3 decision 2) and comments
- * (10.5 decision 1) newest first. Status changes join in 10.6.
+ * P6's timeline: the viewer's drafts, then feedback, conversations (10.3 decision 2), comments
+ * (10.5 decision 1) and status changes (10.6) newest first, ten at a time with v2's "Show earlier
+ * activity (N)".
  */
 export const FeedbackTimeline = ({
   feedback,
@@ -278,8 +327,13 @@ export const FeedbackTimeline = ({
   intern,
   canComment,
   onDeleteComment,
+  statusEvents,
 }: FeedbackTimelineProps) => {
-  const items = timelineEntries(feedback, conversations, comments);
+  const [pages, setPages] = useState(1);
+  const all = timelineEntries(feedback, conversations, comments, statusEvents);
+  const { shown: items, hidden } = shownEntries(all, pages);
+  // Rendered before the link's own navigation, so the browser finds the entry it goes to.
+  const reveal = (id: string) => flushSync(() => setPages(pagesShowing(all, id, pages)));
   const counts = commentCounts(comments);
   const commentsOn = (id: string): CommentsProps => ({
     intern,
@@ -287,86 +341,110 @@ export const FeedbackTimeline = ({
     canComment,
   });
   return (
-    <ol aria-label="Timeline" className="flex flex-col">
-      {items.map((item, index) => {
-        const last = index === items.length - 1;
-        if (item.kind === 'comment') {
-          const { comment } = item;
-          return (
-            <li key={item.id} className="flex gap-3.5">
-              <Rail icon={MessageCircle} tone="bg-(--slate-100) text-(--slate-600)" last={last} />
-              <div className="min-w-0 flex-1 pb-4">
-                <CommentEntry
-                  intern={intern}
-                  comment={comment}
-                  on={targetOf(comment, feedback, conversations)}
-                  onDelete={
-                    canComment && comment.author.id === viewerId
-                      ? () => onDeleteComment(comment)
-                      : undefined
-                  }
+    <div className="flex flex-col">
+      <ol aria-label="Timeline" className="flex flex-col">
+        {items.map((item, index) => {
+          const last = index === items.length - 1;
+          if (item.kind === 'comment') {
+            const { comment } = item;
+            return (
+              <li key={item.id} className="flex gap-3.5">
+                <Rail icon={MessageCircle} tone="bg-(--slate-100) text-(--slate-600)" last={last} />
+                <div className="min-w-0 flex-1 pb-4">
+                  <CommentEntry
+                    intern={intern}
+                    comment={comment}
+                    on={targetOf(comment, feedback, conversations, reveal)}
+                    onDelete={
+                      canComment && comment.author.id === viewerId
+                        ? () => onDeleteComment(comment)
+                        : undefined
+                    }
+                  />
+                </div>
+              </li>
+            );
+          }
+          if (item.kind === 'status') {
+            return (
+              <li key={item.id} className="flex gap-3.5">
+                <Rail
+                  icon={Clock}
+                  tone="bg-(--equal-ember-50) text-(--equal-ember-700)"
+                  last={last}
                 />
-              </div>
-            </li>
-          );
-        }
-        if (item.kind === 'conversation') {
+                <div className="min-w-0 flex-1 pb-4">
+                  <StatusEntry event={item.event} />
+                </div>
+              </li>
+            );
+          }
+          if (item.kind === 'conversation') {
+            return (
+              <li key={item.id} className="flex gap-3.5">
+                <Rail
+                  icon={CircleCheckBig}
+                  tone="bg-(--transform-teal-50) text-(--transform-teal-700)"
+                  last={last}
+                />
+                <div className="min-w-0 flex-1 pb-4">
+                  <ConversationCard
+                    conversation={item.conversation}
+                    onEdit={
+                      onEditConversation ? () => onEditConversation(item.conversation) : undefined
+                    }
+                    comments={commentsOn(item.id)}
+                    onReveal={() => reveal(item.conversation.feedback.id)}
+                  />
+                </div>
+              </li>
+            );
+          }
+          const { entry } = item;
+          const draft = entry.state === 'draft';
           return (
             <li key={item.id} className="flex gap-3.5">
               <Rail
-                icon={CircleCheckBig}
-                tone="bg-(--transform-teal-50) text-(--transform-teal-700)"
+                icon={draft ? PenLine : MessageSquare}
+                tone={
+                  draft ? 'bg-(--slate-100) text-(--slate-600)' : 'bg-ee-blue-50 text-ee-blue-700'
+                }
                 last={last}
               />
               <div className="min-w-0 flex-1 pb-4">
-                <ConversationCard
-                  conversation={item.conversation}
-                  onEdit={
-                    onEditConversation ? () => onEditConversation(item.conversation) : undefined
-                  }
-                  comments={commentsOn(item.id)}
-                />
+                {draft ? (
+                  <DraftCard
+                    draft={entry}
+                    onContinue={onContinue ? () => onContinue(entry) : undefined}
+                    onDiscard={onDiscard ? () => onDiscard(entry) : undefined}
+                  />
+                ) : (
+                  <FeedbackCard
+                    entry={entry}
+                    onEdit={
+                      onEdit && viewerId && isEditableBy(entry, viewerId)
+                        ? () => onEdit(entry)
+                        : undefined
+                    }
+                    onRecord={
+                      onRecord && entry.state === 'submitted' ? () => onRecord(entry) : undefined
+                    }
+                    comments={commentsOn(entry.id)}
+                  />
+                )}
               </div>
             </li>
           );
-        }
-        const { entry } = item;
-        const draft = entry.state === 'draft';
-        return (
-          <li key={item.id} className="flex gap-3.5">
-            <Rail
-              icon={draft ? PenLine : MessageSquare}
-              tone={
-                draft ? 'bg-(--slate-100) text-(--slate-600)' : 'bg-ee-blue-50 text-ee-blue-700'
-              }
-              last={last}
-            />
-            <div className="min-w-0 flex-1 pb-4">
-              {draft ? (
-                <DraftCard
-                  draft={entry}
-                  onContinue={onContinue ? () => onContinue(entry) : undefined}
-                  onDiscard={onDiscard ? () => onDiscard(entry) : undefined}
-                />
-              ) : (
-                <FeedbackCard
-                  entry={entry}
-                  onEdit={
-                    onEdit && viewerId && isEditableBy(entry, viewerId)
-                      ? () => onEdit(entry)
-                      : undefined
-                  }
-                  onRecord={
-                    onRecord && entry.state === 'submitted' ? () => onRecord(entry) : undefined
-                  }
-                  comments={commentsOn(entry.id)}
-                />
-              )}
-            </div>
-          </li>
-        );
-      })}
-    </ol>
+        })}
+      </ol>
+      {hidden > 0 ? (
+        <div className="pl-[46px]">
+          <Button variant="outline" size="sm" onClick={() => setPages(pages + 1)}>
+            Show earlier activity ({hidden})
+          </Button>
+        </div>
+      ) : null}
+    </div>
   );
 };
 

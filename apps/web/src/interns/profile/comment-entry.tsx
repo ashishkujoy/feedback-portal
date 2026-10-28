@@ -10,8 +10,11 @@ import { Dialog } from '../../ui/dialog.tsx';
 import { CommentForm } from './comment-form.tsx';
 import type { InternRef } from './comment-row.tsx';
 
-/** What a comment is on, as its link reads ("Vikram Shetty’s feedback (22 Oct)"). */
-export type CommentTarget = Readonly<{ label: string; href: string }>;
+/**
+ * What a comment is on, as its link reads ("Vikram Shetty’s feedback (22 Oct)"); `reveal` shows
+ * that entry first if the timeline hides it (10.6 decision 4).
+ */
+export type CommentTarget = Readonly<{ label: string; href: string; reveal: () => void }>;
 
 const useRefreshComments = ({ batchId, internId }: InternRef) => {
   const queryClient = useQueryClient();
@@ -58,7 +61,11 @@ export const CommentEntry = ({ intern, comment, on, onDelete }: CommentEntryProp
         <span className="text-muted-foreground">
           {' commented on '}
           {on ? (
-            <a href={on.href} className="text-primary underline-offset-2 hover:underline">
+            <a
+              href={on.href}
+              onClick={on.reveal}
+              className="text-primary underline-offset-2 hover:underline"
+            >
               {on.label}
             </a>
           ) : (

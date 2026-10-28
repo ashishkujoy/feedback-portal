@@ -149,7 +149,11 @@ const open = async () => {
   return user;
 };
 
-const cards = () => within(screen.getByRole('list', { name: 'Timeline' })).getAllByRole('article');
+// Feedback cards only: a notice it gave shows as a status change above it (10.6).
+const cards = () =>
+  within(screen.getByRole('list', { name: 'Timeline' })).getAllByRole('article', {
+    name: /^Feedback from|^Your draft/,
+  });
 const card = (index: number) => {
   const found = cards()[index];
   if (!found) throw new Error(`no card ${index}`);

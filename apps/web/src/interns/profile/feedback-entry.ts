@@ -3,6 +3,7 @@ import type {
   CommentView,
   ConversationView,
   FeedbackView,
+  InternStatusEvent,
 } from '@feedback-portal/contracts';
 import { formatDate, formatDay, today } from '../../batches/batch-dates.ts';
 
@@ -82,25 +83,32 @@ export const deliveredLabel = (conversation: Pick<ConversationView, 'feedback'>)
   `${conversation.feedback.author.name}’s feedback (${dayAndMonth(conversation.feedback.submittedAt)})`;
 
 /**
- * One timeline entry: feedback (or a draft), a conversation (10.3 decision 2), or a comment (10.5
- * decision 1).
+ * One timeline entry: feedback (or a draft), a conversation (10.3 decision 2), a comment (10.5
+ * decision 1), or a status change (10.6).
  */
 export type TimelineEntry =
   | Readonly<{ kind: 'feedback'; id: string; entry: FeedbackView }>
   | Readonly<{ kind: 'conversation'; id: string; conversation: ConversationView }>
-  | Readonly<{ kind: 'comment'; id: string; comment: CommentView }>;
+  | Readonly<{ kind: 'comment'; id: string; comment: CommentView }>
+  | Readonly<{ kind: 'status'; id: string; event: InternStatusEvent }>;
 
 type Keyed = Readonly<{ item: TimelineEntry; day: string; rank: number; time: string }>;
 
+/** Status changes for the timeline: onboarding ("→ Active") stays in Status history (10.6 decision 1). */
+export const statusChanges = (events: readonly InternStatusEvent[]): InternStatusEvent[] =>
+  events.filter((event) => event.fromStatus !== null);
+
 /**
  * The viewer's drafts first (9.6), then everything else newest first: by day where the viewer is
- * (a conversation's is the day it was held), then on the same day a comment, a conversation, then
- * feedback (a comment always follows what it's on), then the newest moment.
+ * (a conversation's is the day it was held), then on the same day a comment, a status change, a
+ * conversation, then feedback (each follows what comes after it in that list), then the newest
+ * moment.
  */
 export const timelineEntries = (
   feedback: readonly FeedbackView[],
   conversations: readonly ConversationView[],
   comments: readonly CommentView[],
+  events: readonly InternStatusEvent[],
 ): TimelineEntry[] => {
   const drafts = feedback.filter((entry) => entry.state === 'draft');
   const dated: Keyed[] = [
@@ -111,15 +119,21 @@ export const timelineEntries = (
         return {
           item: { kind: 'feedback', id: entry.id, entry },
           day: today(new Date(at)),
-          rank: 2,
+          rank: 3,
           time: at,
         };
       }),
     ...conversations.map((conversation): Keyed => ({
       item: { kind: 'conversation', id: conversation.id, conversation },
       day: conversation.heldOn,
-      rank: 1,
+      rank: 2,
       time: conversation.createdAt,
+    })),
+    ...statusChanges(events).map((event): Keyed => ({
+      item: { kind: 'status', id: event.id, event },
+      day: today(new Date(event.createdAt)),
+      rank: 1,
+      time: event.createdAt,
     })),
     ...comments.map((comment): Keyed => ({
       item: { kind: 'comment', id: comment.id, comment },
@@ -135,6 +149,40 @@ export const timelineEntries = (
     ...drafts.map((entry): TimelineEntry => ({ kind: 'feedback', id: entry.id, entry })),
     ...sorted.map(({ item }) => item),
   ];
+};
+
+/**
+ * The note under a status change: its reason, as Status history shows it, and when it starts a
+ * notice " Runs until 8 Nov 2026." (10.6 decision 2).
+ */
+export const statusNote = (event: InternStatusEvent): string => {
+  const reason = event.reason ?? '';
+  if (event.toStatus !== 'on_notice' || !event.noticeEndsOn) return reason;
+  return `${reason} Runs until ${formatDate(event.noticeEndsOn)}.`.trim();
+};
+
+/** v2's "Show earlier activity": entries per page (10.6 decision 3). Drafts aren't counted. */
+export const pageSize = 10;
+
+/** The first `pages` pages of entries (drafts always), and how many are still hidden. */
+export const shownEntries = (
+  entries: readonly TimelineEntry[],
+  pages: number,
+): Readonly<{ shown: readonly TimelineEntry[]; hidden: number }> => {
+  const drafts = entries.filter((item) => item.kind === 'feedback' && item.entry.state === 'draft');
+  const shown = entries.slice(0, drafts.length + pages * pageSize);
+  return { shown, hidden: entries.length - shown.length };
+};
+
+/** How many pages show the entry `id` (10.6 decision 4); at least `pages`. */
+export const pagesShowing = (
+  entries: readonly TimelineEntry[],
+  id: string,
+  pages: number,
+): number => {
+  const drafts = entries.filter((item) => item.kind === 'feedback' && item.entry.state === 'draft');
+  const index = entries.findIndex((item) => item.id === id) - drafts.length;
+  return index < 0 ? pages : Math.max(pages, Math.floor(index / pageSize) + 1);
 };
 
 /** How many comments each feedback entry or conversation has, deleted ones included. */

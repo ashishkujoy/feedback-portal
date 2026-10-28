@@ -104,7 +104,7 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 - **Cancel** closes without asking (decision 4). The same dialog opens an existing draft (for 9.6).
 
 ### Feedback on the timeline (P6, A26) as built in 9.6
-- **Feedback and the viewer's own drafts only** (9.6 decision 1). Conversations joined in 10.3 and comments in 10.5; status changes and v2's "Show earlier activity" come in 10.6. All entries show; no paging yet.
+- **Feedback and the viewer's own drafts** (9.6 decision 1). Conversations joined in 10.3, comments in 10.5, and status changes and paging in 10.6.
 - **v2's rail** (32px: `message-square` on ee-blue-50 for feedback, `pen-line` on slate-100 for a draft) with the line down to the next entry; none after the last.
 - **The feedback card:** "\<author\> gave feedback · \<day\> · period Oct 2026" (the day in the viewer's time zone) and **Awaiting delivery** / **Delivered** (no date until Phase 10 records conversations). The colours: previous → new; **a first colour alone**; "No colour · Colour code unchanged"; **the same colour again as one chip with "Colour code unchanged"** (decision 2). **Notice** badge when it gave notice. The text through the sanitized renderer.
 - **The draft card:** "Your draft · only you can see this · edited 23 Oct", Draft, a plain-text excerpt (about 160 characters; **"No text yet."** for a blank draft, not in v2), **Continue editing** (opens A7 on the draft) and **Discard** (A26). **No buttons when the viewer can't write feedback there any more** (archived, read-only, no longer a mentor; decision 3).
@@ -160,6 +160,18 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
   - **Edit** puts the text in place in a **Textarea**, so a comment's line breaks survive. **Save** (secondary, sm) and **Cancel** (ghost-muted, sm) follow. Saving unchanged text sends nothing.
   - **Delete** asks first, in a 460px dialog: "Delete this comment?", "It will show as “This comment was deleted.” to everyone in the batch.", **Cancel** and a destructive **Delete**.
 - **If the comments fail to load,** "We couldn't load the comments" is shown and the rest of the timeline stays.
+
+### The unified timeline (P6) as built in 10.6
+- **Status changes are entries** (v2 P6):
+  - a `clock` rail on equal-ember-50;
+  - "**Status changed** [From] → [To] · \<who\> · 8 Oct 2026", with the Status history tab's badges;
+  - the stored reason underneath in 13px muted Markdown, with " Runs until 8 Nov 2026." when it starts a notice (10.6 decision 2; v2 words it "Started by feedback marked as notice.").
+- **Onboarding** ("→ Active") stays in Status history only (decision 1). "No feedback yet" shows when there's no feedback and no other status change.
+- **Order:** drafts first, then newest first by day. On the same day: comments, then status changes, then conversations, then feedback, so a notice sits just above the feedback that gave it.
+- **"Show earlier activity (N)"** (outline, sm, indented 46px):
+  - 10 entries at first, then 10 more per click, worked out in the browser (decision 3);
+  - drafts aren't counted, and N is what's still hidden.
+- **A link to a hidden entry** (a comment's, or a conversation's "Delivers …") shows everything down to that entry before the browser jumps to it (decision 4).
 
 ### Import from Airtable (A10) as built in 8.5
 - **Where:** an outline **Import from Airtable** (`download`) between Add intern and Assign mentors, and as the primary button in the managers' empty roster ("Import interns from Airtable, or add them one at a time.", then Add intern). Admins and the batch's PM only, not on an archived batch.
