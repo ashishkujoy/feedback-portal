@@ -1,4 +1,5 @@
 import {
+  CommentRequest,
   ConversationContentRequest,
   ConversationView,
   RecordConversationRequest,
@@ -22,6 +23,7 @@ import {
 import type { Actor, ManageFeedbackDeps } from '../application/manage-feedback.ts';
 import { ConversationId } from '../domain/conversation-id.ts';
 import { FeedbackId } from '../domain/feedback-id.ts';
+import { postComment } from './comment.routes.ts';
 
 export type ConversationRoutesDeps = AuthenticateDeps &
   Readonly<{ manageFeedback: ManageFeedbackDeps }>;
@@ -101,5 +103,18 @@ export const conversationRoutes = ({ manageFeedback, ...auth }: ConversationRout
         });
         logger.info('conversation edited', { actorId: actor.id, conversationId: entry.id });
         return c.json(toConversationView(entry));
+      },
+    )
+    .post(
+      '/:conversationId/comments',
+      validate('param', EntryParams),
+      validate('json', CommentRequest),
+      async (c) => {
+        const { conversationId, ...params } = c.req.valid('param');
+        return postComment(c, manageFeedback, {
+          ...params,
+          on: { kind: 'conversation', id: conversationId },
+          ...c.req.valid('json'),
+        });
       },
     );

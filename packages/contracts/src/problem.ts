@@ -30,6 +30,7 @@ export const ErrorCode = z.enum([
   'feedback_not_draft',
   'feedback_delivered',
   'notice_not_running',
+  'comment_deleted',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

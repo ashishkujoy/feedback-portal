@@ -224,7 +224,7 @@ Index: (`intern_id`, `held_on`). **A trigger refuses deleting a conversation** (
 | feedback_id | uuid FK null → feedback | Set when the comment is on a feedback entry |
 | conversation_id | uuid FK null → conversations | Set when the comment is on a conversation |
 | author_id | uuid FK → users | |
-| body | text | Non-blank, except once deleted |
+| body | text | Plain text, at most 2,000 characters (10.4 decision 2); non-blank, except once deleted |
 | created_at / updated_at | timestamptz | |
 | edited_at | timestamptz null | "· edited" |
 | deleted_at | timestamptz null | Soft delete: the body is cleared and the UI shows "This comment was deleted." (10.1 decision 3) |
@@ -251,6 +251,11 @@ Checks: `num_nonnulls(feedback_id, conversation_id) = 1`, so each comment belong
 - The batch's current PM can change the notes and date later, whoever recorded it, marking it edited (decision 3). The feedback it delivered never changes.
 - Nothing is recorded or changed for a read-only intern or in an archived batch (decision 4).
 - Every current mentor and the PM of the batch can comment.
+
+**Comments** (10.4)
+- Every current mentor and the PM of the batch can comment on submitted or delivered feedback and on conversations; an admin only when assigned. Never in an archived batch or on a read-only intern's record.
+- **Only its author edits or deletes a comment** (decision 1), while still a mentor or PM of the batch. An edit that changes the body marks it edited.
+- Deleting clears the body and keeps the comment, which shows as "This comment was deleted."; deleting again changes nothing, and a deleted comment can't be edited.
 
 **Status transitions**
 

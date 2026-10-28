@@ -5,6 +5,7 @@ import { batchesRoutes } from './modules/cohort/http/batches.routes.ts';
 import { type AuthRoutesDeps, authRoutes } from './modules/identity/http/auth.routes.ts';
 import type { UserAdminTransaction } from './modules/identity/application/user-admin.ts';
 import type { ManageFeedbackDeps } from './modules/feedback/application/manage-feedback.ts';
+import { commentRoutes } from './modules/feedback/http/comment.routes.ts';
 import { conversationRoutes } from './modules/feedback/http/conversation.routes.ts';
 import { feedbackRoutes } from './modules/feedback/http/feedback.routes.ts';
 import type { ManageInternsDeps } from './modules/intern/application/manage-interns.ts';
@@ -60,6 +61,10 @@ export const createApp = (deps: AppDeps): Hono<AppEnv> =>
     .route(
       '/batches/:batchId/interns/:internId/conversations',
       conversationRoutes({ ...deps.auth, manageFeedback: deps.manageFeedback }),
+    )
+    .route(
+      '/batches/:batchId/interns/:internId/comments',
+      commentRoutes({ ...deps.auth, manageFeedback: deps.manageFeedback }),
     )
     .route(
       '/batches/:batchId/interns',

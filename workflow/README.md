@@ -141,7 +141,7 @@ Update the status in both `PLAN.md` and the board below whenever it changes.
 | 10.1 Schema | [`phase/10-conversations-comments/01-schema`](phase/10-conversations-comments/01-schema/PLAN.md) | Done |
 | 10.2 Conversation domain | [`phase/10-conversations-comments/02-conversation-domain`](phase/10-conversations-comments/02-conversation-domain/PLAN.md) | Done |
 | 10.3 Conversation API + UI | [`phase/10-conversations-comments/03-conversation-api-ui`](phase/10-conversations-comments/03-conversation-api-ui/PLAN.md) | Done |
-| 10.4 Comments API | [`phase/10-conversations-comments/04-comments-api`](phase/10-conversations-comments/04-comments-api/PLAN.md) | Not started |
+| 10.4 Comments API | [`phase/10-conversations-comments/04-comments-api`](phase/10-conversations-comments/04-comments-api/PLAN.md) | Done |
 | 10.5 Comments UI | [`phase/10-conversations-comments/05-comments-ui`](phase/10-conversations-comments/05-comments-ui/PLAN.md) | Not started |
 | 10.6 Unified intern timeline | [`phase/10-conversations-comments/06-unified-intern-timeline`](phase/10-conversations-comments/06-unified-intern-timeline/PLAN.md) | Not started |
 

@@ -60,6 +60,7 @@ describe('ProblemDetails', () => {
       'feedback_not_draft',
       'feedback_delivered',
       'notice_not_running',
+      'comment_deleted',
     ]);
   });
 });

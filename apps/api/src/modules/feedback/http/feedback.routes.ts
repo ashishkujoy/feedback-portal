@@ -1,4 +1,5 @@
 import {
+  CommentRequest,
   FeedbackEditRequest,
   FeedbackContentRequest,
   FeedbackView,
@@ -24,6 +25,7 @@ import {
   updateDraft,
 } from '../application/manage-feedback.ts';
 import { FeedbackId } from '../domain/feedback-id.ts';
+import { postComment } from './comment.routes.ts';
 
 export type FeedbackRoutesDeps = AuthenticateDeps &
   Readonly<{ manageFeedback: ManageFeedbackDeps }>;
@@ -123,4 +125,17 @@ export const feedbackRoutes = ({ manageFeedback, ...auth }: FeedbackRoutesDeps) 
       await discardFeedback(manageFeedback, { actor, ...params });
       logger.info('feedback draft discarded', { actorId: actor.id, feedbackId: params.feedbackId });
       return c.body(null, 204);
-    });
+    })
+    .post(
+      '/:feedbackId/comments',
+      validate('param', EntryParams),
+      validate('json', CommentRequest),
+      async (c) => {
+        const { feedbackId, ...params } = c.req.valid('param');
+        return postComment(c, manageFeedback, {
+          ...params,
+          on: { kind: 'feedback', id: feedbackId },
+          ...c.req.valid('json'),
+        });
+      },
+    );

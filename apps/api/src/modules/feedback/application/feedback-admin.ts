@@ -1,5 +1,7 @@
 import type { BatchAccess } from '../../intern/application/batch-access.ts';
 import type { InternRepository } from '../../intern/application/intern-repository.ts';
+import type { CommentQueries } from './comment-queries.ts';
+import type { CommentRepository } from './comment-repository.ts';
 import type { ConversationQueries } from './conversation-queries.ts';
 import type { ConversationRepository } from './conversation-repository.ts';
 import type { FeedbackQueries } from './feedback-queries.ts';
@@ -11,6 +13,8 @@ export type FeedbackScope = Readonly<{
   queries: FeedbackQueries;
   conversations: ConversationRepository;
   conversationQueries: ConversationQueries;
+  comments: CommentRepository;
+  commentQueries: CommentQueries;
   interns: InternRepository;
   batchAccess: BatchAccess;
 }>;
