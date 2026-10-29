@@ -192,6 +192,22 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 - **Record conversation** (outline, sm) is on each row for the batch's PM, not in an archived batch. It opens A8 on this page with that feedback chosen, and saving refreshes the overview, so the row goes (decision 4).
 - **Loading:** Skeletons in the cards' shapes. **A failed load:** "We couldn't load the overview".
 
+### My pending (M26 / P26) as built in 11.2
+- **The sidebar's "My pending"** (`inbox`) sits under Batches for everyone signed in, admins included. Its Kuat CounterBadge counts **To deliver** for anyone holding the PM role and **Needs feedback** for everyone else (decision 2). There's no badge at 0, and the link reads "My pending (4)" to screen readers.
+- **The page** (`/pending`, crumb "My pending") has v2's title and the role's subtitle. Its tabs are **To deliver / Needs feedback / Drafts** for a PM and **Needs feedback / Drafts** for anyone else, with counts. The first tab is the default, and `?tab=` keeps the others (a mentor's `?tab=deliver` opens Needs feedback).
+- **What's listed** (`GET /me/pending`): the batches you currently mentor or run, started and not archived, and only interns whose record can still change. An admin assigned nowhere sees empty lists.
+- **Needs feedback:**
+  - interns without **your** submitted feedback for this month (UTC). Your draft doesn't count, and another mentor's feedback doesn't clear them (decision 1);
+  - v2's table: Intern (avatar and name, linking to the profile), Batch, Colour code chip, and Last feedback ("18 Sep 2026 · Sana Qureshi", "· you", or "No feedback yet"), from anyone;
+  - **Give feedback** (ghost, sm) opens A7 here, **on your draft for that intern if you have one** (decision 5);
+  - the footer counts the rows ("12 interns") instead of v2's "Showing 8 of 12" (decision 3);
+  - empty, it reads "You're up to date" / "Every intern in your batches has feedback from you for October 2026.".
+- **Drafts** are v2's dashed cards: avatar, name, "\<batch\> · period Oct 2026 · edited 23 Oct", the chip, then a one-line excerpt ("No text yet." when blank), with **Continue** (outline, A7 on the draft) and **Discard** (ghost-muted, A26). Empty, it says "No drafts." (decision 4).
+- **To deliver** is v2's table: Intern, Feedback by, Submitted, Colour code, and Waiting ("today", "1 day", "5 days", in UTC days), newest first. **Record conversation** (outline, sm) opens A8 here with that feedback chosen. Empty, it says "No feedback is waiting to be delivered."
+- **The button columns** are v2's widths plus the cell padding, so the buttons stay inside the table.
+- **Refreshing:** giving feedback, saving or discarding a draft, recording a conversation and changing a status all refresh the lists and the badge, wherever they happen.
+- **Loading:** Skeletons. **A failed load:** "We couldn't load your pending work".
+
 ### Import from Airtable (A10) as built in 8.5
 - **Where:** an outline **Import from Airtable** (`download`) between Add intern and Assign mentors, and as the primary button in the managers' empty roster ("Import interns from Airtable, or add them one at a time.", then Add intern). Admins and the batch's PM only, not on an archived batch.
 - **A Base ID field** (8.5 decision 1, asked for in 8.1): the API key on its own row, then **Base ID and Table ID side by side** (mono, "Starts with “app”." / "Starts with “tbl”."), then View name full width. The key is a password field with autocomplete off; it lives only in the dialog and is gone once it closes.

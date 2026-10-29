@@ -19,8 +19,10 @@ import { BatchesPage } from '../pages/batches-page.tsx';
 import { InternPage } from '../pages/intern-page.tsx';
 import { LoginPage } from '../pages/login-page.tsx';
 import { NotFoundPage } from '../pages/not-found-page.tsx';
+import { PendingPage } from '../pages/pending-page.tsx';
 import { UsersPage } from '../pages/users-page.tsx';
 import { RosterFilter } from '../interns/roster.ts';
+import { pendingTabs } from '../pending/pending.ts';
 import { AppShell } from '../shell/app-shell.tsx';
 
 export type RouterContext = Readonly<{ queryClient: QueryClient }>;
@@ -156,6 +158,15 @@ const internRoute = createRoute({
   notFoundComponent: NotFoundPage,
 });
 
+/** v2 M26 / P26 · My pending (11.2), for everyone signed in; the tab is kept in the URL. */
+const pendingRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/pending',
+  validateSearch: z.object({ tab: z.enum(pendingTabs).optional().catch(undefined) }),
+  staticData: { crumb: 'My pending' },
+  component: PendingPage,
+});
+
 const usersRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/users',
@@ -186,6 +197,7 @@ export const routeTree = rootRoute.addChildren([
       batchesIndexRoute,
       batchRoute.addChildren([batchIndexRoute, internRoute]),
     ]),
+    pendingRoute,
     usersRoute,
     notFoundRoute,
   ]),

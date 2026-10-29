@@ -10,6 +10,7 @@ import { useForm } from 'react-hook-form';
 import { batchesQuery, batchQuery } from '../../api/batches.ts';
 import { isApiError } from '../../api/errors.ts';
 import { changeStatus, internQuery, internsQuery } from '../../api/interns.ts';
+import { pendingQuery } from '../../api/pending.ts';
 import { Button } from '../../ui/button.tsx';
 import { Callout } from '../../ui/callout.tsx';
 import { Dialog } from '../../ui/dialog.tsx';
@@ -49,6 +50,8 @@ const StatusForm = ({ intern, action, onClose }: FormProps) => {
           exact: true,
         }),
         queryClient.invalidateQueries({ queryKey: batchesQuery.queryKey, exact: true }),
+        // An intern who leaves drops off My pending (11.2).
+        queryClient.invalidateQueries({ queryKey: pendingQuery.queryKey, exact: true }),
       ]);
       onClose();
     },

@@ -6,6 +6,7 @@ import type { ConversationQueries } from './conversation-queries.ts';
 import type { ConversationRepository } from './conversation-repository.ts';
 import type { FeedbackQueries } from './feedback-queries.ts';
 import type { FeedbackRepository } from './feedback-repository.ts';
+import type { PendingQueries } from './pending-queries.ts';
 
 /** What a feedback change may touch, bound to one transaction. */
 export type FeedbackScope = Readonly<{
@@ -15,6 +16,7 @@ export type FeedbackScope = Readonly<{
   conversationQueries: ConversationQueries;
   comments: CommentRepository;
   commentQueries: CommentQueries;
+  pending: PendingQueries;
   interns: InternRepository;
   batchAccess: BatchAccess;
 }>;

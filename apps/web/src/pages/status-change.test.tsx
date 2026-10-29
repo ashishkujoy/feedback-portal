@@ -121,6 +121,14 @@ const headerButtons = () =>
     .map((button) => button.textContent)
     .filter((text) => ['Withdraw', 'Graduate', 'Terminate', 'Lift notice'].includes(text ?? ''));
 
+/** The sidebar's My pending list (11.2): an intern who leaves drops off it. */
+const pendingLoads = (fetchMock: ReturnType<typeof stubApi>) =>
+  fetchMock.mock.calls.filter(([input]) =>
+    (typeof input === 'string' ? input : input instanceof URL ? input.href : input.url).endsWith(
+      '/me/pending',
+    ),
+  ).length;
+
 const posts = (fetchMock: ReturnType<typeof stubApi>) =>
   fetchMock.mock.calls
     .filter(([, init]) => init?.method === 'POST')
@@ -203,6 +211,7 @@ describe('the status dialog', () => {
     const user = await open();
     await user.click(screen.getByRole('button', { name: 'Graduate' }));
     const dialog = within(screen.getByRole('dialog', { name: 'Graduate Ishita Rao' }));
+    await vi.waitFor(() => expect(pendingLoads(fetchMock)).toBe(1));
 
     await user.type(dialog.getByRole('textbox', { name: 'Reason' }), 'Completed all milestones.');
     await user.click(dialog.getByRole('button', { name: 'Graduate' }));
@@ -210,6 +219,7 @@ describe('the status dialog', () => {
     expect(
       await screen.findByText('This intern graduated on 24 Oct 2026. Their record is read-only.'),
     ).toBeInTheDocument();
+    expect(pendingLoads(fetchMock)).toBe(2);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(headerButtons()).toEqual([]);
     expect(posts(fetchMock)).toEqual([{ action: 'graduate', reason: 'Completed all milestones.' }]);

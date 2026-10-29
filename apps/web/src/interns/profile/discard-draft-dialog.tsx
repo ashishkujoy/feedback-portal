@@ -2,6 +2,7 @@ import type { FeedbackView, InternDetail } from '@feedback-portal/contracts';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { isApiError } from '../../api/errors.ts';
 import { discardFeedback, feedbackQuery } from '../../api/feedback.ts';
+import { pendingQuery } from '../../api/pending.ts';
 import { Button } from '../../ui/button.tsx';
 import { Callout } from '../../ui/callout.tsx';
 import { Dialog } from '../../ui/dialog.tsx';
@@ -14,10 +15,14 @@ const ConfirmDiscard = ({ intern, draft, onClose }: ConfirmProps) => {
   const mutation = useMutation({
     mutationFn: () => discardFeedback(intern.batchId, intern.id, draft.id),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: feedbackQuery(intern.batchId, intern.id).queryKey,
-        exact: true,
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: feedbackQuery(intern.batchId, intern.id).queryKey,
+          exact: true,
+        }),
+        // My pending's Drafts (11.2).
+        queryClient.invalidateQueries({ queryKey: pendingQuery.queryKey, exact: true }),
+      ]);
       onClose();
     },
   });

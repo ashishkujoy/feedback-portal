@@ -6,7 +6,7 @@ import { isApiError } from '../../api/errors.ts';
 import { feedbackQuery } from '../../api/feedback.ts';
 import { internQuery } from '../../api/interns.ts';
 import { ColourChip, colourTones } from '../../interns/colour-chip.tsx';
-import { InternLink } from '../../interns/intern-link.tsx';
+import { InternNameLink } from '../../interns/intern-link.tsx';
 import { RecordConversationDialog } from '../../interns/profile/record-conversation-dialog.tsx';
 import { Avatar } from '../../ui/avatar.tsx';
 import { Button } from '../../ui/button.tsx';
@@ -108,16 +108,6 @@ const Card = ({
   </section>
 );
 
-/** The intern's name, linking to their profile; built from plain values so rows stay cheap. */
-const NameLink = ({
-  batchId,
-  internId,
-  name,
-}: Readonly<{ batchId: string; internId: string; name: string }>) => {
-  const intern = useMemo(() => ({ id: internId, batchId, name }), [internId, batchId, name]);
-  return <InternLink intern={intern} className="text-sm font-medium" />;
-};
-
 const rowClass = 'flex items-center gap-3 border-b border-border px-5 py-3 last:border-b-0';
 
 /** v2 A24's On notice card: the end, who issued it, and the days left or Decision needed. */
@@ -139,7 +129,7 @@ const NoticeCard = ({
           <li key={intern.id} className={rowClass}>
             <Avatar name={intern.name} src={intern.photoUrl} size="sm" />
             <div className="flex min-w-0 flex-1 flex-col">
-              <NameLink batchId={batchId} internId={intern.id} name={intern.name} />
+              <InternNameLink batchId={batchId} internId={intern.id} name={intern.name} />
               <span className="text-xs text-muted-foreground">
                 Ends {formatDate(noticeEndsOn)}
                 {issuedBy ? ` · issued by ${issuedBy.name}` : ''}
@@ -213,7 +203,7 @@ const DeliverCard = ({
         <li key={row.feedbackId} className={rowClass}>
           <Avatar name={row.intern.name} src={row.intern.photoUrl} size="sm" />
           <div className="flex min-w-0 flex-1 flex-col">
-            <NameLink batchId={batch.id} internId={row.intern.id} name={row.intern.name} />
+            <InternNameLink batchId={batch.id} internId={row.intern.id} name={row.intern.name} />
             <span className="text-xs text-muted-foreground">
               From {row.author.name} · {formatDay(row.submittedAt)} ·{' '}
               {waitingLabel(row.submittedAt)}

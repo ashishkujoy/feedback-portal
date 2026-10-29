@@ -92,18 +92,18 @@ describe('the sign-in page', () => {
 });
 
 describe('navigation by role', () => {
-  it('shows an admin Batches and Users and roles', async () => {
+  it('shows an admin Batches, My pending and Users and roles', async () => {
     stubApi(signedInWith(['admin']));
     renderApp('/batches');
 
-    expect(await mainNavLinks()).toEqual(['Batches', 'Users and roles']);
+    expect(await mainNavLinks()).toEqual(['Batches', 'My pending', 'Users and roles']);
   });
 
-  it('shows a programme manager only Batches', async () => {
+  it('shows a programme manager Batches and My pending', async () => {
     stubApi(signedInWith(['program_manager', 'mentor']));
     renderApp('/batches');
 
-    expect(await mainNavLinks()).toEqual(['Batches']);
+    expect(await mainNavLinks()).toEqual(['Batches', 'My pending']);
   });
 
   it('shows a mentor "My batches" in the nav, breadcrumb and title', async () => {
@@ -111,7 +111,7 @@ describe('navigation by role', () => {
     renderApp('/batches');
 
     expect(await screen.findByRole('heading', { level: 1, name: 'My batches' })).toBeVisible();
-    expect(await mainNavLinks()).toEqual(['My batches']);
+    expect(await mainNavLinks()).toEqual(['My batches', 'My pending']);
     const crumb = within(screen.getByRole('navigation', { name: 'Breadcrumb' })).getByText(
       'My batches',
     );

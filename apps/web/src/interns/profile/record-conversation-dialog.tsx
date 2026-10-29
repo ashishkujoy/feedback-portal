@@ -16,6 +16,7 @@ import {
 } from '../../api/conversations.ts';
 import { isApiError } from '../../api/errors.ts';
 import { feedbackQuery } from '../../api/feedback.ts';
+import { pendingQuery } from '../../api/pending.ts';
 import { formatDay, utcToday } from '../../batches/batch-dates.ts';
 import { Button } from '../../ui/button.tsx';
 import { Callout } from '../../ui/callout.tsx';
@@ -144,6 +145,8 @@ const ConversationForm = ({ intern, batch, entries, target, onClose, onSaved }: 
       await Promise.all([
         refresh(conversationsQuery(intern.batchId, intern.id).queryKey),
         refresh(feedbackQuery(intern.batchId, intern.id).queryKey),
+        // My pending's To deliver and badge (11.2).
+        refresh(pendingQuery.queryKey),
         onSaved?.(),
       ]);
       onClose();

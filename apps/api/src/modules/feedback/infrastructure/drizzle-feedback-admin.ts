@@ -8,6 +8,7 @@ import { createConversationQueries } from './drizzle-conversation-queries.ts';
 import { createConversationRepository } from './drizzle-conversation-repository.ts';
 import { createFeedbackQueries } from './drizzle-feedback-queries.ts';
 import { createFeedbackRepository } from './drizzle-feedback-repository.ts';
+import { createPendingQueries } from './drizzle-pending-queries.ts';
 
 /**
  * Every feedback read and change runs in its own transaction, access checked first. `batchAccess`
@@ -24,6 +25,7 @@ export const createFeedbackTransaction =
         conversationQueries: createConversationQueries(tx),
         comments: createCommentRepository(tx),
         commentQueries: createCommentQueries(tx),
+        pending: createPendingQueries(tx),
         interns: createInternRepository(tx),
         batchAccess: batchAccess(tx),
       }),

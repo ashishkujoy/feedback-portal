@@ -1,6 +1,9 @@
-import { Layers, Users } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Inbox, Layers, Users } from 'lucide-react';
+import { pendingQuery } from '../api/pending.ts';
 import { useSettings } from '../branding/use-settings.ts';
 import { batchesLabel, isAdmin } from '../identity/roles.ts';
+import { badgeCount } from '../pending/pending.ts';
 import { NavItem } from './nav-item.tsx';
 import { useMe } from './use-me.ts';
 import { UserBlock } from './user-block.tsx';
@@ -13,6 +16,7 @@ import { UserBlock } from './user-block.tsx';
 export const Sidebar = () => {
   const me = useMe();
   const settings = useSettings();
+  const pending = useQuery(pendingQuery).data;
   return (
     <aside className="flex w-60 shrink-0 flex-col bg-sidebar px-3 py-5">
       <div className="flex flex-col gap-0.5 px-2 pt-1 pb-6">
@@ -29,6 +33,12 @@ export const Sidebar = () => {
       <nav aria-label="Main">
         <ul className="flex flex-col gap-0.5">
           <NavItem to="/batches" icon={Layers} label={me ? batchesLabel(me) : 'Batches'} />
+          <NavItem
+            to="/pending"
+            icon={Inbox}
+            label="My pending"
+            count={me && pending ? badgeCount(me, pending) : undefined}
+          />
           {me && isAdmin(me) ? <NavItem to="/users" icon={Users} label="Users and roles" /> : null}
         </ul>
       </nav>

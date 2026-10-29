@@ -19,6 +19,7 @@ import {
 import { type FeedbackId, newFeedbackId } from '../domain/feedback-id.ts';
 import type { FeedbackScope, FeedbackTransaction } from './feedback-admin.ts';
 import type { FeedbackEntryView } from './feedback-queries.ts';
+import type { PendingView } from './pending-queries.ts';
 
 export type ManageFeedbackDeps = Readonly<{ transaction: FeedbackTransaction; now: () => Date }>;
 
@@ -209,4 +210,18 @@ export const discardFeedback = (
     await internIn(scope, target, false);
     const entry = await entryFor(scope, target);
     await scope.feedback.deleteDraft(discardDraft(entry, target.actor.id));
+  });
+
+/**
+ * v2 M26 / P26 (11.2): the actor's open work across the batches they currently mentor or run.
+ * Admin isn't enough: the lists cover only where they're assigned. `month` is this UTC month.
+ */
+export const myPending = (
+  { transaction, now }: ManageFeedbackDeps,
+  actor: Actor,
+): Promise<PendingView & Readonly<{ month: string }>> =>
+  transaction(async (scope) => {
+    const today = utcToday(now());
+    const month = `${today.slice(0, 7)}-01`;
+    return { month, ...(await scope.pending.forUser(actor.id, { month, today })) };
   });

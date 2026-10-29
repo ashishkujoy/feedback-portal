@@ -21,3 +21,13 @@ export const InternLink = ({
     </Link>
   );
 };
+
+/** The same link from plain values, so list rows don't build an object each render. */
+export const InternNameLink = ({
+  batchId,
+  internId,
+  name,
+}: Readonly<{ batchId: string; internId: string; name: string }>) => {
+  const intern = useMemo(() => ({ id: internId, batchId, name }), [internId, batchId, name]);
+  return <InternLink intern={intern} className="text-sm font-medium" />;
+};

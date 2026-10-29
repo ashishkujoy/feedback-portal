@@ -9,6 +9,7 @@ import { overviewRoutes } from './modules/intern/http/overview.routes.ts';
 import { commentRoutes } from './modules/feedback/http/comment.routes.ts';
 import { conversationRoutes } from './modules/feedback/http/conversation.routes.ts';
 import { feedbackRoutes } from './modules/feedback/http/feedback.routes.ts';
+import { pendingRoutes } from './modules/feedback/http/pending.routes.ts';
 import type { ManageInternsDeps } from './modules/intern/application/manage-interns.ts';
 import { importsRoutes } from './modules/intern/http/imports.routes.ts';
 import { internsRoutes } from './modules/intern/http/interns.routes.ts';
@@ -47,6 +48,14 @@ export const createApp = (deps: AppDeps): Hono<AppEnv> =>
     .route('/health', healthRoutes(deps))
     .route('/settings', settingsRoutes(deps))
     .route('/auth', authRoutes(deps.auth))
+    .route(
+      '/me/pending',
+      pendingRoutes({
+        ...deps.auth,
+        manageFeedback: deps.manageFeedback,
+        photos: deps.manageInterns.photos,
+      }),
+    )
     .route('/me', meRoutes(deps.auth))
     .route('/users', usersRoutes({ ...deps.auth, userAdmin: deps.userAdmin }))
     // Before `/batches`: a request answered here never reaches that router's middleware, so the

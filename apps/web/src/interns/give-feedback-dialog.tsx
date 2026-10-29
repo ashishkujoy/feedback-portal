@@ -12,6 +12,7 @@ import { batchesQuery, batchQuery } from '../api/batches.ts';
 import { isApiError } from '../api/errors.ts';
 import { createFeedback, editFeedback, feedbackQuery, updateDraft } from '../api/feedback.ts';
 import { internQuery, internsQuery } from '../api/interns.ts';
+import { pendingQuery } from '../api/pending.ts';
 import { utcToday } from '../batches/batch-dates.ts';
 import { Button } from '../ui/button.tsx';
 import { Callout } from '../ui/callout.tsx';
@@ -108,6 +109,8 @@ const GiveFeedbackForm = ({ intern, batch, target, onClose }: FormProps) => {
       // Exact keys: a prefix match on the profile would refetch everything under it.
       await Promise.all([
         refresh(feedbackQuery(intern.batchId, intern.id).queryKey),
+        // My pending's lists and badge (11.2): a draft saved, or feedback given.
+        refresh(pendingQuery.queryKey),
         // Submitting or editing may set the colour and start or withdraw a notice: the profile,
         // roster and counts change.
         ...(body.submit === true

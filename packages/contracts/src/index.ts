@@ -53,6 +53,7 @@ export {
   isFinalStatus,
 } from './intern-status.ts';
 export { MeResponse } from './me.ts';
+export { MyPending } from './pending.ts';
 export { ErrorCode, FieldIssue, ProblemDetails } from './problem.ts';
 export { Role, roles } from './role.ts';
 export { SettingsResponse } from './settings.ts';
