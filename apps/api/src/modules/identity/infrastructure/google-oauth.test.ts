@@ -6,6 +6,8 @@ const config = {
   clientId: 'client-id.apps.example',
   clientSecret: 'client-secret',
   redirectUri: 'http://localhost:3000/auth/google/callback',
+  authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+  tokenEndpoint: 'https://oauth2.googleapis.com/token',
 };
 const now = new Date('2026-03-01T10:00:00.000Z');
 const nowSeconds = now.getTime() / 1000;
@@ -90,6 +92,24 @@ describe('createGoogleAuth', () => {
       code_verifier: 'the-verifier',
       redirect_uri: config.redirectUri,
     });
+  });
+
+  it("uses a stand-in's endpoints when configured", async () => {
+    const standIn = createGoogleAuth(
+      {
+        ...config,
+        authorizationEndpoint: 'http://fake-google:4000/authorize',
+        tokenEndpoint: 'http://fake-google:4000/token',
+      },
+      () => now,
+    );
+    const { url } = standIn.start();
+    expect(url.origin + url.pathname).toBe('http://fake-google:4000/authorize');
+    expect(url.searchParams.get('client_id')).toBe(config.clientId);
+
+    const requests = stubTokenEndpoint(tokenResponse(validClaims));
+    expect(await standIn.exchange('c', 'v')).toMatchObject({ ok: true });
+    expect(requests[0]?.url).toBe('http://fake-google:4000/token');
   });
 
   it('accepts the issuer without a scheme and missing optional claims', async () => {

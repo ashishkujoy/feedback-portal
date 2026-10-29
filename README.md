@@ -164,10 +164,26 @@ docker compose down                      # add -v to also delete the database vo
 | `pnpm test` | unit + integration tests in every package | yes |
 | `pnpm --filter @feedback-portal/api test:unit` | API unit tests only | no |
 | `pnpm --filter @feedback-portal/api test:int` | API integration tests only | yes |
+| `pnpm e2e` | Playwright end-to-end tests against the Compose stack | yes |
 
 - **What the integration tests (`*.int.test.ts`) use:** a throwaway `postgres:18.6-alpine` container started by Testcontainers. It is separate from the Compose database.
 - **Isolation:** each test file gets its own database, cloned from a migrated template, and tables are emptied before each test.
 - **Docker connection:** Testcontainers uses `DOCKER_HOST`. With Colima that is `unix://$HOME/.colima/default/docker.sock`.
+
+### End-to-end tests
+
+`pnpm e2e` exercises the main path in Chromium:
+1. sign in;
+2. give feedback from My pending;
+3. record the conversation that delivers it;
+4. comment on it.
+
+It also checks that an unknown email is turned away, and that sign-out works.
+- **The stack:** `e2e/compose.yml` builds the production api and web images and starts them with a throwaway database. It also starts a **stand-in for Google** (`e2e/fake-google`), which asks for an email instead of a Google account.
+- **Isolation:** the stack is a separate Compose project with no host ports. It never touches the dev stack's data, and both can run at once.
+- **The run:** Playwright runs in its own container, sharing the web container's network, so the app is at `http://localhost:8080` and the production Secure cookie works. Afterwards the stack and its data are removed.
+- **Failures:** traces and screenshots go to `e2e/test-results`, along with the api's log (`stack.log`). The HTML report goes to `e2e/playwright-report` (`pnpm --filter @feedback-portal/e2e exec playwright show-report`).
+- **Not part of `pnpm check`:** the first build takes a few minutes.
 
 ## Docs
 

@@ -226,7 +226,36 @@ describe('loadConfig', () => {
         clientId: 'client-id',
         clientSecret: 'client-secret',
         redirectUri: 'http://localhost:5173/api/auth/google/callback',
+        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+        tokenEndpoint: 'https://oauth2.googleapis.com/token',
       });
+    });
+
+    it('takes a stand-in for Google from the endpoint URLs', () => {
+      const { auth } = loadConfig({
+        ...validEnv,
+        ...google,
+        GOOGLE_AUTHORIZATION_URL: 'http://fake-google:4000/authorize',
+        GOOGLE_TOKEN_URL: 'http://fake-google:4000/token',
+      });
+
+      expect(auth.google).toMatchObject({
+        authorizationEndpoint: 'http://fake-google:4000/authorize',
+        tokenEndpoint: 'http://fake-google:4000/token',
+      });
+    });
+
+    it('rejects endpoint URLs that are not http(s)', () => {
+      expect(
+        issuesFor({
+          ...validEnv,
+          GOOGLE_AUTHORIZATION_URL: 'fake-google/authorize',
+          GOOGLE_TOKEN_URL: 'ftp://fake-google/token',
+        }),
+      ).toEqual([
+        { key: 'GOOGLE_AUTHORIZATION_URL', message: 'expected an http:// or https:// URL' },
+        { key: 'GOOGLE_TOKEN_URL', message: 'expected an http:// or https:// URL' },
+      ]);
     });
 
     it('uses the supplied URLs, without a trailing slash on the web app', () => {

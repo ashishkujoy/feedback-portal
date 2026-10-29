@@ -1,0 +1,12 @@
+# Allow-list for e2e/Dockerfile (BuildKit reads this instead of the root .dockerignore).
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!.npmrc
+!packages/*/package.json
+!packages/tsconfig/*.json
+!e2e/package.json
+!e2e/playwright.config.ts
+!e2e/tsconfig.json
+!e2e/tests

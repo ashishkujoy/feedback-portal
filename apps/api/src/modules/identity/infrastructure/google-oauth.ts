@@ -3,8 +3,6 @@ import { z } from 'zod';
 import type { GoogleConfig } from '../../../shared/config/config.ts';
 import type { GoogleAuth } from '../application/google-auth.ts';
 
-const authorizationEndpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
-const tokenEndpoint = 'https://oauth2.googleapis.com/token';
 const scopes = 'openid email profile';
 
 /** The token endpoint couldn't be reached (network, DNS, TLS); `cause` has the details. */
@@ -62,12 +60,13 @@ const readJson = async (response: Response): Promise<unknown> => {
 };
 
 /**
- * Google sign-in: authorization code + PKCE against Google's endpoints. The ID token's signature
+ * Google sign-in: authorization code + PKCE against Google's endpoints (or, in end-to-end tests,
+ * a stand-in's). The ID token's signature
  * isn't checked: it comes straight from Google's token endpoint over TLS, which OIDC Core
  * §3.1.3.7 accepts instead. Its issuer, audience and expiry are checked.
  */
 export const createGoogleAuth = (
-  { clientId, clientSecret, redirectUri }: GoogleConfig,
+  { clientId, clientSecret, redirectUri, authorizationEndpoint, tokenEndpoint }: GoogleConfig,
   now: () => Date = () => new Date(),
 ): GoogleAuth => ({
   start: () => {

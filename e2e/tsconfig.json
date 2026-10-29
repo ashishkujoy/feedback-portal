@@ -1,0 +1,7 @@
+{
+  "extends": "@feedback-portal/tsconfig/node.json",
+  "compilerOptions": {
+    "lib": ["ES2024", "DOM"]
+  },
+  "include": ["tests", "fake-google", "*.config.ts"]
+}

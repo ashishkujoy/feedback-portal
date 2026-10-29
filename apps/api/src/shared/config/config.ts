@@ -16,6 +16,12 @@ const hasProtocol =
 const isPostgresUrl = hasProtocol('postgres:', 'postgresql:');
 const isHttpUrl = hasProtocol('http:', 'https:');
 
+/** Google's own endpoints: the defaults for `GOOGLE_AUTHORIZATION_URL` and `GOOGLE_TOKEN_URL`. */
+export const googleEndpoints = Object.freeze({
+  authorization: 'https://accounts.google.com/o/oauth2/v2/auth',
+  token: 'https://oauth2.googleapis.com/token',
+});
+
 const cloudinaryUrlError = 'expected cloudinary://<api_key>:<api_secret>@<cloud_name>';
 
 /** Cloudinary's own `CLOUDINARY_URL` format; `undefined` when it doesn't parse. */
@@ -83,6 +89,15 @@ const EnvSchema = z.object({
     .refine(isHttpUrl, { error: httpUrlError })
     // Through the web app's /api proxy, so the session cookie lands on the web origin.
     .default('http://localhost:5173/api/auth/google/callback'),
+  // Only for end-to-end tests against a stand-in; the defaults are Google's.
+  GOOGLE_AUTHORIZATION_URL: z
+    .string()
+    .refine(isHttpUrl, { error: httpUrlError })
+    .default(googleEndpoints.authorization),
+  GOOGLE_TOKEN_URL: z
+    .string()
+    .refine(isHttpUrl, { error: httpUrlError })
+    .default(googleEndpoints.token),
   // Where the browser goes after sign-in (and `/login` on failure).
   WEB_APP_URL: z
     .string()
@@ -143,6 +158,9 @@ export type GoogleConfig = Readonly<{
   /** Secret: never log it. */
   clientSecret: string;
   redirectUri: string;
+  /** Google's unless `GOOGLE_AUTHORIZATION_URL` / `GOOGLE_TOKEN_URL` point at a stand-in. */
+  authorizationEndpoint: string;
+  tokenEndpoint: string;
 }>;
 
 export type AuthConfig = Readonly<{
@@ -242,6 +260,8 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => {
     GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET,
     GOOGLE_REDIRECT_URI,
+    GOOGLE_AUTHORIZATION_URL,
+    GOOGLE_TOKEN_URL,
     WEB_APP_URL,
     CLOUDINARY_URL,
     CLOUDINARY_FOLDER,
@@ -275,6 +295,8 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => {
               clientId: GOOGLE_CLIENT_ID,
               clientSecret: GOOGLE_CLIENT_SECRET,
               redirectUri: GOOGLE_REDIRECT_URI,
+              authorizationEndpoint: GOOGLE_AUTHORIZATION_URL,
+              tokenEndpoint: GOOGLE_TOKEN_URL,
             })
           : null,
       webAppUrl: WEB_APP_URL.replace(/\/+$/, ''),

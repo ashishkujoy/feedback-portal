@@ -16,6 +16,7 @@ import { createCloudinaryPhotoStorage } from './modules/intern/infrastructure/cl
 import { createImportRuns } from './modules/intern/infrastructure/drizzle-import-runs.ts';
 import { createFeedbackTransaction } from './modules/feedback/infrastructure/drizzle-feedback-admin.ts';
 import { createInternAdminTransaction } from './modules/intern/infrastructure/drizzle-intern-admin.ts';
+import { googleEndpoints } from './shared/config/config.ts';
 import { loadConfigOrExit } from './shared/config/load-config-or-exit.ts';
 import { createDb } from './shared/db/client.ts';
 import { configureLogging, rootCategory } from './shared/logging/logging.ts';
@@ -40,6 +41,16 @@ if (config.telemetry.enabled && !isTelemetryStarted()) {
 
 if (!config.auth.google) {
   logger.warning('Google sign-in is not configured (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET)');
+}
+
+if (
+  config.auth.google &&
+  (config.auth.google.authorizationEndpoint !== googleEndpoints.authorization ||
+    config.auth.google.tokenEndpoint !== googleEndpoints.token)
+) {
+  logger.warning(
+    'Google sign-in uses a stand-in (GOOGLE_AUTHORIZATION_URL / GOOGLE_TOKEN_URL): tests only',
+  );
 }
 
 const now = (): Date => new Date();

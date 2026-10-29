@@ -9,6 +9,7 @@
     "build:web": "pnpm --filter @feedback-portal/web build",
     "db:seed": "pnpm --filter @feedback-portal/api db:seed",
     "dev:web": "pnpm --filter @feedback-portal/web dev",
+    "e2e": "sh e2e/run.sh",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "lint": "oxlint --type-aware --deny-warnings",
