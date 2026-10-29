@@ -7,7 +7,8 @@ import type { DbConfig } from '../config/config.ts';
 import { rootCategory } from '../logging/logging.ts';
 
 // Repositories use the core query builder, not the relational API, so no schema is attached.
-export type Database = NodePgDatabase;
+// `$client` is the pool: migrations hold their lock on one of its connections.
+export type Database = NodePgDatabase & { $client: Pool };
 
 /** The pool or a transaction: what repositories take, so a use case can compose them atomically. */
 export type DbExecutor = PgDatabase<NodePgQueryResultHKT>;

@@ -1,104 +1,45 @@
-# End-to-end stack: run with `pnpm e2e` from the repo root, which removes it afterwards.
-# Separate from docker-compose.yml: its own project, network and throwaway database, and no host
-# ports, so it never touches the dev stack's data and both can run at once.
+# End-to-end stack: the production stack (deploy/compose.yml) with what tests need on top.
+# `pnpm e2e` (e2e/run.sh) runs `docker compose -f deploy/compose.yml -f e2e/compose.yml` with the
+# settings in e2e/e2e.env, then removes it all. Paths here are relative to deploy/, the first file.
+# Its own project, network and throwaway database, and no host ports: it never touches another
+# stack's data, and both can run at once.
 name: feedback-portal-e2e
-
-x-api-image: &api-image
-  image: feedback-portal-e2e-api
-  build:
-    context: ..
-    dockerfile: apps/api/Dockerfile
-  init: true
-  environment: &api-environment
-    NODE_ENV: production
-    LOG_FORMAT: json
-    DATABASE_URL: postgres://feedback:feedback@postgres:5432/feedback_portal
-    PROGRAM_NAME: Sample Program
-    ORG_NAME: Sample Organisation
-    BOOTSTRAP_ADMIN_EMAIL: admin@e2e.test
-    BOOTSTRAP_ADMIN_NAME: Ada Admin
-
-# The browser opens the app on localhost (see the playwright service), so the cookie and redirects
-# name localhost:8080; the stand-in Google is reached by its service name.
-x-google: &google
-  GOOGLE_CLIENT_ID: e2e-client
-  GOOGLE_CLIENT_SECRET: e2e-secret
-  GOOGLE_REDIRECT_URI: http://localhost:8080/api/auth/google/callback
 
 services:
   postgres:
-    image: postgres:18.6-alpine
-    environment:
-      POSTGRES_USER: feedback
-      POSTGRES_PASSWORD: feedback
-      POSTGRES_DB: feedback_portal
     # Fresh on every run.
+    volumes: !reset []
     tmpfs:
       - /var/lib/postgresql
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U feedback -d feedback_portal']
-      interval: 2s
-      timeout: 3s
-      retries: 20
 
+  # Never a real deploy/.env (photos, telemetry): only the settings in e2e/e2e.env.
   migrate:
-    <<: *api-image
-    command: ['node', 'src/shared/db/migrate.cli.ts']
-    restart: 'no'
-    depends_on:
-      postgres:
-        condition: service_healthy
+    env_file: !reset []
 
-  # Makes admin@e2e.test the first admin.
   seed:
-    <<: *api-image
-    command: ['node', 'src/modules/identity/bootstrap-admin.cli.ts']
-    restart: 'no'
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-
-  # No OTLP endpoint: telemetry is off.
-  api:
-    <<: *api-image
+    env_file: !reset []
     environment:
-      <<: [*api-environment, *google]
-      HOST: 0.0.0.0
-      PORT: 3000
-      WEB_APP_URL: http://localhost:8080
+      BOOTSTRAP_ADMIN_EMAIL: admin@e2e.test
+      BOOTSTRAP_ADMIN_NAME: Ada Admin
+
+  # Google's endpoints are the stand-in's; the browser reaches it by its service name.
+  api:
+    env_file: !reset []
+    environment:
       GOOGLE_AUTHORIZATION_URL: http://fake-google:4000/authorize
       GOOGLE_TOKEN_URL: http://fake-google:4000/token
     depends_on:
-      seed:
-        condition: service_completed_successfully
       fake-google:
         condition: service_healthy
-    healthcheck:
-      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:3000/health || exit 1']
-      interval: 2s
-      timeout: 3s
-      retries: 30
 
-  # The production build behind nginx, without browser tracing.
   web:
-    image: feedback-portal-e2e-web
-    build:
-      context: ..
-      dockerfile: apps/web/Dockerfile
-    depends_on:
-      api:
-        condition: service_healthy
-    healthcheck:
-      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1']
-      interval: 2s
-      timeout: 3s
-      retries: 30
+    ports: !reset []
 
   # Google's sign-in and token endpoints, for test accounts only.
   fake-google:
     image: feedback-portal-e2e-fake-google
     build:
-      context: fake-google
+      context: ../e2e/fake-google
       dockerfile_inline: |
         FROM node:24.22.0-alpine3.24
         WORKDIR /app
@@ -106,14 +47,9 @@ services:
         USER node
         CMD ["node", "server.ts"]
     environment:
-      CLIENT_ID: e2e-client
-      CLIENT_SECRET: e2e-secret
-      REDIRECT_URI: http://localhost:8080/api/auth/google/callback
-    networks:
-      default:
-        # nginx's /otlp proxy names the collector and must resolve it at start-up; nothing is
-        # sent there, as the web build has no browser tracing.
-        aliases: [otel-lgtm]
+      CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      REDIRECT_URI: ${PUBLIC_URL}/api/auth/google/callback
     healthcheck:
       test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:4000/health || exit 1']
       interval: 2s
@@ -125,15 +61,16 @@ services:
     build:
       context: ..
       dockerfile: e2e/Dockerfile
-    # The web container's network: the app is http://localhost:8080, as for a person.
+    # The web container's network: the app is http://localhost:8080, as for a person, so the
+    # production cookie (Secure) works over plain http.
     network_mode: service:web
     ipc: host
     init: true
     environment:
       CI: '1'
     volumes:
-      - ./test-results:/app/e2e/test-results
-      - ./playwright-report:/app/e2e/playwright-report
+      - ../e2e/test-results:/app/e2e/test-results
+      - ../e2e/playwright-report:/app/e2e/playwright-report
     depends_on:
       web:
         condition: service_healthy

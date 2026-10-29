@@ -18,7 +18,7 @@ describe('loadConfig', () => {
   it('maps a valid env to nested config with defaults', () => {
     expect(loadConfig(validEnv)).toEqual({
       env: 'development',
-      server: { host: '0.0.0.0', port: 3000 },
+      server: { host: '0.0.0.0', port: 3000, trustProxy: false },
       log: { level: 'info', format: 'json' },
       db: { url: dbUrl, poolMax: 10 },
       branding: { programName: 'Test Program', orgName: 'Test Org' },
@@ -38,11 +38,18 @@ describe('loadConfig', () => {
       PORT: '8080',
       LOG_LEVEL: 'debug',
       LOG_FORMAT: 'pretty',
+      TRUST_PROXY: 'true',
     });
 
     expect(config.env).toBe('production');
-    expect(config.server).toEqual({ host: '127.0.0.1', port: 8080 });
+    expect(config.server).toEqual({ host: '127.0.0.1', port: 8080, trustProxy: true });
     expect(config.log).toEqual({ level: 'debug', format: 'pretty' });
+  });
+
+  it('accepts only true or false for TRUST_PROXY', () => {
+    expect(issuesFor({ ...validEnv, TRUST_PROXY: 'yes' })).toEqual([
+      { key: 'TRUST_PROXY', message: 'expected true or false' },
+    ]);
   });
 
   it('trims values', () => {

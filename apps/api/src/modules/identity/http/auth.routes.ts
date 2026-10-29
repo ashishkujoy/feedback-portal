@@ -23,6 +23,8 @@ export type AuthRoutesDeps = Readonly<{
   googleAuth: GoogleAuth | null;
   webAppUrl: string;
   secureCookies: boolean;
+  /** Sessions record the client from nginx's `X-Real-IP` (`TRUST_PROXY`); off by default. */
+  trustProxy?: boolean;
   now: () => Date;
 }>;
 
@@ -45,6 +47,7 @@ export const authRoutes = ({
   googleAuth,
   webAppUrl,
   secureCookies,
+  trustProxy = false,
   now,
 }: AuthRoutesDeps) => {
   const cookieOptions = { secure: secureCookies };
@@ -88,7 +91,10 @@ export const authRoutes = ({
           { users, sessions, now },
           {
             identity: exchanged.identity,
-            metadata: { userAgent: c.req.header('user-agent') ?? null, ip: clientIp(c) },
+            metadata: {
+              userAgent: c.req.header('user-agent') ?? null,
+              ip: clientIp(c, { trustProxy }),
+            },
           },
         );
         if (!result.ok) return reject(c, result.reason, result.userId);

@@ -152,4 +152,4 @@ Update the status in both `PLAN.md` and the board below whenever it changes.
 | 11.1 Batch dashboard | [`phase/11-dashboards-polish/01-batch-dashboard`](phase/11-dashboards-polish/01-batch-dashboard/PLAN.md) | Done |
 | 11.2 "My pending" view | [`phase/11-dashboards-polish/02-my-pending-view`](phase/11-dashboards-polish/02-my-pending-view/PLAN.md) | Done |
 | 11.3 Playwright E2E | [`phase/11-dashboards-polish/03-playwright-e2e`](phase/11-dashboards-polish/03-playwright-e2e/PLAN.md) | Done |
-| 11.4 Production build | [`phase/11-dashboards-polish/04-production-build`](phase/11-dashboards-polish/04-production-build/PLAN.md) | Not started |
+| 11.4 Production build | [`phase/11-dashboards-polish/04-production-build`](phase/11-dashboards-polish/04-production-build/PLAN.md) | Done |

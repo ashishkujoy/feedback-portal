@@ -9,6 +9,21 @@ const comment = 'Agreed: the tests made the review quick.';
 // Each step builds on the one before; every test signs in afresh, in its own browser context.
 test.describe.configure({ mode: 'serial' });
 
+// nginx's Content-Security-Policy must let the app work: Chromium reports each blocked load or
+// inline style as a console error.
+let violations: string[] = [];
+test.beforeEach(({ page }) => {
+  violations = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error' && /Content Security Policy/i.test(message.text())) {
+      violations.push(message.text());
+    }
+  });
+});
+test.afterEach(() => {
+  expect(violations).toEqual([]);
+});
+
 let batch: Batch;
 const profilePath = () => `/batches/${batch.batchId}/interns/${batch.internId}`;
 

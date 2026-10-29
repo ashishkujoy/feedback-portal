@@ -61,6 +61,8 @@ services:
       <<: *api-environment
       HOST: 0.0.0.0
       PORT: 3000
+      # Sessions record the browser's address from nginx's X-Real-IP.
+      TRUST_PROXY: 'true'
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
       OTEL_METRIC_EXPORT_INTERVAL: 10000
     ports:
@@ -86,6 +88,8 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         VITE_OTEL_TRACES_URL: /otlp/v1/traces
+    environment:
+      OTLP_UPSTREAM: otel-lgtm:4318
     ports:
       - '5173:8080' # the api's default WEB_APP_URL; same port as `pnpm dev:web`, run one or the other
     depends_on:

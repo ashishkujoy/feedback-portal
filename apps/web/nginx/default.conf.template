@@ -1,0 +1,85 @@
+# The web app's origin: static files, plus the api (and, when configured, a trace collector)
+# behind it. The image's entrypoint renders this with envsubst at start-up, from:
+#   OTLP_UPSTREAM    host:port of an OTLP/HTTP collector for browser traces; empty: /otlp is a 404
+#   CSP_IMG_SRC      origins images may load from besides this one (photos, Google avatars)
+#   CSP_CONNECT_SRC  origins the page may call besides this one (photo uploads)
+# Defaults are set in apps/web/Dockerfile; TRUSTED_PROXIES is applied by 25-real-ip.sh.
+
+# Docker's (or the host's) DNS, from /etc/resolv.conf: upstreams are looked up while running.
+resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
+
+upstream api {
+  zone api 64k;
+  # Re-resolved while running, so a redeployed api (a new container address) is found without
+  # restarting nginx.
+  server api:3000 resolve;
+}
+
+server {
+  listen 8080;
+  server_tokens off;
+  root /usr/share/nginx/html;
+
+  gzip on;
+  gzip_vary on;
+  gzip_min_length 1024;
+  gzip_types text/css application/javascript application/json image/svg+xml;
+
+  # On every response, including from locations that add headers of their own.
+  add_header_inherit merge;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  add_header X-Frame-Options "DENY" always;
+  add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;
+  # Inline styles only: React sets some style attributes. Scripts come from this origin alone;
+  # Vite inlines small font files as data: URIs.
+  add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: ${CSP_IMG_SRC}; connect-src 'self' ${CSP_CONNECT_SRC}; font-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+
+  # The api stays at its root: the trailing slash strips /api, as the Vite proxy does. Host and
+  # Origin pass through as the browser sent them, so CSRF checks and redirects see this origin.
+  # X-Real-IP is always overwritten with the client nginx saw (the api trusts it with TRUST_PROXY).
+  location /api/ {
+    proxy_pass http://api/;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+  }
+
+  # Browser traces (OTLP/HTTP) to the collector, without CORS or exposing its port to the page.
+  location /otlp/ {
+    client_max_body_size 1m;
+    set $otlp_upstream "${OTLP_UPSTREAM}";
+    if ($otlp_upstream = "") {
+      return 404;
+    }
+    rewrite ^/otlp/(.*)$ /$1 break;
+    proxy_pass http://$otlp_upstream;
+  }
+
+  location = /healthz {
+    access_log off;
+    default_type text/plain;
+    return 200 "ok\n";
+  }
+
+  # Hashed file names: a new build gets new names. `^~` so the file-extension regex below doesn't
+  # take these requests (and their caching) over.
+  location ^~ /assets/ {
+    add_header Cache-Control "public, max-age=31536000, immutable";
+    try_files $uri =404;
+  }
+
+  # A missing file (e.g. /favicon.ico) is a 404, not the app's HTML. Routes have no extension.
+  location ~ \.[A-Za-z0-9]+$ {
+    try_files $uri =404;
+  }
+
+  # Client-side routes (/batches, /login?error=…) all get index.html, which is always revalidated.
+  location / {
+    try_files $uri /index.html;
+  }
+
+  # Exact, so the fallback above (an internal redirect) lands here, not in the regex.
+  location = /index.html {
+    add_header Cache-Control "no-cache";
+  }
+}

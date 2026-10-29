@@ -1,0 +1,128 @@
+# Production stack on one host; see README → "Deploying". From the repo root:
+#   docker compose -f deploy/compose.yml up -d --build --wait
+# Settings come from deploy/.env (copy deploy/.env.example). HTTPS is terminated in front of the
+# web port by a load balancer or proxy: the session cookie is Secure.
+#
+# Every `up` runs `migrate` first; the api is (re)started only once it succeeds, so a failed
+# migration leaves the running api as it was.
+name: feedback-portal-prod
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '5'
+
+x-api-image: &api-image
+  image: ${IMAGE_REGISTRY:-}feedback-portal-api:${IMAGE_TAG:-latest}
+  build:
+    context: ..
+    dockerfile: apps/api/Dockerfile
+  init: true
+  logging: *logging
+  # Optional settings (photos, the first admin, telemetry) are passed through when set.
+  env_file:
+    - path: .env
+      required: false
+  environment: &api-environment
+    NODE_ENV: production
+    LOG_FORMAT: json
+    PROGRAM_NAME: ${PROGRAM_NAME:?set PROGRAM_NAME in deploy/.env}
+    ORG_NAME: ${ORG_NAME:?set ORG_NAME in deploy/.env}
+    # The bundled database, unless DATABASE_URL points at another (e.g. a managed one).
+    DATABASE_URL: ${DATABASE_URL:-postgres://feedback:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}@postgres:5432/feedback_portal}
+
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: feedback
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      POSTGRES_DB: feedback_portal
+    # No published port: only the stack reaches it.
+    volumes:
+      # Postgres 18 images keep PGDATA under /var/lib/postgresql/18/docker.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U feedback -d feedback_portal']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Applies pending migrations, then exits; nothing to apply is a no-op. Holds a lock, so two
+  # deploys at once apply each migration once.
+  migrate:
+    <<: *api-image
+    command: ['node', 'src/shared/db/migrate.cli.ts']
+    restart: 'no'
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+
+  # Makes BOOTSTRAP_ADMIN_EMAIL an active admin when there is none; otherwise does nothing.
+  seed:
+    <<: *api-image
+    command: ['node', 'src/modules/identity/bootstrap-admin.cli.ts']
+    restart: 'no'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  api:
+    <<: *api-image
+    restart: unless-stopped
+    environment:
+      <<: *api-environment
+      HOST: 0.0.0.0
+      PORT: 3000
+      WEB_APP_URL: ${PUBLIC_URL:?set PUBLIC_URL (https://…) in deploy/.env}
+      GOOGLE_REDIRECT_URI: ${PUBLIC_URL}/api/auth/google/callback
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?set GOOGLE_CLIENT_ID in deploy/.env}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?set GOOGLE_CLIENT_SECRET in deploy/.env}
+      # Only nginx reaches the api, and it overwrites X-Real-IP with the client it saw.
+      TRUST_PROXY: 'true'
+    # No published port: the web container forwards /api.
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:3000/health || exit 1']
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+
+  web:
+    image: ${IMAGE_REGISTRY:-}feedback-portal-web:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Browser tracing: off unless set (e.g. /otlp/v1/traces, with OTLP_UPSTREAM).
+        VITE_OTEL_TRACES_URL: ${WEB_OTEL_TRACES_URL:-}
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      OTLP_UPSTREAM: ${OTLP_UPSTREAM:-}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+    # The TLS proxy's upstream. Loopback by default (a proxy on this host); set WEB_BIND=0.0.0.0
+    # for a load balancer elsewhere.
+    ports:
+      - '${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}:8080'
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1']
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+volumes:
+  postgres-data:

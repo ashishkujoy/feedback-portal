@@ -85,8 +85,9 @@ feedback-portal/
   packages/
     contracts/      # Zod schemas + types (API DTOs, enums: ColorCode, InternStatus, Role)
     tsconfig/       # shared TS configs
-  docker/
-  docker-compose.yml   # postgres, api, web, otel-lgtm
+  deploy/            # production Compose, deploy.sh, .env.example
+  e2e/               # Playwright tests, the stand-in Google, the test stack (over deploy/)
+  docker-compose.yml   # local: postgres, api, web, otel-lgtm
   PRODUCT.md
   TECH_STACK.md
 ```
@@ -99,6 +100,18 @@ feedback-portal/
 | `api` | Hono API | 3000 |
 | `web` | The production build served by nginx, which forwards `/api` to the API and `/otlp` to the collector (`pnpm dev:web` for development) | 5173 |
 | `otel-lgtm` | OTel Collector + Grafana UI | 4317/4318 (OTLP), 3001 (Grafana) |
+
+### Production (`deploy/compose.yml`, one host)
+
+| Service | Purpose | Port |
+|---|---|---|
+| `postgres` | Postgres 18.6, named volume, password from `deploy/.env` (or `DATABASE_URL` for another database) | none |
+| `migrate` | One-shot: applies pending migrations under an advisory lock. `deploy/deploy.sh` runs it **before** `up`, so a failed migration leaves the running api as it was | — |
+| `seed` | One-shot: the first admin from `BOOTSTRAP_ADMIN_EMAIL`, when there's none | — |
+| `api` | Hono API; `TRUST_PROXY=true` (the client address from nginx's `X-Real-IP`) | none |
+| `web` | nginx: the static build, `/api` → api (re-resolved, so a new api container is found), optional `/otlp` (`OTLP_UPSTREAM`), security headers and a CSP, gzip. `TRUSTED_PROXIES` takes the client from a load balancer's `X-Forwarded-For` | `WEB_BIND:WEB_PORT` (127.0.0.1:8080), behind TLS |
+
+HTTPS is terminated in front of `web`, by a load balancer or a proxy such as Caddy. Telemetry goes to any OTLP backend (`OTEL_EXPORTER_OTLP_ENDPOINT`); Grafana LGTM is local-only.
 
 ## 6. Configuration
 

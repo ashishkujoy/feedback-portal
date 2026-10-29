@@ -179,11 +179,51 @@ docker compose down                      # add -v to also delete the database vo
 4. comment on it.
 
 It also checks that an unknown email is turned away, and that sign-out works.
-- **The stack:** `e2e/compose.yml` builds the production api and web images and starts them with a throwaway database. It also starts a **stand-in for Google** (`e2e/fake-google`), which asks for an email instead of a Google account.
+- **The stack:** the production stack (`deploy/compose.yml`), with `e2e/compose.yml` and `e2e/e2e.env` on top. Those add a throwaway database, no published ports, and a **stand-in for Google** (`e2e/fake-google`), which asks for an email instead of a Google account. The tests also fail on any Content-Security-Policy violation.
 - **Isolation:** the stack is a separate Compose project with no host ports. It never touches the dev stack's data, and both can run at once.
 - **The run:** Playwright runs in its own container, sharing the web container's network, so the app is at `http://localhost:8080` and the production Secure cookie works. Afterwards the stack and its data are removed.
 - **Failures:** traces and screenshots go to `e2e/test-results`, along with the api's log (`stack.log`). The HTML report goes to `e2e/playwright-report` (`pnpm --filter @feedback-portal/e2e exec playwright show-report`).
 - **Not part of `pnpm check`:** the first build takes a few minutes.
+
+## Deploying
+
+`deploy/` runs the app on one host with Docker Compose. It brings up Postgres, the migrate and seed jobs, the api, and the web container (nginx).
+- **HTTPS:** terminate it in front of the web container, with a load balancer or a proxy on the host. The session cookie is Secure.
+- **Telemetry:** none by default. Set an OTLP endpoint in `deploy/.env` to send it to any OTLP backend.
+
+**First deploy:**
+```sh
+cp deploy/.env.example deploy/.env    # then fill it in; keep it private
+deploy/deploy.sh --build              # or --pull with IMAGE_REGISTRY / IMAGE_TAG
+```
+- **Missing settings:** Compose stops and names any required setting that isn't set: `PUBLIC_URL`, `PROGRAM_NAME`, `ORG_NAME`, `POSTGRES_PASSWORD`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+- **Google's OAuth client** needs `<PUBLIC_URL>/api/auth/google/callback` as a redirect URI.
+- **The first admin:** set `BOOTSTRAP_ADMIN_EMAIL` before the first deploy.
+
+**Each deploy** (`deploy/deploy.sh`) runs the pending migrations **on their own first**, then `up --wait`.
+- **If a migration fails,** the deploy stops with its error and the running app keeps serving. Running `docker compose up` directly would replace the api's container before the migration runs, so a failure would take the site down.
+- **Two deploys at once** are safe: migrations hold a Postgres lock.
+
+**Rolling back** to an earlier image: set `IMAGE_TAG` to it and run `deploy/deploy.sh`. Migrations only go forward, so a rollback across a migration needs that migration to be compatible with the older code, or a restore.
+
+**HTTPS with Caddy on the same host** (automatic certificates; the web container listens on `127.0.0.1:8080` by default):
+```
+feedback.example.com {
+  reverse_proxy 127.0.0.1:8080
+}
+```
+- **With a load balancer elsewhere:** set `WEB_BIND=0.0.0.0`, and set `TRUSTED_PROXIES` to the balancer's address range, so sessions record the client's IP rather than the balancer's.
+- **Other nginx settings** (environment variables of the web container; defaults in `apps/web/Dockerfile`):
+  - `OTLP_UPSTREAM`: a collector for browser traces, with `WEB_OTEL_TRACES_URL=/otlp/v1/traces` at build time;
+  - `CSP_IMG_SRC` and `CSP_CONNECT_SRC`: the Content-Security-Policy's outside origins (Cloudinary and Google avatars).
+
+**Backups:** none are scheduled; run them from cron or similar. From the repo root:
+```sh
+docker compose -f deploy/compose.yml exec -T postgres pg_dump -U feedback -Fc feedback_portal > backup.dump
+docker compose -f deploy/compose.yml exec -T postgres pg_restore -U feedback -d feedback_portal --clean --if-exists < backup.dump
+```
+
+**Logs:** `docker compose -f deploy/compose.yml logs -f api`. Logs are JSON, rotated at 5 × 10 MB per container.
 
 ## Docs
 

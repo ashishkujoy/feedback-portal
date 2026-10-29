@@ -72,6 +72,9 @@ const EnvSchema = z.object({
   // Standard OpenTelemetry names. Telemetry is on only when an endpoint is set.
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().refine(isHttpUrl, { error: httpUrlError }).optional(),
   OTEL_SERVICE_NAME: z.string().default('feedback-portal-api'),
+  // Behind the web container's nginx, which overwrites X-Real-IP with the client it saw. Never set
+  // it when clients can reach the api directly: they could then claim any address.
+  TRUST_PROXY: z.enum(['true', 'false'], { error: 'expected true or false' }).default('false'),
   OTEL_SDK_DISABLED: z
     .enum(['true', 'false'], { error: 'expected true or false' })
     .default('false'),
@@ -140,7 +143,8 @@ type EnvKey = (typeof envKeys)[number];
 
 export type Config = Readonly<{
   env: 'development' | 'test' | 'production';
-  server: Readonly<{ host: string; port: number }>;
+  /** `trustProxy`: take the client's address from nginx's `X-Real-IP`. */
+  server: Readonly<{ host: string; port: number; trustProxy: boolean }>;
   log: LogConfig;
   db: DbConfig;
   branding: Readonly<{ programName: string; orgName: string }>;
@@ -246,6 +250,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => {
   const {
     NODE_ENV,
     HOST,
+    TRUST_PROXY,
     PORT,
     LOG_LEVEL,
     LOG_FORMAT,
@@ -283,7 +288,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv): Config => {
   const cloudinary = CLOUDINARY_URL ? parseCloudinaryUrl(CLOUDINARY_URL) : undefined;
   return Object.freeze({
     env: NODE_ENV,
-    server: Object.freeze({ host: HOST, port: PORT }),
+    server: Object.freeze({ host: HOST, port: PORT, trustProxy: TRUST_PROXY === 'true' }),
     log: Object.freeze({ level: LOG_LEVEL, format: LOG_FORMAT }),
     db: Object.freeze({ url: DATABASE_URL, poolMax: DATABASE_POOL_MAX }),
     branding: Object.freeze({ programName: PROGRAM_NAME, orgName: ORG_NAME }),

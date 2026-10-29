@@ -11,7 +11,7 @@
 !apps/web/index.html
 !apps/web/vite.config.ts
 !apps/web/tsconfig.json
-!apps/web/nginx.conf
+!apps/web/nginx
 !apps/web/src
 
 # Tests and test helpers never reach the image.

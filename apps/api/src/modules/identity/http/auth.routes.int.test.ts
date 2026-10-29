@@ -48,7 +48,7 @@ const fakeGoogle = (
   return { google, calls };
 };
 
-const appWith = (googleAuth: GoogleAuth | null, secureCookies = false) =>
+const appWith = (googleAuth: GoogleAuth | null, secureCookies = false, trustProxy = false) =>
   createBaseApp().route(
     '/auth',
     authRoutes({
@@ -57,6 +57,7 @@ const appWith = (googleAuth: GoogleAuth | null, secureCookies = false) =>
       googleAuth,
       webAppUrl,
       secureCookies,
+      trustProxy,
       now: () => now,
     }),
   );
@@ -69,6 +70,13 @@ const callback = (
   query = `code=the-code&state=${state}`,
   cookie = flowCookies(),
 ) => app.request(`/auth/google/callback?${query}`, { headers: { cookie, 'user-agent': 'ua/1' } });
+
+/** A sign-in through nginx, which set X-Real-IP; the api trusts it only with `trustProxy`. */
+const signInFromProxy = (trustProxy: boolean) =>
+  appWith(fakeGoogle().google, false, trustProxy).request(
+    `/auth/google/callback?code=the-code&state=${state}`,
+    { headers: { cookie: flowCookies(), 'x-real-ip': '203.0.113.7' } },
+  );
 
 const setCookies = (response: Response): string[] => response.headers.getSetCookie();
 
@@ -147,6 +155,17 @@ describe('GET /auth/google/callback', () => {
       lastLoginAt: now,
       name: 'Name From Admin', // not overwritten by Google's name
     });
+  });
+
+  it("records the client from nginx's X-Real-IP only when the proxy is trusted", async () => {
+    await savedUser();
+
+    expect((await signInFromProxy(false)).status).toBe(302);
+    expect((await sessionRows()).map((row) => row.ip)).toEqual([null]);
+    expect((await signInFromProxy(true)).status).toBe(302);
+    expect((await sessionRows()).map((row) => row.ip)).toEqual(
+      expect.arrayContaining([null, '203.0.113.7']),
+    );
   });
 
   it('signs in with prefixed cookies in production', async () => {

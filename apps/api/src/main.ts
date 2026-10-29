@@ -60,6 +60,7 @@ const auth = {
   googleAuth: config.auth.google ? createGoogleAuth(config.auth.google) : null,
   webAppUrl: config.auth.webAppUrl,
   secureCookies: config.auth.secureCookies,
+  trustProxy: config.server.trustProxy,
   now,
 };
 
