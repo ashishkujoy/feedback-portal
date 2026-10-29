@@ -122,7 +122,7 @@ const batchIndexRoute = createRoute({
   path: '/',
   // The tab and the roster's view, filter and search (7.4 decision 3); bad values are dropped.
   validateSearch: z.object({
-    tab: z.enum(['interns', 'mentors']).optional().catch(undefined),
+    tab: z.enum(['overview', 'interns', 'mentors']).optional().catch(undefined),
     view: z.enum(['cards', 'table']).optional().catch(undefined),
     filter: RosterFilter.optional().catch(undefined),
     q: z.string().optional().catch(undefined),

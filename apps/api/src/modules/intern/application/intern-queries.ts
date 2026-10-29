@@ -1,6 +1,7 @@
 import type { ExistingIntern } from './import-preview.ts';
 import type { ColorCode, InternStatus } from '@feedback-portal/contracts';
 import type { BatchId } from '../../cohort/domain/batch-id.ts';
+import type { BatchOverviewView } from './batch-overview.ts';
 
 /** An intern as the roster shows them. */
 export type InternSummaryView = Readonly<{
@@ -52,4 +53,6 @@ export type InternQueries = Readonly<{
   usernamesForBatch: (batchId: BatchId) => Promise<readonly ExistingIntern[]>;
   /** One intern of that batch; `null` if there's none with that id in it. */
   detail: (batchId: BatchId, internId: string) => Promise<InternDetailView | null>;
+  /** v2 A24's overview of the batch (11.1). */
+  overview: (batchId: BatchId) => Promise<BatchOverviewView>;
 }>;

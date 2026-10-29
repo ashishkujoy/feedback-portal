@@ -2,6 +2,7 @@ import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import type { DbExecutor } from '../../../shared/db/client.ts';
 import { users } from '../../identity/infrastructure/schema.ts';
 import type { InternQueries } from '../application/intern-queries.ts';
+import { createBatchOverview } from './drizzle-batch-overview.ts';
 import { internStatusEvents, interns } from './schema.ts';
 
 const summaryColumns = {
@@ -18,6 +19,7 @@ const summaryColumns = {
 
 // Display names only: like cohort's queries, these read `users` but never change it.
 export const createInternQueries = (db: DbExecutor): InternQueries => ({
+  overview: createBatchOverview(db),
   listForBatch: (batchId) =>
     db
       .select(summaryColumns)

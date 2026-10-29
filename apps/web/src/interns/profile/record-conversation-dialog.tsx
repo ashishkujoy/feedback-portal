@@ -96,6 +96,7 @@ type FormProps = Readonly<{
   entries: readonly FeedbackView[];
   target: ConversationTarget;
   onClose: () => void;
+  onSaved: (() => Promise<unknown>) | undefined;
 }>;
 
 /** Submitted feedback not yet delivered, newest first (the API's order). */
@@ -110,7 +111,7 @@ const choiceOf = (entry: FeedbackView): Choice => ({
   body: entry.body,
 });
 
-const ConversationForm = ({ intern, batch, entries, target, onClose }: FormProps) => {
+const ConversationForm = ({ intern, batch, entries, target, onClose, onSaved }: FormProps) => {
   const awaiting = awaitingDelivery(entries);
   const queryClient = useQueryClient();
   const fields = useRef<HTMLDivElement>(null);
@@ -143,6 +144,7 @@ const ConversationForm = ({ intern, batch, entries, target, onClose }: FormProps
       await Promise.all([
         refresh(conversationsQuery(intern.batchId, intern.id).queryKey),
         refresh(feedbackQuery(intern.batchId, intern.id).queryKey),
+        onSaved?.(),
       ]);
       onClose();
     },
@@ -320,6 +322,8 @@ type RecordConversationDialogProps = Readonly<{
   /** `null` while closed. */
   target: ConversationTarget | null;
   onClose: () => void;
+  /** Also refreshed after saving, such as the batch overview (11.1). */
+  onSaved?: () => Promise<unknown>;
 }>;
 
 const count = (n: number) => `${n} submitted feedback awaiting delivery`;
@@ -334,6 +338,7 @@ export const RecordConversationDialog = ({
   entries,
   target,
   onClose,
+  onSaved,
 }: RecordConversationDialogProps) => {
   const waiting = awaitingDelivery(entries).length;
   return (
@@ -355,6 +360,7 @@ export const RecordConversationDialog = ({
           entries={entries}
           target={target}
           onClose={onClose}
+          onSaved={onSaved}
         />
       ) : null}
     </Dialog>

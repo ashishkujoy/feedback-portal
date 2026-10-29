@@ -112,6 +112,8 @@ describe('tabs', () => {
     expect(
       screen.getAllByRole('tab').map((tab) => [tab.textContent, tab.getAttribute('aria-selected')]),
     ).toEqual([
+      // A manager: Overview is listed first, but Interns is the default (11.1 decision 1).
+      ['Overview', 'false'],
       ['Interns5', 'true'],
       ['Mentors3', 'false'],
     ]);

@@ -47,7 +47,7 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
 - **The success sentence is "\<Name\> is on the roster as Active, with no colour code."** (decision 3): no pronoun, and nothing about features not built yet.
 
 ### Batch page and roster (A2, A3, M2, A4) as built in 7.4
-- **Tabs:** only **Interns** (first) and **Mentors** (6.6's Mentors and Past members tables) for now (7.4 decision 1). Overview, Notice tracker and Imports come with their tasks.
+- **Tabs:** **Interns** and **Mentors** (6.6's Mentors and Past members tables) (7.4 decision 1), with **Overview** first for the batch's admins and PM since 11.1. Notice tracker and Imports aren't built.
 - **No feedback parts yet** (decision 2): cards have no "N feedback · date" or Give feedback, and their footer appears only for **Read-only**. The table has Intern, Colour code, Status and a Read-only column, without Feedback and Last feedback.
 - **Filters:** one at a time (decision 3). Choosing the selected tag again goes back to All. The tab, view, filter and search are in the URL (`?tab=mentors&view=table&filter=red&q=ish`), with the defaults left out; typing a search replaces the history entry.
 - **Order:** by name, ignoring case and accents; everything loads at once (decision 4).
@@ -172,6 +172,25 @@ These screens were built from v1 or improvised, and v2 now draws them. **Compare
   - 10 entries at first, then 10 more per click, worked out in the browser (decision 3);
   - drafts aren't counted, and N is what's still hidden.
 - **A link to a hidden entry** (a comment's, or a conversation's "Delivers …") shows everything down to that entry before the browser jumps to it (decision 4).
+
+### Overview (A24 / P24) as built in 11.1
+- **The tab** is listed first, for admins and the batch's PM, archived or not (it only reads), but **Interns stays the default** (11.1 decision 1). Mentors don't get it, and `?tab=overview` opens their roster. `GET /batches/:id/overview` is open to anyone who can see the batch (decision 5).
+- **Colour distribution:**
+  - "6 current interns, including 3 on notice. Excludes terminated and withdrawn.";
+  - v2's 16px bar of segments with 2px gaps (the colours present only);
+  - two columns of rows: dot and label (150px), a bar against the largest count, the count (600) and the percentage;
+  - "No current interns yet." with no bar.
+- **On notice:**
+  - rows soonest ending first: avatar, the name (linking to the profile), "Ends 3 Nov 2026 · issued by Vikram Shetty" (who made the change to On notice);
+  - "**5 days left**" in red-700 at 7 or fewer days, or a warning **Decision needed** once it has ended (the profile banner's count);
+  - "No one is on notice." when empty;
+  - **no Notice tracker button**, since P5 isn't built (decision 2).
+- **Feedback to deliver:**
+  - "5 submitted" in the header; rows newest first with avatar, name, "From Anjali Deshpande · 29 Oct 2026 · waiting today / 1 day / 5 days" (UTC days) and the colour chip;
+  - **only for interns whose record can change** (a read-only intern's feedback can't be delivered);
+  - "No feedback is waiting to be delivered." when empty.
+- **Record conversation** (outline, sm) is on each row for the batch's PM, not in an archived batch. It opens A8 on this page with that feedback chosen, and saving refreshes the overview, so the row goes (decision 4).
+- **Loading:** Skeletons in the cards' shapes. **A failed load:** "We couldn't load the overview".
 
 ### Import from Airtable (A10) as built in 8.5
 - **Where:** an outline **Import from Airtable** (`download`) between Add intern and Assign mentors, and as the primary button in the managers' empty roster ("Import interns from Airtable, or add them one at a time.", then Add intern). Admins and the batch's PM only, not on an archived batch.

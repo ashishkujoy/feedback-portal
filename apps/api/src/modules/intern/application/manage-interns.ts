@@ -49,6 +49,7 @@ import {
 import type { ImportError, ImportRuns } from './import-runs.ts';
 import { type ImportPreviewView, previewImport } from './import-preview.ts';
 import type { InternAdminScope, InternAdminTransaction } from './intern-admin.ts';
+import type { BatchOverviewView } from './batch-overview.ts';
 import type { InternDetailView, InternSummaryView } from './intern-queries.ts';
 import type { PhotoStorage, PhotoUploadTicketView, UploadedPhoto } from './photo-storage.ts';
 
@@ -115,6 +116,16 @@ export const listInterns = (
   transaction(async (scope) => {
     await ensureCanSee(scope, actor, batchId);
     return scope.queries.listForBatch(batchId);
+  });
+
+/** v2 A24's overview of a batch (11.1), for anyone who can see it; the tab is for its managers. */
+export const batchOverview = (
+  { transaction }: ManageInternsDeps,
+  { actor, batchId }: Readonly<{ actor: Actor; batchId: BatchId }>,
+): Promise<BatchOverviewView> =>
+  transaction(async (scope) => {
+    await ensureCanSee(scope, actor, batchId);
+    return scope.queries.overview(batchId);
   });
 
 /** One intern's profile, for anyone who can see the batch; an intern of another batch is a 404. */

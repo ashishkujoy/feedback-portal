@@ -9,6 +9,7 @@ export {
   MentorCandidate,
   SetMentorsRequest,
 } from './batch.ts';
+export { BatchOverview } from './batch-overview.ts';
 export { BatchMemberRole, batchMemberRoles } from './batch-member-role.ts';
 export { CommentParent, CommentRequest, CommentView } from './comment.ts';
 export { ColorCode, colorCodes, colorCodeSeverity, compareColorCodes } from './color-code.ts';

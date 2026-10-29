@@ -6,9 +6,11 @@ import { useState } from 'react';
 import { batchQuery, showUpdatedBatch, unassignMentor } from '../api/batches.ts';
 import { isApiError } from '../api/errors.ts';
 import { AssignMentorsDialog } from '../batches/assign-mentors-dialog.tsx';
+import { OverviewPanel } from '../batches/overview/overview-panel.tsx';
 import { today } from '../batches/batch-dates.ts';
 import { batchDates, batchStatus, statusBadges } from '../batches/batch-status.ts';
 import { canManageBatch } from '../batches/can-manage.ts';
+import { isAdmin } from '../identity/roles.ts';
 import { hasPastMembers, MentorsTable, PastMembersTable } from '../batches/members-table.tsx';
 import { AddInternDialog } from '../interns/add-intern-dialog.tsx';
 import { ImportDialog } from '../interns/import-dialog.tsx';
@@ -29,24 +31,26 @@ const SectionTitle = ({ id, children }: Readonly<{ id: string; children: string 
   </h2>
 );
 
-type Tab = 'interns' | 'mentors';
+type Tab = 'overview' | 'interns' | 'mentors';
 
 const panelId = 'batch-panel';
 
-const tabItems = (internCount: number, mentorCount: number): TabItem<Tab>[] => [
+/** v2 lists Overview first, for the batch's managers only (11.1); Interns stays the default (decision 1). */
+const tabItems = (internCount: number, mentorCount: number, overview: boolean): TabItem<Tab>[] => [
+  ...(overview ? [{ value: 'overview' as const, label: 'Overview' }] : []),
   { value: 'interns', label: 'Interns', count: internCount },
   { value: 'mentors', label: 'Mentors', count: mentorCount },
 ];
 
 /**
- * A2 / A3 / M2 / A4 · a batch: the header, then the Interns tab (the roster, 7.4) and the Mentors
- * tab (its current mentors and past members). Its managers (admins and its PM) get Add intern
- * (7.3), Import from Airtable (8.5), Assign mentors and Remove (6.6). v2's other tabs come with
- * their tasks.
+ * A2 / A3 / M2 / A4 / A24 · a batch: the header, then for its managers the Overview tab (11.1),
+ * the Interns tab (the roster, 7.4) and the Mentors tab (its current mentors and past members).
+ * Its managers (admins and its PM) get Add intern (7.3), Import from Airtable (8.5), Assign
+ * mentors and Remove (6.6). v2's other tabs come with their tasks.
  */
 export const BatchPage = () => {
   const { batchId } = route.useParams();
-  const { tab = 'interns', view = 'cards', filter = 'all', q = '' } = route.useSearch();
+  const { tab: asked = 'interns', view = 'cards', filter = 'all', q = '' } = route.useSearch();
   const navigate = route.useNavigate();
   const me = useMe();
   const queryClient = useQueryClient();
@@ -86,6 +90,12 @@ export const BatchPage = () => {
   const status = batchStatus(batch, today());
   const badge = statusBadges[status];
   const manages = me ? canManageBatch(me, batch) : false;
+  // The Overview is for the batch's admins and PM, archived or not (it only reads); mentors don't
+  // get it, and a link to it opens the roster instead.
+  const seesOverview = me ? isAdmin(me) || batch.programManager.id === me.id : false;
+  const tab: Tab = asked === 'overview' && !seesOverview ? 'interns' : asked;
+  // Record conversation is the batch's current PM's (10.2), not in an archived batch.
+  const canRecord = me?.id === batch.programManager.id && !batch.isArchived;
 
   return (
     <>
@@ -139,7 +149,7 @@ export const BatchPage = () => {
       ) : null}
       <Tabs
         label="Batch"
-        items={tabItems(batch.interns.total, batch.mentorCount)}
+        items={tabItems(batch.interns.total, batch.mentorCount, seesOverview)}
         value={tab}
         controls={panelId}
         onChange={(next) => setSearch({ tab: next })}
@@ -150,6 +160,7 @@ export const BatchPage = () => {
         aria-labelledby={tabId(panelId, tab)}
         className="flex flex-col gap-6"
       >
+        {tab === 'overview' ? <OverviewPanel batch={batch} canRecord={canRecord} /> : null}
         {tab === 'interns' ? (
           <RosterPanel
             batch={batch}
@@ -160,7 +171,8 @@ export const BatchPage = () => {
             onAddIntern={manages ? () => setAddingIntern(true) : undefined}
             onImport={manages ? () => setImporting(true) : undefined}
           />
-        ) : (
+        ) : null}
+        {tab === 'mentors' ? (
           <>
             <section aria-labelledby="batch-mentors" className="flex flex-col gap-3">
               <SectionTitle id="batch-mentors">Mentors</SectionTitle>
@@ -187,7 +199,7 @@ export const BatchPage = () => {
               </section>
             ) : null}
           </>
-        )}
+        ) : null}
       </div>
     </>
   );
